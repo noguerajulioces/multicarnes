@@ -1,8 +1,128 @@
 import { useState } from 'react'
 import { formatGs, formatDateTime, todayStr } from '../../lib/utils'
+import { exportToExcel, exportToPDF } from '../../lib/export'
 import type { Sale } from '@shared/types'
+import { FileSpreadsheet, FileText } from 'lucide-react'
 
 type Tab = 'ventas' | 'productos' | 'margen' | 'stock' | 'caja'
+
+interface ReportConfig {
+  columns: { header: string; key: string; align?: 'left' | 'right' | 'center'; width?: number }[]
+  title: string
+  filename: string
+}
+
+const reportConfigs: Record<Tab, ReportConfig> = {
+  ventas: {
+    title: 'Reporte de Ventas',
+    filename: 'ventas',
+    columns: [
+      { header: 'Fecha', key: '_fecha', width: 18 },
+      { header: 'N°', key: '_num', width: 8 },
+      { header: 'Cliente', key: 'customer_name', width: 20 },
+      { header: 'Total', key: '_total', align: 'right', width: 15 },
+      { header: 'Método', key: '_method', width: 14 },
+      { header: 'Cajero', key: 'user_name', width: 18 }
+    ]
+  },
+  productos: {
+    title: 'Productos Más Vendidos',
+    filename: 'productos_vendidos',
+    columns: [
+      { header: 'Producto', key: 'product_name', width: 25 },
+      { header: 'Categoría', key: 'category_name', width: 15 },
+      { header: 'Cant. Vendida', key: 'total_quantity', align: 'right', width: 14 },
+      { header: 'Total Recaudado', key: '_revenue', align: 'right', width: 18 }
+    ]
+  },
+  margen: {
+    title: 'Margen de Ganancia',
+    filename: 'margen_ganancia',
+    columns: [
+      { header: 'Producto', key: 'product_name', width: 25 },
+      { header: 'P. Venta', key: '_sale_price', align: 'right', width: 15 },
+      { header: 'Últ. Costo', key: '_last_cost', align: 'right', width: 15 },
+      { header: 'Margen (Gs.)', key: '_margin', align: 'right', width: 15 },
+      { header: 'Margen %', key: '_pct', align: 'right', width: 12 }
+    ]
+  },
+  stock: {
+    title: 'Movimientos de Stock',
+    filename: 'mov_stock',
+    columns: [
+      { header: 'Fecha', key: '_fecha', width: 18 },
+      { header: 'Producto', key: 'product_name', width: 22 },
+      { header: 'Antes', key: 'quantity_before', align: 'right', width: 10 },
+      { header: 'Después', key: 'quantity_after', align: 'right', width: 10 },
+      { header: 'Motivo', key: 'reason', width: 22 },
+      { header: 'Usuario', key: 'user_name', width: 16 }
+    ]
+  },
+  caja: {
+    title: 'Cierres de Caja',
+    filename: 'cierres_caja',
+    columns: [
+      { header: 'Apertura', key: '_opened', width: 18 },
+      { header: 'Cierre', key: '_closed', width: 18 },
+      { header: 'Cajero', key: 'user_name', width: 18 },
+      { header: 'Esperado', key: '_expected', align: 'right', width: 15 },
+      { header: 'Contado', key: '_closing', align: 'right', width: 15 },
+      { header: 'Diferencia', key: '_diff', align: 'right', width: 15 }
+    ]
+  }
+}
+
+function prepareExportData(tab: Tab, data: unknown[]): Record<string, unknown>[] {
+  const methodLabels: Record<string, string> = {
+    cash: 'Efectivo', credit: 'Fiado', transfer: 'Transferencia', mixed: 'Mixto'
+  }
+
+  switch (tab) {
+    case 'ventas':
+      return (data as Sale[]).map((s) => ({
+        ...s,
+        _fecha: formatDateTime(s.created_at),
+        _num: `#${s.id}`,
+        customer_name: s.customer_name || '-',
+        _total: formatGs(s.total),
+        _method: methodLabels[s.payment_method] || s.payment_method
+      }))
+    case 'productos':
+      return (data as { product_name: string; category_name: string; total_quantity: number; total_revenue: number }[]).map((r) => ({
+        ...r,
+        category_name: r.category_name || '-',
+        _revenue: formatGs(r.total_revenue)
+      }))
+    case 'margen':
+      return (data as { product_name: string; sale_price: number; last_cost: number | null }[]).map((r) => {
+        const margin = r.last_cost ? r.sale_price - r.last_cost : null
+        const pct = margin && r.last_cost ? ((margin / r.last_cost) * 100).toFixed(1) + '%' : '-'
+        return {
+          ...r,
+          _sale_price: formatGs(r.sale_price),
+          _last_cost: r.last_cost ? formatGs(r.last_cost) : '-',
+          _margin: margin ? formatGs(margin) : '-',
+          _pct: pct
+        }
+      })
+    case 'stock':
+      return (data as { created_at: string; product_name: string; quantity_before: number; quantity_after: number; reason: string; user_name: string }[]).map((r) => ({
+        ...r,
+        _fecha: formatDateTime(r.created_at)
+      }))
+    case 'caja':
+      return (data as { opened_at: string; closed_at: string; user_name: string; expected_amount: number; closing_amount: number; difference: number }[]).map((r) => ({
+        ...r,
+        _opened: formatDateTime(r.opened_at),
+        _closed: formatDateTime(r.closed_at),
+        _expected: formatGs(r.expected_amount),
+        _closing: formatGs(r.closing_amount),
+        _diff: `${r.difference >= 0 ? '+' : ''}${formatGs(r.difference)}`
+      }))
+    default:
+      return data as Record<string, unknown>[]
+  }
+}
 
 export default function ReportesPage() {
   const [tab, setTab] = useState<Tab>('ventas')
@@ -29,6 +149,20 @@ export default function ReportesPage() {
     setLoading(false)
   }
 
+  const handleExportExcel = () => {
+    const config = reportConfigs[tab]
+    const exportData = prepareExportData(tab, data)
+    const dateRange = tab !== 'margen' ? ` (${from} a ${to})` : ''
+    exportToExcel(exportData, config.columns, `${config.filename}_${from}_${to}`, `${config.title}${dateRange}`)
+  }
+
+  const handleExportPDF = () => {
+    const config = reportConfigs[tab]
+    const exportData = prepareExportData(tab, data)
+    const dateRange = tab !== 'margen' ? ` (${from} a ${to})` : ''
+    exportToPDF(exportData, config.columns, `${config.filename}_${from}_${to}`, `${config.title}${dateRange}`)
+  }
+
   const tabs: { key: Tab; label: string }[] = [
     { key: 'ventas', label: 'Ventas' },
     { key: 'productos', label: 'Más Vendidos' },
@@ -50,31 +184,39 @@ export default function ReportesPage() {
         ))}
       </div>
 
-      {tab !== 'margen' && (
-        <div className="flex gap-3 mb-4 items-end">
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Desde</label>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Hasta</label>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm" />
-          </div>
-          <button onClick={load} disabled={loading}
-            className="bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-hover disabled:opacity-50">
-            {loading ? 'Cargando...' : 'Consultar'}
-          </button>
-        </div>
-      )}
-
-      {tab === 'margen' && (
+      <div className="flex gap-3 mb-4 items-end flex-wrap">
+        {tab !== 'margen' && (
+          <>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">Desde</label>
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-text-muted mb-1">Hasta</label>
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
+                className="border rounded-lg px-3 py-2 text-sm" />
+            </div>
+          </>
+        )}
         <button onClick={load} disabled={loading}
-          className="bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-hover disabled:opacity-50 mb-4">
+          className="bg-brand text-white px-4 py-2 rounded-lg text-sm hover:bg-brand-hover disabled:opacity-50">
           {loading ? 'Cargando...' : 'Consultar'}
         </button>
-      )}
+
+        {data.length > 0 && (
+          <>
+            <button onClick={handleExportExcel}
+              className="flex items-center gap-1.5 border border-green-600 text-green-700 px-4 py-2 rounded-lg text-sm hover:bg-green-50">
+              <FileSpreadsheet size={16} /> Excel
+            </button>
+            <button onClick={handleExportPDF}
+              className="flex items-center gap-1.5 border border-red-600 text-red-700 px-4 py-2 rounded-lg text-sm hover:bg-red-50">
+              <FileText size={16} /> PDF
+            </button>
+          </>
+        )}
+      </div>
 
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         {tab === 'ventas' && (
