@@ -1,5 +1,6 @@
-appId: com.electron.app
-productName: pos-multicarnes
+appId: com.multicarnes.pos
+productName: Multicarnes POS
+icon: resources/icon.png
 directories:
   buildResources: build
 files:

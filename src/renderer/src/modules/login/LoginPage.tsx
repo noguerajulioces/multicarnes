@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import type { User } from '@shared/types'
+import logo from '../../assets/logo.png'
 
 export default function LoginPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -48,9 +49,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-bg-secondary">
       <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-brand rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-2xl font-bold">M</span>
-          </div>
+          <img src={logo} alt="Multicarnes" className="w-24 h-24 object-contain mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-text-main">Multicarnes S.R.L.</h1>
           <p className="text-text-muted text-sm">Sistema de Punto de Venta</p>
         </div>
