@@ -1,5 +1,8 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog } from 'electron'
+import { copyFileSync } from 'fs'
+import { join, extname } from 'path'
 import * as productsQuery from '../db/queries/products'
+import { getImagesDir } from '../db'
 
 export function registerProductsIpc(): void {
   ipcMain.handle('products:getAll', (_, filters?) => productsQuery.getAllProducts(filters))
@@ -12,4 +15,25 @@ export function registerProductsIpc(): void {
   ipcMain.handle('products:categories', () => productsQuery.getAllCategories())
   ipcMain.handle('products:createCategory', (_, name: string) => productsQuery.createCategory(name))
   ipcMain.handle('products:lowStock', () => productsQuery.getLowStockProducts())
+
+  ipcMain.handle('products:uploadImage', async (_, productId: number) => {
+    const result = await dialog.showOpenDialog({
+      filters: [{ name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+      properties: ['openFile']
+    })
+    if (result.canceled || !result.filePaths[0]) return null
+
+    const srcPath = result.filePaths[0]
+    const ext = extname(srcPath)
+    const filename = `product_${productId}_${Date.now()}${ext}`
+    const destPath = join(getImagesDir(), filename)
+    copyFileSync(srcPath, destPath)
+
+    productsQuery.updateProduct(productId, { image: filename })
+    return filename
+  })
+
+  ipcMain.handle('products:getImagePath', () => {
+    return getImagesDir()
+  })
 }

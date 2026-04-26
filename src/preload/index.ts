@@ -21,7 +21,9 @@ const api = {
       ipcRenderer.invoke('products:adjustStock', id, newStock, reason, userId),
     categories: () => ipcRenderer.invoke('products:categories'),
     createCategory: (name: string) => ipcRenderer.invoke('products:createCategory', name),
-    lowStock: () => ipcRenderer.invoke('products:lowStock')
+    lowStock: () => ipcRenderer.invoke('products:lowStock'),
+    uploadImage: (productId: number) => ipcRenderer.invoke('products:uploadImage', productId),
+    getImagePath: () => ipcRenderer.invoke('products:getImagePath')
   },
   // Sales
   sales: {

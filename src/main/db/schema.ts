@@ -25,6 +25,7 @@ export function createTables(db: Database.Database): void {
       price_type  TEXT NOT NULL DEFAULT 'unit' CHECK(price_type IN ('unit','kg')),
       stock       REAL NOT NULL DEFAULT 0,
       min_stock   REAL NOT NULL DEFAULT 0,
+      image       TEXT,
       active      INTEGER NOT NULL DEFAULT 1,
       created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
       updated_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))

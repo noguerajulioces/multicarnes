@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { Category } from '@shared/types'
+import { ImagePlus } from 'lucide-react'
 
 export default function ProductoFormPage() {
   const navigate = useNavigate()
@@ -13,18 +14,22 @@ export default function ProductoFormPage() {
     name: '', category_id: '' as string | number, barcode: '',
     price: '', price_type: 'unit', stock: '0', min_stock: '0', active: true
   })
+  const [image, setImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     window.api.products.categories().then(setCategories)
     if (isEdit) {
       window.api.products.getById(Number(id)).then((p) => {
-        if (p) setForm({
-          name: p.name, category_id: p.category_id || '',
-          barcode: p.barcode || '', price: String(p.price),
-          price_type: p.price_type, stock: String(p.stock),
-          min_stock: String(p.min_stock), active: !!p.active
-        })
+        if (p) {
+          setForm({
+            name: p.name, category_id: p.category_id || '',
+            barcode: p.barcode || '', price: String(p.price),
+            price_type: p.price_type, stock: String(p.stock),
+            min_stock: String(p.min_stock), active: !!p.active
+          })
+          setImage(p.image || null)
+        }
       })
     }
   }, [id])
@@ -35,6 +40,12 @@ export default function ProductoFormPage() {
     setCategories([...categories, cat])
     setForm({ ...form, category_id: cat.id })
     setNewCat('')
+  }
+
+  const handleUploadImage = async () => {
+    if (!isEdit) return
+    const filename = await window.api.products.uploadImage(Number(id))
+    if (filename) setImage(filename)
   }
 
   const handleSave = async () => {
@@ -53,7 +64,12 @@ export default function ProductoFormPage() {
       if (isEdit) {
         await window.api.products.update(Number(id), data)
       } else {
-        await window.api.products.create(data)
+        const created = await window.api.products.create(data)
+        if (created) {
+          // Redirect to edit so user can upload image
+          navigate(`/productos/${created.id}`)
+          return
+        }
       }
       navigate('/productos')
     } catch (err: unknown) {
@@ -62,11 +78,35 @@ export default function ProductoFormPage() {
     setLoading(false)
   }
 
+  const imageUrl = image ? `product-img://${image}` : null
+
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">{isEdit ? 'Editar Producto' : 'Nuevo Producto'}</h1>
 
       <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+        {/* Image */}
+        {isEdit && (
+          <div className="flex items-center gap-4">
+            <div
+              onClick={handleUploadImage}
+              className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-brand hover:bg-brand-light transition-colors overflow-hidden"
+            >
+              {imageUrl ? (
+                <img src={imageUrl} alt={form.name} className="w-full h-full object-cover" />
+              ) : (
+                <ImagePlus size={28} className="text-text-muted" />
+              )}
+            </div>
+            <div>
+              <button onClick={handleUploadImage} className="text-sm text-brand hover:underline">
+                {image ? 'Cambiar imagen' : 'Subir imagen'}
+              </button>
+              <p className="text-xs text-text-muted mt-1">PNG, JPG o WebP</p>
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm text-text-muted mb-1">Nombre *</label>
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}

@@ -68,7 +68,7 @@ export function createProduct(data: {
 
 export function updateProduct(id: number, data: {
   name?: string; category_id?: number | null; barcode?: string | null; price?: number;
-  price_type?: string; stock?: number; min_stock?: number; active?: boolean
+  price_type?: string; stock?: number; min_stock?: number; image?: string | null; active?: boolean
 }) {
   const db = getDb()
   const fields: string[] = []
@@ -81,6 +81,7 @@ export function updateProduct(id: number, data: {
   if (data.price_type !== undefined) { fields.push('price_type = ?'); params.push(data.price_type) }
   if (data.stock !== undefined) { fields.push('stock = ?'); params.push(data.stock) }
   if (data.min_stock !== undefined) { fields.push('min_stock = ?'); params.push(data.min_stock) }
+  if (data.image !== undefined) { fields.push('image = ?'); params.push(data.image) }
   if (data.active !== undefined) { fields.push('active = ?'); params.push(data.active ? 1 : 0) }
 
   if (fields.length > 0) {

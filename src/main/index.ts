@@ -1,8 +1,8 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, protocol, net } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { initDatabase } from './db'
+import { initDatabase, getImagesDir } from './db'
 import { registerUsersIpc } from './ipc/users.ipc'
 import { registerProductsIpc } from './ipc/products.ipc'
 import { registerSalesIpc } from './ipc/sales.ipc'
@@ -11,6 +11,7 @@ import { registerCashIpc } from './ipc/cash.ipc'
 import { registerPurchasesIpc } from './ipc/purchases.ipc'
 import { registerReportsIpc } from './ipc/reports.ipc'
 import { registerBackupIpc } from './ipc/backup.ipc'
+import { pathToFileURL } from 'url'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -44,8 +45,20 @@ function createWindow(): void {
   }
 }
 
+// Register custom protocol to serve product images
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'product-img', privileges: { bypassCSP: true, supportFetchAPI: true } }
+])
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.multicarnes.pos')
+
+  // Handle product-img:// protocol
+  protocol.handle('product-img', (request) => {
+    const filename = decodeURIComponent(request.url.replace('product-img://', ''))
+    const filePath = join(getImagesDir(), filename)
+    return net.fetch(pathToFileURL(filePath).toString())
+  })
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

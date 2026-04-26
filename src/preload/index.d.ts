@@ -22,6 +22,8 @@ interface ApiProducts {
   categories(): Promise<Category[]>
   createCategory(name: string): Promise<Category>
   lowStock(): Promise<Product[]>
+  uploadImage(productId: number): Promise<string | null>
+  getImagePath(): Promise<string>
 }
 
 interface ApiSales {

@@ -3,7 +3,7 @@ import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
 import type { Product } from '@shared/types'
-import { Search, Trash2, Plus, Minus } from 'lucide-react'
+import { Search, Trash2, Plus, Minus, Package } from 'lucide-react'
 import CobroModal from './CobroModal'
 
 export default function VentasPage() {
@@ -212,13 +212,24 @@ export default function VentasPage() {
                 key={p.id}
                 onClick={() => handleProductClick(p)}
                 disabled={p.stock <= 0}
-                className="bg-white rounded-lg p-4 shadow-sm text-left hover:shadow-md transition-shadow disabled:opacity-40 disabled:cursor-not-allowed"
+                className="bg-white rounded-lg shadow-sm text-left hover:shadow-md transition-shadow disabled:opacity-40 disabled:cursor-not-allowed overflow-hidden"
               >
-                <p className="font-medium text-sm truncate">{p.name}</p>
-                <p className="text-brand font-bold mt-1">{formatGs(p.price)}</p>
-                <p className="text-xs text-text-muted">
-                  Stock: {p.stock} {p.price_type === 'kg' ? 'kg' : 'u.'}
-                </p>
+                {p.image ? (
+                  <div className="w-full h-24 bg-bg-secondary">
+                    <img src={`product-img://${p.image}`} alt={p.name} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-full h-24 bg-bg-secondary flex items-center justify-center">
+                    <Package size={32} className="text-text-muted/30" />
+                  </div>
+                )}
+                <div className="p-3">
+                  <p className="font-medium text-sm truncate">{p.name}</p>
+                  <p className="text-brand font-bold mt-1">{formatGs(p.price)}</p>
+                  <p className="text-xs text-text-muted">
+                    Stock: {p.stock} {p.price_type === 'kg' ? 'kg' : 'u.'}
+                  </p>
+                </div>
               </button>
             ))}
           </div>

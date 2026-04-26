@@ -28,6 +28,7 @@ export interface Product {
   price_type: PriceType
   stock: number
   min_stock: number
+  image: string | null
   active: boolean
   low_stock?: boolean
   created_at?: string
