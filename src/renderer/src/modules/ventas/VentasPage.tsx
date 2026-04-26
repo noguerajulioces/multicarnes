@@ -150,7 +150,7 @@ export default function VentasPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-9rem)]">
+    <div className="flex flex-col h-full">
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Left: Cart */}
         <div className="w-[45%] bg-surface rounded-lg shadow-card border border-border flex flex-col">
