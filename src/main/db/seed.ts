@@ -23,7 +23,9 @@ export function seedDatabase(db: Database.Database): void {
     ['thermal_printer_name', ''],
     ['thermal_printer_width', '80'],
     ['backup_path', ''],
-    ['auto_backup', '1']
+    ['auto_backup', '1'],
+    ['backup_schedule_enabled', '0'],
+    ['backup_schedule_time', '22:00']
   ]
   const insertSetting = db.prepare('INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)')
   for (const [key, value] of defaults) {

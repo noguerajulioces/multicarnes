@@ -20,7 +20,45 @@ export function createBackup(): string {
   return backupFile
 }
 
+let schedulerInterval: ReturnType<typeof setInterval> | null = null
+let lastBackupDate: string | null = null
+
+function getSetting(key: string): string | null {
+  const row = getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined
+  return row?.value || null
+}
+
+function startBackupScheduler(): void {
+  if (schedulerInterval) clearInterval(schedulerInterval)
+
+  // Check every 60 seconds if it's time to backup
+  schedulerInterval = setInterval(() => {
+    const enabled = getSetting('backup_schedule_enabled')
+    if (enabled !== '1') return
+
+    const scheduleTime = getSetting('backup_schedule_time')
+    if (!scheduleTime) return
+
+    const now = new Date()
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    const today = now.toISOString().slice(0, 10)
+
+    if (currentTime === scheduleTime && lastBackupDate !== today) {
+      lastBackupDate = today
+      try {
+        createBackup()
+        console.log(`[Backup] Backup programado ejecutado a las ${currentTime}`)
+      } catch (err) {
+        console.error('[Backup] Error en backup programado:', err)
+      }
+    }
+  }, 60_000)
+}
+
 export function registerBackupIpc(): void {
+  // Start the scheduler
+  startBackupScheduler()
+
   ipcMain.handle('backup:create', () => createBackup())
 
   ipcMain.handle('backup:list', () => {

@@ -17,6 +17,7 @@ import ClienteFichaPage from './modules/clientes/ClienteFichaPage'
 import ReportesPage from './modules/reportes/ReportesPage'
 import UsuariosPage from './modules/usuarios/UsuariosPage'
 import ConfiguracionPage from './modules/configuracion/ConfiguracionPage'
+import BackupPage from './modules/backup/BackupPage'
 
 export default function AppRouter() {
   return (
@@ -41,6 +42,7 @@ export default function AppRouter() {
           <Route path="/reportes" element={<ReportesPage />} />
           <Route path="/usuarios" element={<UsuariosPage />} />
           <Route path="/configuracion" element={<ConfiguracionPage />} />
+          <Route path="/backup" element={<BackupPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

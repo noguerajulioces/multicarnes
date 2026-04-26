@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
 import {
   LayoutDashboard, ShoppingCart, Package, DollarSign,
-  Users, FileText, Settings, LogOut, Truck, UserCheck
+  Users, FileText, Settings, LogOut, Truck, UserCheck, HardDrive
 } from 'lucide-react'
 
 const navItems = [
@@ -14,7 +14,8 @@ const navItems = [
   { to: '/clientes', label: 'Clientes', icon: UserCheck, roles: ['admin', 'supervisor'] },
   { to: '/reportes', label: 'Reportes', icon: FileText, roles: ['admin', 'supervisor'] },
   { to: '/usuarios', label: 'Usuarios', icon: Users, roles: ['admin'] },
-  { to: '/configuracion', label: 'Configuración', icon: Settings, roles: ['admin'] }
+  { to: '/configuracion', label: 'Configuración', icon: Settings, roles: ['admin'] },
+  { to: '/backup', label: 'Backup', icon: HardDrive, roles: ['admin'] }
 ]
 
 export default function Sidebar() {
