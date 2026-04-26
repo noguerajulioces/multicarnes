@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatGs, formatDateTime, todayStr } from '../../lib/utils'
 import { exportToExcel, exportToPDF } from '../../lib/export'
+import { TableSkeleton, EmptyState } from '../../components/ui'
 import type { Sale } from '@shared/types'
 import { FileSpreadsheet, FileText } from 'lucide-react'
 
@@ -178,7 +179,7 @@ export default function ReportesPage() {
       <div className="flex gap-2 mb-4">
         {tabs.map((t) => (
           <button key={t.key} onClick={() => { setTab(t.key); setData([]) }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === t.key ? 'bg-brand text-white' : 'bg-white border hover:bg-gray-50'}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === t.key ? 'bg-brand text-white' : 'bg-surface border hover:bg-surface-muted'}`}>
             {t.label}
           </button>
         ))}
@@ -218,8 +219,13 @@ export default function ReportesPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        {tab === 'ventas' && (
+      <div className="bg-surface rounded-lg shadow-sm overflow-hidden">
+        {loading && (
+          <div className="p-3">
+            <TableSkeleton rows={6} columns={6} />
+          </div>
+        )}
+        {!loading && tab === 'ventas' && (
           <table className="w-full text-sm">
             <thead><tr className="bg-bg-secondary text-left text-text-muted">
               <th className="p-3">Fecha</th><th className="p-3">N°</th><th className="p-3">Cliente</th>
@@ -242,7 +248,7 @@ export default function ReportesPage() {
           </table>
         )}
 
-        {tab === 'productos' && (
+        {!loading && tab === 'productos' && (
           <table className="w-full text-sm">
             <thead><tr className="bg-bg-secondary text-left text-text-muted">
               <th className="p-3">Producto</th><th className="p-3">Categoría</th>
@@ -259,7 +265,7 @@ export default function ReportesPage() {
           </table>
         )}
 
-        {tab === 'margen' && (
+        {!loading && tab === 'margen' && (
           <table className="w-full text-sm">
             <thead><tr className="bg-bg-secondary text-left text-text-muted">
               <th className="p-3">Producto</th><th className="p-3 text-right">P. Venta</th>
@@ -281,7 +287,7 @@ export default function ReportesPage() {
           </table>
         )}
 
-        {tab === 'stock' && (
+        {!loading && tab === 'stock' && (
           <table className="w-full text-sm">
             <thead><tr className="bg-bg-secondary text-left text-text-muted">
               <th className="p-3">Fecha</th><th className="p-3">Producto</th><th className="p-3 text-right">Antes</th>
@@ -298,7 +304,7 @@ export default function ReportesPage() {
           </table>
         )}
 
-        {tab === 'caja' && (
+        {!loading && tab === 'caja' && (
           <table className="w-full text-sm">
             <thead><tr className="bg-bg-secondary text-left text-text-muted">
               <th className="p-3">Apertura</th><th className="p-3">Cierre</th><th className="p-3">Cajero</th>
@@ -319,7 +325,11 @@ export default function ReportesPage() {
         )}
 
         {data.length === 0 && !loading && (
-          <p className="p-8 text-center text-text-muted">Sin datos. Haga click en "Consultar" para cargar.</p>
+          <EmptyState
+            icon={<FileText size={40} />}
+            title="Sin datos"
+            description='Seleccione un rango de fechas y haga click en "Consultar" para ver el reporte.'
+          />
         )}
       </div>
     </div>

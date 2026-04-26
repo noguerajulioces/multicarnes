@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
+import { toast } from '../../lib/toast'
 
 export default function CierreCajaPage() {
   const { register, setRegister } = useCashStore()
@@ -28,16 +29,29 @@ export default function CierreCajaPage() {
     try {
       await window.api.cash.close(register.id, counted, notes || undefined)
       setRegister(null)
+      toast.success('Caja cerrada')
+
+      // Alerta de stock bajo: notificación nativa al SO
+      try {
+        const low = await window.api.products.lowStock()
+        if (low.length > 0) {
+          await window.api.notify.show(
+            'Stock bajo',
+            `${low.length} producto${low.length === 1 ? '' : 's'} con stock al mínimo o agotado.`
+          )
+        }
+      } catch { /* no-op */ }
+
       navigate('/dashboard')
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error al cerrar caja')
+      toast.error(err instanceof Error ? err.message : 'Error al cerrar caja')
     }
     setLoading(false)
   }
 
   return (
     <div className="max-w-lg mx-auto mt-8">
-      <div className="bg-white rounded-lg shadow-sm p-8">
+      <div className="bg-surface rounded-lg shadow-sm p-8">
         <h1 className="text-xl font-bold mb-6 text-center">Cierre de Caja / Arqueo</h1>
 
         <div className="bg-bg-secondary rounded-lg p-4 mb-6">
@@ -76,7 +90,7 @@ export default function CierreCajaPage() {
         </div>
 
         <div className="flex gap-3">
-          <button onClick={() => navigate('/caja')} className="flex-1 border rounded-lg py-3 hover:bg-gray-50">
+          <button onClick={() => navigate('/caja')} className="flex-1 border rounded-lg py-3 hover:bg-surface-muted">
             Volver
           </button>
           <button

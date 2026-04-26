@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import type { AppSetting, BackupFile } from '@shared/types'
 import { formatDateTime } from '../../lib/utils'
-import { Clock } from 'lucide-react'
+import { toast } from '../../lib/toast'
+import { confirm } from '../../lib/confirm'
+import { Clock, HardDrive } from 'lucide-react'
+import { EmptyState } from '../../components/ui'
 
 export default function BackupPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
@@ -27,19 +30,31 @@ export default function BackupPage() {
     setLoading(true)
     try {
       const path = await window.api.backup.create()
-      alert(`Backup creado: ${path}`)
+      toast.success(`Backup creado: ${path}`)
       window.api.backup.list().then(setBackups)
+      window.api.notify.show('Backup creado', `Se guardó en ${path}`).catch(() => {})
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error')
+      toast.error(err instanceof Error ? err.message : 'Error al crear backup')
     }
     setLoading(false)
   }
 
   const handleRestore = async () => {
-    if (!confirm('Se creará un backup del estado actual antes de restaurar. ¿Continuar?')) return
-    const path = await window.api.backup.restore()
-    if (path) {
-      alert('Backup restaurado. La aplicación se reiniciará.')
+    const ok = await confirm({
+      title: 'Restaurar backup',
+      message:
+        'Esto reemplazará la base de datos actual.\nSe creará un backup automático del estado actual antes de continuar.',
+      confirmLabel: 'Restaurar',
+      danger: true
+    })
+    if (!ok) return
+    try {
+      const path = await window.api.backup.restore()
+      if (path) {
+        toast.success('Backup restaurado. La aplicación se reiniciará.')
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error al restaurar')
     }
   }
 
@@ -57,7 +72,7 @@ export default function BackupPage() {
 
       <div className="space-y-6">
         {/* Backup automático al cerrar caja */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-surface rounded-lg shadow-sm p-6">
           <h2 className="font-semibold mb-4">Al cerrar caja</h2>
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={settings.auto_backup === '1'}
@@ -68,7 +83,7 @@ export default function BackupPage() {
         </div>
 
         {/* Backup programado diario */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-surface rounded-lg shadow-sm p-6">
           <h2 className="font-semibold mb-4 flex items-center gap-2">
             <Clock size={18} />
             Backup programado diario
@@ -101,17 +116,17 @@ export default function BackupPage() {
         </div>
 
         {/* Carpeta destino */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-surface rounded-lg shadow-sm p-6">
           <h2 className="font-semibold mb-4">Carpeta de destino</h2>
           <div className="flex items-center gap-2">
             <input value={settings.backup_path || ''} readOnly
-              className="flex-1 border rounded-lg p-2 bg-gray-50 text-sm" placeholder="Carpeta por defecto (userData/backups)" />
-            <button onClick={handleSelectFolder} className="border rounded-lg px-3 py-2 text-sm hover:bg-gray-50">Cambiar</button>
+              className="flex-1 border rounded-lg p-2 bg-surface-muted text-sm" placeholder="Carpeta por defecto (userData/backups)" />
+            <button onClick={handleSelectFolder} className="border rounded-lg px-3 py-2 text-sm hover:bg-surface-muted">Cambiar</button>
           </div>
         </div>
 
         {/* Acciones manuales */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-surface rounded-lg shadow-sm p-6">
           <h2 className="font-semibold mb-4">Acciones</h2>
           <div className="flex gap-3">
             <button onClick={handleBackup} disabled={loading}
@@ -126,7 +141,7 @@ export default function BackupPage() {
         </div>
 
         {/* Historial */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-surface rounded-lg shadow-sm p-6">
           <h2 className="font-semibold mb-4">Historial de Backups</h2>
           {backups.length > 0 ? (
             <div className="space-y-2">
@@ -141,7 +156,11 @@ export default function BackupPage() {
               ))}
             </div>
           ) : (
-            <p className="text-text-muted text-sm">No hay backups registrados.</p>
+            <EmptyState
+              icon={<HardDrive size={36} />}
+              title="Sin backups"
+              description='Hacé tu primer backup tocando "Hacer Backup Ahora".'
+            />
           )}
         </div>
       </div>

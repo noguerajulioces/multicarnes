@@ -68,20 +68,20 @@ export default function CajaPage() {
       {register && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="bg-surface rounded-lg p-4 shadow-sm">
               <p className="text-xs text-text-muted">Apertura</p>
               <p className="text-lg font-bold">{formatGs(register.opening_amount)}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="bg-surface rounded-lg p-4 shadow-sm">
               <p className="text-xs text-text-muted">Ventas Efectivo</p>
               <p className="text-lg font-bold">{formatGs(summary?.cashSales || 0)}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm">
+            <div className="bg-surface rounded-lg p-4 shadow-sm">
               <p className="text-xs text-text-muted">Ingresos / Egresos</p>
               <p className="text-lg font-bold text-green-600">+{formatGs(summary?.incomes || 0)}</p>
               <p className="text-sm text-red-600">-{formatGs(summary?.expenses || 0)}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 shadow-sm border-2 border-brand">
+            <div className="bg-surface rounded-lg p-4 shadow-sm border-2 border-brand">
               <p className="text-xs text-text-muted">Efectivo Esperado</p>
               <p className="text-lg font-bold text-brand">{formatGs(expectedCash)}</p>
             </div>
@@ -102,7 +102,7 @@ export default function CajaPage() {
             </button>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-surface rounded-lg shadow-sm p-6">
             <h2 className="font-semibold mb-4">Movimientos del Turno</h2>
             <table className="w-full text-sm">
               <thead>
@@ -139,7 +139,7 @@ export default function CajaPage() {
 
       {modal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+          <div className="bg-surface rounded-lg p-6 w-full max-w-sm mx-4">
             <h3 className="text-lg font-semibold mb-4">
               Registrar {modal.type === 'income' ? 'Ingreso' : 'Egreso'}
             </h3>
@@ -163,7 +163,7 @@ export default function CajaPage() {
                 />
               </div>
               <div className="flex gap-3 justify-end">
-                <button onClick={() => setModal(null)} className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50">
+                <button onClick={() => setModal(null)} className="px-4 py-2 text-sm border rounded-lg hover:bg-surface-muted">
                   Cancelar
                 </button>
                 <button

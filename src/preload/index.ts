@@ -92,6 +92,9 @@ const api = {
   settings: {
     getAll: () => ipcRenderer.invoke('settings:getAll'),
     set: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value)
+  },
+  notify: {
+    show: (title: string, body: string) => ipcRenderer.invoke('notify:show', title, body)
   }
 }
 

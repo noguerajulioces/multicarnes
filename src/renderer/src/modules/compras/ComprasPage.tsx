@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs, formatDateTime } from '../../lib/utils'
 import type { PurchaseOrder } from '@shared/types'
-import { Plus } from 'lucide-react'
+import { Plus, Truck } from 'lucide-react'
+import { EmptyState } from '../../components/ui'
 
 export default function ComprasPage() {
   const navigate = useNavigate()
@@ -38,7 +39,7 @@ export default function ComprasPage() {
 
       <div className="mb-4">
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm bg-white">
+          className="border rounded-lg px-3 py-2 text-sm bg-surface">
           <option value="">Todos los estados</option>
           <option value="pending">Pendiente</option>
           <option value="received">Recibida</option>
@@ -46,7 +47,7 @@ export default function ComprasPage() {
         </select>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-lg shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead><tr className="bg-bg-secondary text-left text-text-muted">
             <th className="p-3">Fecha</th><th className="p-3">Proveedor</th>
@@ -54,7 +55,7 @@ export default function ComprasPage() {
           </tr></thead>
           <tbody>
             {orders.map((o) => (
-              <tr key={o.id} className="border-b hover:bg-gray-50">
+              <tr key={o.id} className="border-b hover:bg-surface-muted">
                 <td className="p-3">{formatDateTime(o.created_at)}</td>
                 <td className="p-3">{o.supplier_name || '-'}</td>
                 <td className="p-3 text-right font-medium">{formatGs(o.total)}</td>
@@ -68,7 +69,29 @@ export default function ComprasPage() {
                 </td>
               </tr>
             ))}
-            {orders.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-text-muted">Sin órdenes</td></tr>}
+            {orders.length === 0 && (
+              <tr>
+                <td colSpan={5}>
+                  <EmptyState
+                    icon={<Truck size={40} />}
+                    title={filterStatus ? 'Sin órdenes con ese estado' : 'Aún no hay órdenes de compra'}
+                    description={
+                      filterStatus
+                        ? 'Cambiá el filtro o creá una nueva orden.'
+                        : 'Registrá compras a proveedores para mantener el stock al día.'
+                    }
+                    action={
+                      <button
+                        onClick={() => navigate('/compras/nueva')}
+                        className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand-hover"
+                      >
+                        <Plus size={16} /> Nueva Orden
+                      </button>
+                    }
+                  />
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

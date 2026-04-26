@@ -84,7 +84,7 @@ export default function ProductoFormPage() {
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">{isEdit ? 'Editar Producto' : 'Nuevo Producto'}</h1>
 
-      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+      <div className="bg-surface rounded-lg shadow-sm p-6 space-y-4">
         {/* Image */}
         {isEdit && (
           <div className="flex items-center gap-4">
@@ -117,7 +117,7 @@ export default function ProductoFormPage() {
           <div>
             <label className="block text-sm text-text-muted mb-1">Categoría</label>
             <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              className="w-full border rounded-lg p-2 bg-white">
+              className="w-full border rounded-lg p-2 bg-surface">
               <option value="">Sin categoría</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -143,7 +143,7 @@ export default function ProductoFormPage() {
           <div>
             <label className="block text-sm text-text-muted mb-1">Tipo de precio</label>
             <select value={form.price_type} onChange={(e) => setForm({ ...form, price_type: e.target.value })}
-              className="w-full border rounded-lg p-2 bg-white">
+              className="w-full border rounded-lg p-2 bg-surface">
               <option value="unit">Por unidad</option>
               <option value="kg">Por kg</option>
             </select>
@@ -170,7 +170,7 @@ export default function ProductoFormPage() {
         </label>
 
         <div className="flex gap-3 pt-4 border-t">
-          <button onClick={() => navigate('/productos')} className="flex-1 border rounded-lg py-2 hover:bg-gray-50">Cancelar</button>
+          <button onClick={() => navigate('/productos')} className="flex-1 border rounded-lg py-2 hover:bg-surface-muted">Cancelar</button>
           <button onClick={handleSave} disabled={loading || !form.name || !form.price}
             className="flex-1 bg-brand text-white py-2 rounded-lg hover:bg-brand-hover disabled:opacity-50">
             {loading ? 'Guardando...' : 'Guardar'}

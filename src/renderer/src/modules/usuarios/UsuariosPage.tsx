@@ -45,14 +45,14 @@ export default function UsuariosPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-lg shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead><tr className="bg-bg-secondary text-left text-text-muted">
             <th className="p-3">Nombre</th><th className="p-3">Rol</th><th className="p-3">Estado</th><th className="p-3">Acciones</th>
           </tr></thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="border-b hover:bg-gray-50">
+              <tr key={u.id} className="border-b hover:bg-surface-muted">
                 <td className="p-3 font-medium">{u.name}</td>
                 <td className="p-3 capitalize">{u.role}</td>
                 <td className="p-3">
@@ -71,7 +71,7 @@ export default function UsuariosPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+          <div className="bg-surface rounded-lg p-6 max-w-sm w-full mx-4">
             <h3 className="font-semibold mb-4">{editId ? 'Editar' : 'Nuevo'} Usuario</h3>
             <div className="space-y-3">
               <div><label className="block text-sm text-text-muted mb-1">Nombre *</label>
@@ -79,7 +79,7 @@ export default function UsuariosPage() {
                   className="w-full border rounded-lg p-2" autoFocus /></div>
               <div><label className="block text-sm text-text-muted mb-1">Rol</label>
                 <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  className="w-full border rounded-lg p-2 bg-white">
+                  className="w-full border rounded-lg p-2 bg-surface">
                   <option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="cajero">Cajero</option>
                 </select></div>
               <div><label className="block text-sm text-text-muted mb-1">PIN (4-6 dígitos){editId ? ' — dejar vacío para no cambiar' : ' *'}</label>
@@ -98,7 +98,7 @@ export default function UsuariosPage() {
               )}
               {error && <p className="text-red-500 text-sm">{error}</p>}
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowForm(false)} className="flex-1 border rounded-lg py-2 hover:bg-gray-50">Cancelar</button>
+                <button onClick={() => setShowForm(false)} className="flex-1 border rounded-lg py-2 hover:bg-surface-muted">Cancelar</button>
                 <button onClick={handleSave}
                   className="flex-1 bg-brand text-white py-2 rounded-lg hover:bg-brand-hover">Guardar</button>
               </div>

@@ -26,7 +26,7 @@ export default function AperturaCajaPage() {
 
   return (
     <div className="max-w-md mx-auto mt-12">
-      <div className="bg-white rounded-lg shadow-sm p-8">
+      <div className="bg-surface rounded-lg shadow-sm p-8">
         <h1 className="text-xl font-bold mb-6 text-center">Apertura de Caja</h1>
 
         <div className="mb-6">

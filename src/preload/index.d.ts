@@ -95,6 +95,10 @@ interface ApiSettings {
   set(key: string, value: string): Promise<boolean>
 }
 
+interface ApiNotify {
+  show(title: string, body: string): Promise<boolean>
+}
+
 declare global {
   interface Window {
     api: {
@@ -108,6 +112,7 @@ declare global {
       reports: ApiReports
       backup: ApiBackup
       settings: ApiSettings
+      notify: ApiNotify
     }
   }
 }

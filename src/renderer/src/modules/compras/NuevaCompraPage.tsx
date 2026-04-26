@@ -69,11 +69,11 @@ export default function NuevaCompraPage() {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Nueva Orden de Compra</h1>
-      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+      <div className="bg-surface rounded-lg shadow-sm p-6 space-y-4">
         <div>
           <label className="block text-sm text-text-muted mb-1">Proveedor</label>
           <select value={supplierId} onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}
-            className="w-full border rounded-lg p-2 bg-white">
+            className="w-full border rounded-lg p-2 bg-surface">
             <option value="">Seleccionar...</option>
             {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
@@ -117,7 +117,7 @@ export default function NuevaCompraPage() {
         </div>
 
         <div className="flex gap-3 pt-4 border-t">
-          <button onClick={() => navigate('/compras')} className="flex-1 border rounded-lg py-2 hover:bg-gray-50">Cancelar</button>
+          <button onClick={() => navigate('/compras')} className="flex-1 border rounded-lg py-2 hover:bg-surface-muted">Cancelar</button>
           <button onClick={() => handleSave(false)} disabled={loading || items.length === 0}
             className="flex-1 border border-brand text-brand py-2 rounded-lg hover:bg-brand-light disabled:opacity-50">
             Guardar Pendiente
@@ -131,7 +131,7 @@ export default function NuevaCompraPage() {
 
       {showProductSearch && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-surface rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="font-semibold mb-3">Buscar Producto</h3>
             <input value={searchProduct} onChange={(e) => setSearchProduct(e.target.value)}
               className="w-full border rounded-lg p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-brand"
@@ -139,11 +139,11 @@ export default function NuevaCompraPage() {
             <div className="max-h-60 overflow-y-auto">
               {products.map((p) => (
                 <button key={p.id} onClick={() => addItem(p)}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm border-b">{p.name}</button>
+                  className="w-full text-left px-3 py-2 hover:bg-surface-muted text-sm border-b">{p.name}</button>
               ))}
             </div>
             <button onClick={() => { setShowProductSearch(false); setSearchProduct('') }}
-              className="w-full mt-3 border rounded-lg py-2 hover:bg-gray-50 text-sm">Cerrar</button>
+              className="w-full mt-3 border rounded-lg py-2 hover:bg-surface-muted text-sm">Cerrar</button>
           </div>
         </div>
       )}

@@ -2,16 +2,22 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs } from '../../lib/utils'
 import { ShoppingCart, AlertTriangle, TrendingUp } from 'lucide-react'
+import { Skeleton, TableSkeleton } from '../../components/ui'
 import type { Product } from '@shared/types'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
   const [dayTotal, setDayTotal] = useState({ total: 0, count: 0 })
   const [lowStock, setLowStock] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    window.api.sales.dayTotal().then(setDayTotal)
-    window.api.products.lowStock().then(setLowStock)
+    Promise.all([window.api.sales.dayTotal(), window.api.products.lowStock()])
+      .then(([dt, ls]) => {
+        setDayTotal(dt)
+        setLowStock(ls)
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   return (
@@ -28,41 +34,38 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <TrendingUp size={20} className="text-green-600" />
-            </div>
-            <span className="text-text-muted text-sm">Total Vendido Hoy</span>
-          </div>
-          <p className="text-2xl font-bold">{formatGs(dayTotal.total)}</p>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <ShoppingCart size={20} className="text-blue-600" />
-            </div>
-            <span className="text-text-muted text-sm">Ventas del Día</span>
-          </div>
-          <p className="text-2xl font-bold">{dayTotal.count}</p>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <AlertTriangle size={20} className="text-orange-600" />
-            </div>
-            <span className="text-text-muted text-sm">Alertas de Stock</span>
-          </div>
-          <p className="text-2xl font-bold">{lowStock.length}</p>
-        </div>
+        <StatCard
+          icon={<TrendingUp size={20} className="text-success-700" />}
+          iconBg="bg-success-50"
+          label="Total Vendido Hoy"
+          value={formatGs(dayTotal.total)}
+          loading={loading}
+        />
+        <StatCard
+          icon={<ShoppingCart size={20} className="text-info-700" />}
+          iconBg="bg-info-50"
+          label="Ventas del Día"
+          value={String(dayTotal.count)}
+          loading={loading}
+        />
+        <StatCard
+          icon={<AlertTriangle size={20} className="text-warning-700" />}
+          iconBg="bg-warning-50"
+          label="Alertas de Stock"
+          value={String(lowStock.length)}
+          loading={loading}
+        />
       </div>
 
-      {lowStock.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm p-6">
+      {loading ? (
+        <div className="bg-surface rounded-lg shadow-sm p-6">
+          <Skeleton className="h-5 w-56 mb-4" />
+          <TableSkeleton rows={5} columns={3} />
+        </div>
+      ) : lowStock.length > 0 ? (
+        <div className="bg-surface rounded-lg shadow-sm p-6">
           <h2 className="font-semibold mb-4 flex items-center gap-2">
-            <AlertTriangle size={18} className="text-orange-500" />
+            <AlertTriangle size={18} className="text-warning-500" />
             Productos con Stock Bajo
           </h2>
           <div className="overflow-x-auto">
@@ -78,16 +81,42 @@ export default function DashboardPage() {
                 {lowStock.slice(0, 10).map((p) => (
                   <tr key={p.id} className="border-b last:border-0">
                     <td className="py-2 font-medium">{p.name}</td>
-                    <td className="py-2 text-red-600 font-medium">
+                    <td className="py-2 text-danger-700 font-medium">
                       {p.stock} {p.price_type === 'kg' ? 'kg' : 'u.'}
                     </td>
-                    <td className="py-2">{p.min_stock} {p.price_type === 'kg' ? 'kg' : 'u.'}</td>
+                    <td className="py-2">
+                      {p.min_stock} {p.price_type === 'kg' ? 'kg' : 'u.'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+      ) : null}
+    </div>
+  )
+}
+
+interface StatCardProps {
+  icon: React.ReactNode
+  iconBg: string
+  label: string
+  value: string
+  loading?: boolean
+}
+
+function StatCard({ icon, iconBg, label, value, loading }: StatCardProps) {
+  return (
+    <div className="bg-surface rounded-lg p-6 shadow-sm">
+      <div className="flex items-center gap-3 mb-2">
+        <div className={`p-2 rounded-lg ${iconBg}`}>{icon}</div>
+        <span className="text-text-muted text-sm">{label}</span>
+      </div>
+      {loading ? (
+        <Skeleton className="h-8 w-32" />
+      ) : (
+        <p className="text-2xl font-bold">{value}</p>
       )}
     </div>
   )

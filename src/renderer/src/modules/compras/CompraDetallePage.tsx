@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { formatGs, formatDateTime } from '../../lib/utils'
+import { confirm } from '../../lib/confirm'
+import { toast } from '../../lib/toast'
+import { Skeleton, TableSkeleton } from '../../components/ui'
 import type { PurchaseOrder } from '@shared/types'
 
 export default function CompraDetallePage() {
@@ -16,19 +19,46 @@ export default function CompraDetallePage() {
 
   const handleReceive = async () => {
     await window.api.purchases.receive(Number(id))
+    toast.success('Orden marcada como recibida')
     loadOrder()
   }
   const handleCancel = async () => {
+    const ok = await confirm({
+      title: 'Cancelar orden de compra',
+      message: `¿Cancelar la orden #${id}? Esta acción no se puede deshacer.`,
+      confirmLabel: 'Cancelar orden',
+      cancelLabel: 'Volver',
+      danger: true
+    })
+    if (!ok) return
     await window.api.purchases.cancel(Number(id))
+    toast.info('Orden cancelada')
     loadOrder()
   }
 
-  if (!order) return <p className="text-text-muted">Cargando...</p>
+  if (!order) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <button onClick={() => navigate('/compras')} className="text-sm text-brand hover:underline mb-4">← Volver</button>
+        <div className="bg-surface rounded-lg shadow-sm p-6 space-y-4">
+          <div className="flex justify-between items-start">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+            <Skeleton className="h-7 w-24 rounded-full" />
+          </div>
+          <TableSkeleton rows={4} columns={4} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-3xl mx-auto">
       <button onClick={() => navigate('/compras')} className="text-sm text-brand hover:underline mb-4">← Volver</button>
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-surface rounded-lg shadow-sm p-6">
         <div className="flex justify-between items-start mb-6">
           <div>
             <h1 className="text-xl font-bold">Orden #{order.id}</h1>

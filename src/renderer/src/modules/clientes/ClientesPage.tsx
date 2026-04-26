@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs } from '../../lib/utils'
 import type { Customer } from '@shared/types'
-import { Search, Plus, Eye } from 'lucide-react'
+import { Search, Plus, Eye, UserCheck } from 'lucide-react'
+import { EmptyState } from '../../components/ui'
 
 export default function ClientesPage() {
   const navigate = useNavigate()
@@ -48,11 +49,11 @@ export default function ClientesPage() {
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
         <input value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-brand text-sm"
+          className="w-full pl-9 pr-4 py-2 rounded-lg border bg-surface focus:outline-none focus:ring-2 focus:ring-brand text-sm"
           placeholder="Buscar por nombre..." />
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-surface rounded-lg shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-bg-secondary text-left text-text-muted">
@@ -65,7 +66,7 @@ export default function ClientesPage() {
           </thead>
           <tbody>
             {customers.map((c) => (
-              <tr key={c.id} className="border-b hover:bg-gray-50">
+              <tr key={c.id} className="border-b hover:bg-surface-muted">
                 <td className="p-3 font-medium">{c.name}</td>
                 <td className="p-3 text-text-muted">{c.phone || '-'}</td>
                 <td className={`p-3 text-right font-medium ${c.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -74,16 +75,44 @@ export default function ClientesPage() {
                 <td className="p-3">{c.is_employee ? 'Sí' : 'No'}</td>
                 <td className="p-3">
                   <div className="flex gap-1">
-                    <button onClick={() => navigate(`/clientes/${c.id}`)} className="p-1.5 hover:bg-gray-100 rounded" title="Ver ficha">
+                    <button onClick={() => navigate(`/clientes/${c.id}`)} className="p-1.5 hover:bg-surface-muted rounded" title="Ver ficha">
                       <Eye size={14} />
                     </button>
-                    <button onClick={() => handleEdit(c)} className="p-1.5 hover:bg-gray-100 rounded text-xs text-brand">Editar</button>
+                    <button onClick={() => handleEdit(c)} className="p-1.5 hover:bg-surface-muted rounded text-xs text-brand">Editar</button>
                   </div>
                 </td>
               </tr>
             ))}
             {customers.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-text-muted">No se encontraron clientes</td></tr>
+              <tr>
+                <td colSpan={5}>
+                  {search ? (
+                    <EmptyState
+                      icon={<Search size={40} />}
+                      title="Sin resultados"
+                      description={`Ningún cliente coincide con "${search}".`}
+                    />
+                  ) : (
+                    <EmptyState
+                      icon={<UserCheck size={40} />}
+                      title="Aún no hay clientes"
+                      description="Cargá clientes para llevar registro de saldos y pagos."
+                      action={
+                        <button
+                          onClick={() => {
+                            setShowForm(true)
+                            setEditId(null)
+                            setForm({ name: '', phone: '', address: '', is_employee: false })
+                          }}
+                          className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand-hover"
+                        >
+                          <Plus size={16} /> Nuevo Cliente
+                        </button>
+                      }
+                    />
+                  )}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -91,7 +120,7 @@ export default function ClientesPage() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+          <div className="bg-surface rounded-lg p-6 max-w-sm w-full mx-4">
             <h3 className="font-semibold mb-4">{editId ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
             <div className="space-y-3">
               <div><label className="block text-sm text-text-muted mb-1">Nombre *</label>
@@ -108,7 +137,7 @@ export default function ClientesPage() {
                 Es empleado
               </label>
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowForm(false)} className="flex-1 border rounded-lg py-2 hover:bg-gray-50">Cancelar</button>
+                <button onClick={() => setShowForm(false)} className="flex-1 border rounded-lg py-2 hover:bg-surface-muted">Cancelar</button>
                 <button onClick={handleSave} disabled={!form.name}
                   className="flex-1 bg-brand text-white py-2 rounded-lg hover:bg-brand-hover disabled:opacity-50">Guardar</button>
               </div>
