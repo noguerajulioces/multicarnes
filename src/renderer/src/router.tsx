@@ -1,0 +1,49 @@
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Layout from './components/Layout'
+import LoginPage from './modules/login/LoginPage'
+import DashboardPage from './modules/dashboard/DashboardPage'
+import CajaPage from './modules/caja/CajaPage'
+import AperturaCajaPage from './modules/caja/AperturaCajaPage'
+import CierreCajaPage from './modules/caja/CierreCajaPage'
+import VentasPage from './modules/ventas/VentasPage'
+import ProductosPage from './modules/productos/ProductosPage'
+import ProductoFormPage from './modules/productos/ProductoFormPage'
+import ComprasPage from './modules/compras/ComprasPage'
+import NuevaCompraPage from './modules/compras/NuevaCompraPage'
+import CompraDetallePage from './modules/compras/CompraDetallePage'
+import ProveedoresPage from './modules/compras/ProveedoresPage'
+import ClientesPage from './modules/clientes/ClientesPage'
+import ClienteFichaPage from './modules/clientes/ClienteFichaPage'
+import ReportesPage from './modules/reportes/ReportesPage'
+import UsuariosPage from './modules/usuarios/UsuariosPage'
+import ConfiguracionPage from './modules/configuracion/ConfiguracionPage'
+
+export default function AppRouter() {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/caja" element={<CajaPage />} />
+          <Route path="/caja/apertura" element={<AperturaCajaPage />} />
+          <Route path="/caja/cierre" element={<CierreCajaPage />} />
+          <Route path="/ventas" element={<VentasPage />} />
+          <Route path="/productos" element={<ProductosPage />} />
+          <Route path="/productos/nuevo" element={<ProductoFormPage />} />
+          <Route path="/productos/:id" element={<ProductoFormPage />} />
+          <Route path="/compras" element={<ComprasPage />} />
+          <Route path="/compras/nueva" element={<NuevaCompraPage />} />
+          <Route path="/compras/proveedores" element={<ProveedoresPage />} />
+          <Route path="/compras/:id" element={<CompraDetallePage />} />
+          <Route path="/clientes" element={<ClientesPage />} />
+          <Route path="/clientes/:id" element={<ClienteFichaPage />} />
+          <Route path="/reportes" element={<ReportesPage />} />
+          <Route path="/usuarios" element={<UsuariosPage />} />
+          <Route path="/configuracion" element={<ConfiguracionPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </HashRouter>
+  )
+}
