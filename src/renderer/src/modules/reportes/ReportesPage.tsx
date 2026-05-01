@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { formatGs, formatDate, formatDateTime, todayStr, cn } from '../../lib/utils'
+import { useEffect, useState } from 'react'
+import { formatGs, formatDate, formatDateTime, todayStr, firstDayOfMonthStr, cn } from '../../lib/utils'
 import { exportToExcel, exportToPDF } from '../../lib/export'
 import {
   Badge,
@@ -282,7 +282,7 @@ const tdCls = 'px-4 py-3'
 
 export default function ReportesPage() {
   const [tab, setTab] = useState<Tab>('ventas')
-  const [from, setFrom] = useState(todayStr())
+  const [from, setFrom] = useState(firstDayOfMonthStr())
   const [to, setTo] = useState(todayStr())
   const [data, setData] = useState<unknown[]>([])
   const [summary, setSummary] = useState<SalesSummaryResult | null>(null)
@@ -316,6 +316,13 @@ export default function ReportesPage() {
     }
     setLoading(false)
   }
+
+  // Auto-cargar al cambiar de tab (y al montar). Las fechas siguen requiriendo
+  // click manual en "Consultar" para evitar fetches dobles cuando se ajustan ambas.
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
 
   const handleExportExcel = (): void => {
     const config = reportConfigs[tab]

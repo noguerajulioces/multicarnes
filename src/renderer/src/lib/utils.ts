@@ -26,3 +26,8 @@ export function todayStr(): string {
   const d = new Date()
   return d.toISOString().slice(0, 10)
 }
+
+export function firstDayOfMonthStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+}
