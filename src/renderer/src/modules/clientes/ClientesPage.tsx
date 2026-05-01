@@ -2,149 +2,240 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs } from '../../lib/utils'
 import type { Customer } from '@shared/types'
-import { Search, Plus, Eye, UserCheck } from 'lucide-react'
-import { EmptyState } from '../../components/ui'
+import { Search, Plus, Eye, Edit2, UserCheck } from 'lucide-react'
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  Modal,
+  PageHeader
+} from '../../components/ui'
+
+const emptyForm = { name: '', phone: '', address: '', is_employee: false }
 
 export default function ClientesPage() {
   const navigate = useNavigate()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', phone: '', address: '', is_employee: false })
+  const [form, setForm] = useState(emptyForm)
   const [editId, setEditId] = useState<number | null>(null)
 
   useEffect(() => {
     window.api.customers.getAll(search || undefined).then(setCustomers)
   }, [search])
 
-  const handleSave = async () => {
+  const reload = (): void => {
+    window.api.customers.getAll(search || undefined).then(setCustomers)
+  }
+
+  const handleSave = async (): Promise<void> => {
     if (!form.name) return
     if (editId) {
       await window.api.customers.update(editId, form)
     } else {
       await window.api.customers.create(form)
     }
-    setShowForm(false)
-    setForm({ name: '', phone: '', address: '', is_employee: false })
-    setEditId(null)
-    window.api.customers.getAll(search || undefined).then(setCustomers)
+    closeForm()
+    reload()
   }
 
-  const handleEdit = (c: Customer) => {
-    setForm({ name: c.name, phone: c.phone || '', address: c.address || '', is_employee: !!c.is_employee })
+  const handleEdit = (c: Customer): void => {
+    setForm({
+      name: c.name,
+      phone: c.phone || '',
+      address: c.address || '',
+      is_employee: !!c.is_employee
+    })
     setEditId(c.id)
     setShowForm(true)
   }
 
+  const handleNew = (): void => {
+    setForm(emptyForm)
+    setEditId(null)
+    setShowForm(true)
+  }
+
+  const closeForm = (): void => {
+    setShowForm(false)
+    setEditId(null)
+    setForm(emptyForm)
+  }
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Clientes</h1>
-        <button onClick={() => { setShowForm(true); setEditId(null); setForm({ name: '', phone: '', address: '', is_employee: false }) }}
-          className="bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand-hover flex items-center gap-2">
-          <Plus size={16} /> Nuevo Cliente
-        </button>
+    <div className="space-y-5">
+      <PageHeader
+        title="Clientes"
+        subtitle={`${customers.length} cliente${customers.length === 1 ? '' : 's'} registrado${customers.length === 1 ? '' : 's'}`}
+        actions={
+          <button
+            onClick={handleNew}
+            className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+          >
+            <Plus size={18} />
+            Nuevo Cliente
+          </button>
+        }
+      />
+
+      <div className="relative max-w-md">
+        <Search
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
+          size={16}
+        />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10 rounded-xl"
+          placeholder="Buscar por nombre..."
+        />
       </div>
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
-        <input value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 rounded-lg border bg-surface focus:outline-none focus:ring-2 focus:ring-brand text-sm"
-          placeholder="Buscar por nombre..." />
-      </div>
-
-      <div className="bg-surface rounded-lg shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-bg-secondary text-left text-text-muted">
-              <th className="p-3">Nombre</th>
-              <th className="p-3">Teléfono</th>
-              <th className="p-3 text-right">Saldo</th>
-              <th className="p-3">Empleado</th>
-              <th className="p-3">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customers.map((c) => (
-              <tr key={c.id} className="border-b hover:bg-surface-muted">
-                <td className="p-3 font-medium">{c.name}</td>
-                <td className="p-3 text-text-muted">{c.phone || '-'}</td>
-                <td className={`p-3 text-right font-medium ${c.balance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {formatGs(c.balance)}
-                </td>
-                <td className="p-3">{c.is_employee ? 'Sí' : 'No'}</td>
-                <td className="p-3">
-                  <div className="flex gap-1">
-                    <button onClick={() => navigate(`/clientes/${c.id}`)} className="p-1.5 hover:bg-surface-muted rounded" title="Ver ficha">
-                      <Eye size={14} />
-                    </button>
-                    <button onClick={() => handleEdit(c)} className="p-1.5 hover:bg-surface-muted rounded text-xs text-brand">Editar</button>
-                  </div>
-                </td>
+      <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-surface-muted/60 text-left text-text-muted">
+                <th className="px-4 py-3 font-medium">Nombre</th>
+                <th className="px-4 py-3 font-medium">Teléfono</th>
+                <th className="px-4 py-3 font-medium text-right">Saldo</th>
+                <th className="px-4 py-3 font-medium">Tipo</th>
+                <th className="px-4 py-3 font-medium w-20"></th>
               </tr>
-            ))}
-            {customers.length === 0 && (
-              <tr>
-                <td colSpan={5}>
-                  {search ? (
-                    <EmptyState
-                      icon={<Search size={40} />}
-                      title="Sin resultados"
-                      description={`Ningún cliente coincide con "${search}".`}
-                    />
-                  ) : (
-                    <EmptyState
-                      icon={<UserCheck size={40} />}
-                      title="Aún no hay clientes"
-                      description="Cargá clientes para llevar registro de saldos y pagos."
-                      action={
+            </thead>
+            <tbody>
+              {customers.map((c) => {
+                const owes = c.balance < 0
+                return (
+                  <tr
+                    key={c.id}
+                    className="border-t border-border hover:bg-surface-muted/40 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-medium text-text-main">{c.name}</td>
+                    <td className="px-4 py-3 text-text-muted">
+                      {c.phone || <span className="text-text-disabled">—</span>}
+                    </td>
+                    <td
+                      className={`px-4 py-3 text-right font-medium tabular-nums ${
+                        owes ? 'text-danger-700' : c.balance > 0 ? 'text-success-700' : ''
+                      }`}
+                    >
+                      {formatGs(c.balance)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {c.is_employee ? (
+                        <Badge tone="info">Empleado</Badge>
+                      ) : (
+                        <span className="text-text-disabled text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 justify-end">
                         <button
-                          onClick={() => {
-                            setShowForm(true)
-                            setEditId(null)
-                            setForm({ name: '', phone: '', address: '', is_employee: false })
-                          }}
-                          className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand-hover"
+                          onClick={() => navigate(`/clientes/${c.id}`)}
+                          className="p-1.5 hover:bg-surface-muted rounded-lg text-text-muted hover:text-text-main transition-colors"
+                          title="Ver ficha"
                         >
-                          <Plus size={16} /> Nuevo Cliente
+                          <Eye size={14} />
                         </button>
-                      }
-                    />
-                  )}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="font-semibold mb-4">{editId ? 'Editar Cliente' : 'Nuevo Cliente'}</h3>
-            <div className="space-y-3">
-              <div><label className="block text-sm text-text-muted mb-1">Nombre *</label>
-                <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand" autoFocus /></div>
-              <div><label className="block text-sm text-text-muted mb-1">Teléfono</label>
-                <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand" /></div>
-              <div><label className="block text-sm text-text-muted mb-1">Dirección</label>
-                <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand" /></div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.is_employee} onChange={(e) => setForm({ ...form, is_employee: e.target.checked })} />
-                Es empleado
-              </label>
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowForm(false)} className="flex-1 border rounded-lg py-2 hover:bg-surface-muted">Cancelar</button>
-                <button onClick={handleSave} disabled={!form.name}
-                  className="flex-1 bg-brand text-white py-2 rounded-lg hover:bg-brand-hover disabled:opacity-50">Guardar</button>
-              </div>
-            </div>
-          </div>
+                        <button
+                          onClick={() => handleEdit(c)}
+                          className="p-1.5 hover:bg-surface-muted rounded-lg text-text-muted hover:text-text-main transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {customers.length === 0 && (
+                <tr>
+                  <td colSpan={5}>
+                    {search ? (
+                      <EmptyState
+                        icon={<Search size={40} />}
+                        title="Sin resultados"
+                        description={`Ningún cliente coincide con "${search}".`}
+                      />
+                    ) : (
+                      <EmptyState
+                        icon={<UserCheck size={40} />}
+                        title="Aún no hay clientes"
+                        description="Cargá clientes para llevar registro de saldos y pagos."
+                        action={
+                          <Button onClick={handleNew}>
+                            <Plus size={16} /> Nuevo Cliente
+                          </Button>
+                        }
+                      />
+                    )}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </Card>
+
+      <Modal
+        open={showForm}
+        onClose={closeForm}
+        size="sm"
+        title={editId ? 'Editar Cliente' : 'Nuevo Cliente'}
+        footer={
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={closeForm}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={!form.name}>
+              {editId ? 'Guardar cambios' : 'Crear'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">
+              Nombre <span className="text-danger-500">*</span>
+            </label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">Teléfono</label>
+            <Input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="Opcional"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">Dirección</label>
+            <Input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Opcional"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm pt-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.is_employee}
+              onChange={(e) => setForm({ ...form, is_employee: e.target.checked })}
+              className="w-4 h-4 rounded accent-brand"
+            />
+            <span className="text-text-main">Es empleado</span>
+          </label>
+        </div>
+      </Modal>
     </div>
   )
 }
