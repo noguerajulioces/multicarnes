@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, ShoppingCart, Wallet, Receipt, AlertTriangle, Package } from 'lucide-react'
 import { formatGs } from '../../lib/utils'
 import { Card, CardBody, CardHeader } from '../../components/ui'
+import { useAuthStore } from '../../store/auth.store'
 import type { Product, Sale } from '@shared/types'
 import { KpiCard } from './components/KpiCard'
 import { SalesBarChart, type SalesBarPoint } from './components/SalesBarChart'
@@ -115,6 +116,9 @@ function buildChartData(byDay: SalesSummaryByDay[], period: ChartPeriod): SalesB
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const isCajero = user?.role === 'cajero'
+
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('6m')
   const [donutPeriod, setDonutPeriod] = useState<DonutPeriod>('30d')
 
@@ -127,29 +131,37 @@ export default function DashboardPage() {
   const [topProducts, setTopProducts] = useState<TopProductRow[]>([])
 
   const [headerLoading, setHeaderLoading] = useState(true)
-  const [chartLoading, setChartLoading] = useState(true)
-  const [donutLoading, setDonutLoading] = useState(true)
+  const [chartLoading, setChartLoading] = useState(!isCajero)
+  const [donutLoading, setDonutLoading] = useState(!isCajero)
 
   useEffect(() => {
     const today = todayISO()
-    Promise.all([
+    const baseCalls: Promise<unknown>[] = [
       window.api.sales.dayTotal(),
-      window.api.reports.salesComparison(today, today),
-      window.api.products.lowStock(),
-      window.api.reports.pendingCredits(),
-      window.api.sales.getRecent(8)
-    ])
-      .then(([dt, cmp, ls, pc, rs]) => {
-        setDayTotal(dt as { total: number; count: number })
-        setComparison(cmp as ComparisonResult)
-        setLowStock(ls as Product[])
-        setPendingCredits(pc as PendingCreditRow[])
-        setRecentSales(rs as Sale[])
+      window.api.products.lowStock()
+    ]
+    const managerCalls: Promise<unknown>[] = isCajero
+      ? []
+      : [
+          window.api.reports.salesComparison(today, today),
+          window.api.reports.pendingCredits(),
+          window.api.sales.getRecent(8)
+        ]
+    Promise.all([...baseCalls, ...managerCalls])
+      .then((results) => {
+        setDayTotal(results[0] as { total: number; count: number })
+        setLowStock(results[1] as Product[])
+        if (!isCajero) {
+          setComparison(results[2] as ComparisonResult)
+          setPendingCredits(results[3] as PendingCreditRow[])
+          setRecentSales(results[4] as Sale[])
+        }
       })
       .finally(() => setHeaderLoading(false))
-  }, [])
+  }, [isCajero])
 
   useEffect(() => {
+    if (isCajero) return
     setChartLoading(true)
     const { from, to } = periodRange(chartPeriod)
     window.api.reports
@@ -159,9 +171,10 @@ export default function DashboardPage() {
         setByDay(r.byDay)
       })
       .finally(() => setChartLoading(false))
-  }, [chartPeriod])
+  }, [chartPeriod, isCajero])
 
   useEffect(() => {
+    if (isCajero) return
     setDonutLoading(true)
     const { from, to } = periodRange(donutPeriod)
     window.api.reports
@@ -171,7 +184,7 @@ export default function DashboardPage() {
         setTopProducts(all.slice(0, 5))
       })
       .finally(() => setDonutLoading(false))
-  }, [donutPeriod])
+  }, [donutPeriod, isCajero])
 
   const chartData = useMemo(() => buildChartData(byDay, chartPeriod), [byDay, chartPeriod])
 
@@ -190,6 +203,59 @@ export default function DashboardPage() {
   const ticketsDelta = comparison
     ? deltaPct(comparison.current.sales_count, comparison.previous.sales_count)
     : 0
+
+  if (isCajero) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-text-main">
+              Hola, {user?.name?.split(' ')[0] ?? ''}
+            </h1>
+            <p className="text-sm text-text-muted mt-0.5">Tu panel de trabajo de hoy</p>
+          </div>
+          <button
+            onClick={() => navigate('/ventas')}
+            className="bg-brand text-white px-5 py-3 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+          >
+            <Plus size={20} />
+            Nueva Venta
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <KpiCard
+            gradient="blue"
+            icon={<Receipt size={20} />}
+            label="Tickets Hoy"
+            value={String(dayTotal.count)}
+            hint="ventas registradas"
+            loading={headerLoading}
+          />
+          <KpiCard
+            gradient="teal"
+            icon={<AlertTriangle size={20} />}
+            label="Alertas de Stock"
+            value={String(lowStock.length)}
+            hint={lowStock.length > 0 ? 'productos críticos' : 'todo en orden'}
+            loading={headerLoading}
+          />
+        </div>
+
+        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Package size={16} className="text-text-muted" />
+              <h2 className="font-semibold text-text-main">Resumen de Stock</h2>
+            </div>
+          </CardHeader>
+          <CardBody>
+            <StockSummaryCard lowStock={lowStock} loading={headerLoading} />
+          </CardBody>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5">
