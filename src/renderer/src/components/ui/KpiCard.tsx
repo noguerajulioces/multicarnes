@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
-import { Skeleton } from '../../../components/ui'
-import { cn } from '../../../lib/utils'
+import { Skeleton } from './Skeleton'
+import { cn } from '../../lib/utils'
 
 export type KpiGradient = 'purple' | 'blue' | 'teal' | 'green'
 
