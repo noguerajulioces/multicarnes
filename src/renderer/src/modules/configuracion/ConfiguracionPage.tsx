@@ -33,12 +33,13 @@ export default function ConfiguracionPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="max-w-5xl mx-auto space-y-5">
       <PageHeader
         title="Configuración"
         subtitle="Personalizá los datos del negocio, la apariencia y la impresora"
       />
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
       <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
         <CardHeader>
           <div className="flex items-center gap-3">
@@ -192,6 +193,7 @@ export default function ConfiguracionPage() {
           </div>
         </CardBody>
       </Card>
+      </div>
     </div>
   )
 }
