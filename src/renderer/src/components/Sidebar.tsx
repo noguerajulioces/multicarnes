@@ -1,65 +1,214 @@
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
 import {
-  LayoutDashboard, ShoppingCart, Package, DollarSign,
-  Users, FileText, Settings, LogOut, Truck, UserCheck, HardDrive
+  LayoutDashboard,
+  ShoppingCart,
+  Package,
+  DollarSign,
+  Users,
+  FileText,
+  Settings,
+  LogOut,
+  Truck,
+  UserCheck,
+  HardDrive,
+  ChevronLeft,
+  ChevronRight,
+  type LucideIcon
 } from 'lucide-react'
+import logo from '../assets/logo.png'
+import type { Role } from '@shared/types'
 
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'supervisor', 'cajero'] },
-  { to: '/ventas', label: 'Ventas', icon: ShoppingCart, roles: ['admin', 'supervisor', 'cajero'] },
-  { to: '/caja', label: 'Caja', icon: DollarSign, roles: ['admin', 'supervisor', 'cajero'] },
-  { to: '/productos', label: 'Productos', icon: Package, roles: ['admin', 'supervisor'] },
-  { to: '/compras', label: 'Compras', icon: Truck, roles: ['admin', 'supervisor'] },
-  { to: '/clientes', label: 'Clientes', icon: UserCheck, roles: ['admin', 'supervisor'] },
-  { to: '/reportes', label: 'Reportes', icon: FileText, roles: ['admin', 'supervisor'] },
-  { to: '/usuarios', label: 'Usuarios', icon: Users, roles: ['admin'] },
-  { to: '/configuracion', label: 'Configuración', icon: Settings, roles: ['admin'] },
-  { to: '/backup', label: 'Backup', icon: HardDrive, roles: ['admin'] }
+interface NavItem {
+  to: string
+  label: string
+  icon: LucideIcon
+  roles: Role[]
+}
+
+interface NavSection {
+  label: string
+  items: NavItem[]
+}
+
+const navSections: NavSection[] = [
+  {
+    label: 'Principal',
+    items: [
+      {
+        to: '/dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        roles: ['admin', 'supervisor', 'cajero']
+      },
+      {
+        to: '/ventas',
+        label: 'Ventas',
+        icon: ShoppingCart,
+        roles: ['admin', 'supervisor', 'cajero']
+      },
+      { to: '/caja', label: 'Caja', icon: DollarSign, roles: ['admin', 'supervisor', 'cajero'] }
+    ]
+  },
+  {
+    label: 'Gestión',
+    items: [
+      { to: '/productos', label: 'Productos', icon: Package, roles: ['admin', 'supervisor'] },
+      { to: '/compras', label: 'Compras', icon: Truck, roles: ['admin', 'supervisor'] },
+      { to: '/clientes', label: 'Clientes', icon: UserCheck, roles: ['admin', 'supervisor'] },
+      { to: '/reportes', label: 'Reportes', icon: FileText, roles: ['admin', 'supervisor'] }
+    ]
+  },
+  {
+    label: 'Sistema',
+    items: [
+      { to: '/usuarios', label: 'Usuarios', icon: Users, roles: ['admin'] },
+      { to: '/configuracion', label: 'Configuración', icon: Settings, roles: ['admin'] },
+      { to: '/backup', label: 'Backup', icon: HardDrive, roles: ['admin'] }
+    ]
+  }
 ]
+
+const STORAGE_KEY = 'sidebar-collapsed'
 
 export default function Sidebar() {
   const { user, logout } = useAuthStore()
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(STORAGE_KEY) === '1')
 
-  const filtered = navItems.filter((item) => user && item.roles.includes(user.role))
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0')
+  }, [collapsed])
+
+  const filteredSections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => user && item.roles.includes(user.role))
+    }))
+    .filter((section) => section.items.length > 0)
+
+  const initials = (user?.name ?? '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p.charAt(0).toUpperCase())
+    .join('') || (user?.name ?? '?').charAt(0).toUpperCase()
 
   return (
-    <aside className="w-56 bg-brand text-white flex flex-col h-screen shrink-0">
-      <div className="p-4 text-center border-b border-white/20">
-        <h1 className="text-lg font-bold">Multicarnes</h1>
-        <p className="text-xs opacity-80">S.R.L.</p>
+    <aside
+      className={`${
+        collapsed ? 'w-16' : 'w-60'
+      } bg-brand text-white flex flex-col h-full shrink-0 transition-[width] duration-200`}
+    >
+      {/* Brand header */}
+      <div
+        className={`flex items-center ${
+          collapsed ? 'justify-center px-2 py-4' : 'gap-3 px-4 py-5'
+        }`}
+      >
+        <img src={logo} alt="Multicarnes" className="h-10 w-10 object-contain shrink-0" />
+        {!collapsed && (
+          <div className="leading-tight min-w-0">
+            <h1 className="text-base font-bold tracking-tight truncate">Multicarnes</h1>
+            <p className="text-[11px] opacity-75 uppercase tracking-wider">S.R.L.</p>
+          </div>
+        )}
       </div>
 
-      <nav className="flex-1 py-2 overflow-y-auto">
-        {filtered.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                isActive ? 'bg-white/20 font-semibold' : 'hover:bg-white/10'
-              }`
-            }
-          >
-            <item.icon size={18} />
-            {item.label}
-          </NavLink>
+      {/* Navigation */}
+      <nav className="flex-1 px-2 pb-2 overflow-y-auto">
+        {filteredSections.map((section, sIdx) => (
+          <div key={section.label} className={sIdx > 0 ? 'mt-4' : ''}>
+            {!collapsed && (
+              <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider opacity-50">
+                {section.label}
+              </div>
+            )}
+            {collapsed && sIdx > 0 && <div className="mx-2 my-2 h-px bg-white/15" />}
+            {section.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                title={collapsed ? item.label : undefined}
+                className={({ isActive }) =>
+                  `relative flex items-center ${
+                    collapsed ? 'justify-center px-2' : 'gap-3 px-3'
+                  } py-2.5 my-0.5 text-sm rounded-xl transition-colors ${
+                    isActive
+                      ? 'bg-white/25 font-semibold'
+                      : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && !collapsed && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-white" />
+                    )}
+                    <item.icon size={18} className="shrink-0" />
+                    {!collapsed && <span className="truncate">{item.label}</span>}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
 
-      <div className="p-4 border-t border-white/20">
-        <div className="text-sm mb-2">
-          <p className="font-medium">{user?.name}</p>
-          <p className="text-xs opacity-70 capitalize">{user?.role}</p>
-        </div>
-        <button
-          onClick={() => { logout(); window.location.hash = '#/login' }}
-          className="flex items-center gap-2 text-sm hover:bg-white/10 px-2 py-1 rounded w-full"
-        >
-          <LogOut size={16} />
-          Cerrar sesión
-        </button>
+      {/* User block */}
+      <div className={`border-t border-white/15 ${collapsed ? 'p-2' : 'px-3 py-3'}`}>
+        {!collapsed ? (
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-xs font-semibold shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0 leading-tight">
+              <p className="text-sm font-medium truncate">{user?.name}</p>
+              <p className="text-[11px] opacity-75 capitalize">{user?.role}</p>
+            </div>
+            <button
+              onClick={() => {
+                logout()
+                window.location.hash = '#/login'
+              }}
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+              className="p-2 rounded-lg hover:bg-white/15 text-white/85 hover:text-white shrink-0 transition-colors"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-1">
+            <div
+              className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-xs font-semibold"
+              title={user?.name}
+            >
+              {initials}
+            </div>
+            <button
+              onClick={() => {
+                logout()
+                window.location.hash = '#/login'
+              }}
+              title={`Cerrar sesión (${user?.name ?? ''})`}
+              className="flex items-center justify-center hover:bg-white/15 p-1.5 rounded-lg text-white/85 hover:text-white transition-colors"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Collapse toggle */}
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+        aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+        className="border-t border-white/15 py-2 text-white/60 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors"
+      >
+        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+      </button>
     </aside>
   )
 }

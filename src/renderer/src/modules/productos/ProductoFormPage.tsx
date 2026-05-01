@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { Category } from '@shared/types'
-import { ImagePlus } from 'lucide-react'
+import { ImagePlus, Plus } from 'lucide-react'
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Input,
+  MoneyInput,
+  PageHeader,
+  Select
+} from '../../components/ui'
+import { formatGs } from '../../lib/utils'
 
 export default function ProductoFormPage() {
   const navigate = useNavigate()
@@ -11,8 +22,14 @@ export default function ProductoFormPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [newCat, setNewCat] = useState('')
   const [form, setForm] = useState({
-    name: '', category_id: '' as string | number, barcode: '',
-    price: '', price_type: 'unit', stock: '0', min_stock: '0', active: true
+    name: '',
+    category_id: '' as string | number,
+    barcode: '',
+    price: 0,
+    price_type: 'unit',
+    stock: '0',
+    min_stock: '0',
+    active: true
   })
   const [image, setImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -23,10 +40,14 @@ export default function ProductoFormPage() {
       window.api.products.getById(Number(id)).then((p) => {
         if (p) {
           setForm({
-            name: p.name, category_id: p.category_id || '',
-            barcode: p.barcode || '', price: String(p.price),
-            price_type: p.price_type, stock: String(p.stock),
-            min_stock: String(p.min_stock), active: !!p.active
+            name: p.name,
+            category_id: p.category_id || '',
+            barcode: p.barcode || '',
+            price: p.price,
+            price_type: p.price_type,
+            stock: String(p.stock),
+            min_stock: String(p.min_stock),
+            active: !!p.active
           })
           setImage(p.image || null)
         }
@@ -34,7 +55,7 @@ export default function ProductoFormPage() {
     }
   }, [id])
 
-  const handleCreateCategory = async () => {
+  const handleCreateCategory = async (): Promise<void> => {
     if (!newCat.trim()) return
     const cat = await window.api.products.createCategory(newCat.trim())
     setCategories([...categories, cat])
@@ -42,19 +63,19 @@ export default function ProductoFormPage() {
     setNewCat('')
   }
 
-  const handleUploadImage = async () => {
+  const handleUploadImage = async (): Promise<void> => {
     if (!isEdit) return
     const filename = await window.api.products.uploadImage(Number(id))
     if (filename) setImage(filename)
   }
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     setLoading(true)
     const data = {
       name: form.name,
       category_id: form.category_id ? Number(form.category_id) : null,
       barcode: form.barcode || null,
-      price: parseInt(form.price) || 0,
+      price: form.price,
       price_type: form.price_type as 'unit' | 'kg',
       stock: parseFloat(form.stock) || 0,
       min_stock: parseFloat(form.min_stock) || 0,
@@ -66,7 +87,6 @@ export default function ProductoFormPage() {
       } else {
         const created = await window.api.products.create(data)
         if (created) {
-          // Redirect to edit so user can upload image
           navigate(`/productos/${created.id}`)
           return
         }
@@ -79,103 +99,201 @@ export default function ProductoFormPage() {
   }
 
   const imageUrl = image ? `product-img://${image}` : null
+  const stockUnit = form.price_type === 'kg' ? 'kg' : 'u.'
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">{isEdit ? 'Editar Producto' : 'Nuevo Producto'}</h1>
+    <div className="max-w-3xl mx-auto space-y-5">
+      <PageHeader
+        title={isEdit ? 'Editar Producto' : 'Nuevo Producto'}
+        subtitle={
+          isEdit
+            ? 'Actualizá los datos del producto y guardá los cambios.'
+            : 'Cargá los datos básicos. La imagen se sube después de crear el producto.'
+        }
+      />
 
-      <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
-        {/* Image */}
-        {isEdit && (
-          <div className="flex items-center gap-4">
-            <div
-              onClick={handleUploadImage}
-              className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-brand hover:bg-brand-light transition-colors overflow-hidden"
-            >
-              {imageUrl ? (
-                <img src={imageUrl} alt={form.name} className="w-full h-full object-cover" />
-              ) : (
-                <ImagePlus size={28} className="text-text-muted" />
+      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <CardHeader>
+          <h2 className="font-semibold text-text-main">Información básica</h2>
+          <p className="text-xs text-text-muted">Nombre, categoría, código e imagen</p>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          {isEdit && (
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={handleUploadImage}
+                className="w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-brand hover:bg-brand-light transition-colors overflow-hidden"
+              >
+                {imageUrl ? (
+                  <img src={imageUrl} alt={form.name} className="w-full h-full object-cover" />
+                ) : (
+                  <ImagePlus size={28} className="text-text-muted" />
+                )}
+              </button>
+              <div>
+                <button
+                  type="button"
+                  onClick={handleUploadImage}
+                  className="text-sm font-medium text-brand hover:text-brand-hover"
+                >
+                  {image ? 'Cambiar imagen' : 'Subir imagen'}
+                </button>
+                <p className="text-xs text-text-muted mt-1">PNG, JPG o WebP</p>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">
+              Nombre <span className="text-danger-500">*</span>
+            </label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Ej: Costilla vacuna"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Categoría</label>
+              <Select
+                value={form.category_id}
+                onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+              >
+                <option value="">Sin categoría</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+              <div className="flex gap-2 mt-2">
+                <Input
+                  value={newCat}
+                  onChange={(e) => setNewCat(e.target.value)}
+                  placeholder="Nueva categoría"
+                  className="h-9 text-sm"
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleCreateCategory}
+                  disabled={!newCat.trim()}
+                >
+                  <Plus size={14} />
+                  Crear
+                </Button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Código de barras</label>
+              <Input
+                value={form.barcode}
+                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                placeholder="Opcional"
+              />
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <CardHeader>
+          <h2 className="font-semibold text-text-main">Precio y stock</h2>
+          <p className="text-xs text-text-muted">Cómo se cobra y la cantidad disponible</p>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">
+                Precio (Gs.) <span className="text-danger-500">*</span>
+              </label>
+              <MoneyInput
+                value={form.price}
+                onValueChange={(v) => setForm({ ...form, price: v })}
+                className="text-right tabular-nums"
+                placeholder="0"
+              />
+              {form.price > 0 && (
+                <p className="text-xs text-text-muted mt-1 text-right">{formatGs(form.price)}</p>
               )}
             </div>
             <div>
-              <button onClick={handleUploadImage} className="text-sm text-brand hover:underline">
-                {image ? 'Cambiar imagen' : 'Subir imagen'}
-              </button>
-              <p className="text-xs text-text-muted mt-1">PNG, JPG o WebP</p>
+              <label className="block text-sm text-text-muted mb-1.5">Tipo de precio</label>
+              <Select
+                value={form.price_type}
+                onChange={(e) => setForm({ ...form, price_type: e.target.value })}
+              >
+                <option value="unit">Por unidad</option>
+                <option value="kg">Por kg</option>
+              </Select>
             </div>
           </div>
-        )}
 
-        <div>
-          <label className="block text-sm text-text-muted mb-1">Nombre *</label>
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Categoría</label>
-            <select value={form.category_id} onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              className="w-full border rounded-lg p-2 bg-white">
-              <option value="">Sin categoría</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <div className="flex gap-1 mt-1">
-              <input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="Nueva categoría"
-                className="flex-1 border rounded px-2 py-1 text-sm" />
-              <button onClick={handleCreateCategory} className="text-sm text-brand hover:underline px-2">Crear</button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">
+                Stock {isEdit ? 'actual' : 'inicial'} ({stockUnit})
+              </label>
+              <Input
+                type="number"
+                value={form.stock}
+                onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                step={form.price_type === 'kg' ? '0.01' : '1'}
+                min="0"
+                className="text-right tabular-nums"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">
+                Stock mínimo ({stockUnit})
+              </label>
+              <Input
+                type="number"
+                value={form.min_stock}
+                onChange={(e) => setForm({ ...form, min_stock: e.target.value })}
+                step={form.price_type === 'kg' ? '0.01' : '1'}
+                min="0"
+                className="text-right tabular-nums"
+              />
+              <p className="text-xs text-text-muted mt-1">
+                Recibís alertas cuando el stock baja de este nivel
+              </p>
             </div>
           </div>
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Código de barras</label>
-            <input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-              className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand" />
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Precio (Gs.) *</label>
-            <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })}
-              className="w-full border rounded-lg p-2 text-right focus:outline-none focus:ring-2 focus:ring-brand" />
-          </div>
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Tipo de precio</label>
-            <select value={form.price_type} onChange={(e) => setForm({ ...form, price_type: e.target.value })}
-              className="w-full border rounded-lg p-2 bg-white">
-              <option value="unit">Por unidad</option>
-              <option value="kg">Por kg</option>
-            </select>
-          </div>
-        </div>
+          <label className="flex items-center gap-2 text-sm pt-2 border-t border-border cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.active}
+              onChange={(e) => setForm({ ...form, active: e.target.checked })}
+              className="w-4 h-4 rounded accent-brand"
+            />
+            <span className="text-text-main">Producto activo</span>
+            <span className="text-xs text-text-muted">— se muestra en el punto de venta</span>
+          </label>
+        </CardBody>
+      </Card>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Stock inicial</label>
-            <input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })}
-              step={form.price_type === 'kg' ? '0.01' : '1'}
-              className="w-full border rounded-lg p-2 text-right focus:outline-none focus:ring-2 focus:ring-brand" />
-          </div>
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Stock mínimo</label>
-            <input type="number" value={form.min_stock} onChange={(e) => setForm({ ...form, min_stock: e.target.value })}
-              className="w-full border rounded-lg p-2 text-right focus:outline-none focus:ring-2 focus:ring-brand" />
-          </div>
-        </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
-          Activo
-        </label>
-
-        <div className="flex gap-3 pt-4 border-t">
-          <button onClick={() => navigate('/productos')} className="flex-1 border rounded-lg py-2 hover:bg-gray-50">Cancelar</button>
-          <button onClick={handleSave} disabled={loading || !form.name || !form.price}
-            className="flex-1 bg-brand text-white py-2 rounded-lg hover:bg-brand-hover disabled:opacity-50">
-            {loading ? 'Guardando...' : 'Guardar'}
-          </button>
-        </div>
+      <div className="flex gap-3 justify-end">
+        <Button
+          variant="secondary"
+          className="rounded-xl"
+          size="lg"
+          onClick={() => navigate('/productos')}
+        >
+          Cancelar
+        </Button>
+        <Button
+          className="rounded-xl"
+          size="lg"
+          onClick={handleSave}
+          disabled={loading || !form.name || !form.price}
+        >
+          {loading ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear producto'}
+        </Button>
       </div>
     </div>
   )

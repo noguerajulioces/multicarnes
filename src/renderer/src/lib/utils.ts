@@ -1,3 +1,6 @@
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
 export function formatGs(amount: number): string {
   return `Gs. ${amount.toLocaleString('es-PY')}`
 }
@@ -15,11 +18,16 @@ export function formatDateTime(dateStr: string): string {
   })
 }
 
-export function cn(...classes: (string | false | null | undefined)[]): string {
-  return classes.filter(Boolean).join(' ')
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs))
 }
 
 export function todayStr(): string {
   const d = new Date()
   return d.toISOString().slice(0, 10)
+}
+
+export function firstDayOfMonthStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
 }

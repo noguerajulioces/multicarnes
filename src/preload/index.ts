@@ -80,7 +80,12 @@ const api = {
     profitMargin: () => ipcRenderer.invoke('reports:profitMargin'),
     stockMovements: (from: string, to: string, productId?: number) =>
       ipcRenderer.invoke('reports:stockMovements', from, to, productId),
-    cashRegisters: () => ipcRenderer.invoke('reports:cashRegisters')
+    cashRegisters: () => ipcRenderer.invoke('reports:cashRegisters'),
+    pendingCredits: () => ipcRenderer.invoke('reports:pendingCredits'),
+    salesSummary: (from: string, to: string) =>
+      ipcRenderer.invoke('reports:salesSummary', from, to),
+    salesComparison: (from: string, to: string) =>
+      ipcRenderer.invoke('reports:salesComparison', from, to)
   },
   // Backup & Settings
   backup: {
@@ -92,6 +97,9 @@ const api = {
   settings: {
     getAll: () => ipcRenderer.invoke('settings:getAll'),
     set: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value)
+  },
+  notify: {
+    show: (title: string, body: string) => ipcRenderer.invoke('notify:show', title, body)
   }
 }
 

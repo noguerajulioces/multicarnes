@@ -5,7 +5,7 @@ export function seedDatabase(db: Database.Database): void {
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }
   if (userCount.count > 0) return
 
-  const pinHash = bcrypt.hashSync('1234', 10)
+  const pinHash = bcrypt.hashSync('123456', 10)
   db.prepare(
     `INSERT INTO users (name, role, pin_hash) VALUES (?, ?, ?)`
   ).run('Administrador', 'admin', pinHash)

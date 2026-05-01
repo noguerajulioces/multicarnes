@@ -11,7 +11,28 @@ import { registerCashIpc } from './ipc/cash.ipc'
 import { registerPurchasesIpc } from './ipc/purchases.ipc'
 import { registerReportsIpc } from './ipc/reports.ipc'
 import { registerBackupIpc } from './ipc/backup.ipc'
+import { registerNotificationsIpc } from './ipc/notifications.ipc'
 import { pathToFileURL } from 'url'
+
+let splashWindow: BrowserWindow | null = null
+
+function createSplash(): BrowserWindow {
+  const splash = new BrowserWindow({
+    width: 420,
+    height: 320,
+    frame: false,
+    resizable: false,
+    movable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    center: true,
+    show: false,
+    backgroundColor: '#CC1C1C'
+  })
+  splash.loadFile(join(__dirname, '../../resources/splash.html'))
+  splash.once('ready-to-show', () => splash.show())
+  return splash
+}
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -21,6 +42,16 @@ function createWindow(): void {
     minHeight: 700,
     show: false,
     autoHideMenuBar: true,
+    titleBarStyle: 'hidden',
+    ...(process.platform === 'win32'
+      ? {
+          titleBarOverlay: {
+            color: '#CC1C1C',
+            symbolColor: '#FFFFFF',
+            height: 36
+          }
+        }
+      : {}),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -29,6 +60,10 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close()
+      splashWindow = null
+    }
     mainWindow.maximize()
     mainWindow.show()
   })
@@ -53,6 +88,9 @@ protocol.registerSchemesAsPrivileged([
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.multicarnes.pos')
 
+  // Show splash while DB and IPC initialize
+  splashWindow = createSplash()
+
   // Handle product-img:// protocol
   protocol.handle('product-img', (request) => {
     const filename = decodeURIComponent(request.url.replace('product-img://', ''))
@@ -76,6 +114,7 @@ app.whenReady().then(() => {
   registerPurchasesIpc()
   registerReportsIpc()
   registerBackupIpc()
+  registerNotificationsIpc()
 
   createWindow()
 

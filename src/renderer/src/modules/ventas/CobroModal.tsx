@@ -1,27 +1,37 @@
 import { useState, useEffect } from 'react'
+import { Check, X, User, Banknote, ArrowLeftRight, Clock, Layers } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
-import type { Customer } from '@shared/types'
+import { Button, Input, Modal, MoneyInput } from '../../components/ui'
+import { cn } from '../../lib/utils'
+import type { Customer, PaymentMethod } from '@shared/types'
 
 interface Props {
   onClose: () => void
   onSuccess: () => void
 }
 
+const methodOptions: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
+  { value: 'cash', label: 'Efectivo', icon: Banknote },
+  { value: 'transfer', label: 'Transfer.', icon: ArrowLeftRight },
+  { value: 'credit', label: 'Fiado', icon: Clock },
+  { value: 'mixed', label: 'Mixto', icon: Layers }
+]
+
 export default function CobroModal({ onClose, onSuccess }: Props) {
   const user = useAuthStore((s) => s.user)
   const register = useCashStore((s) => s.register)
   const { items, discount, subtotal, total } = useCartStore()
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit' | 'transfer' | 'mixed'>('cash')
-  const [cashReceived, setCashReceived] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  const [cashReceived, setCashReceived] = useState(0)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [customerSearch, setCustomerSearch] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [mixedCash, setMixedCash] = useState('')
-  const [mixedTransfer, setMixedTransfer] = useState('')
-  const [mixedCredit, setMixedCredit] = useState('')
+  const [mixedCash, setMixedCash] = useState(0)
+  const [mixedTransfer, setMixedTransfer] = useState(0)
+  const [mixedCredit, setMixedCredit] = useState(0)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [saleId, setSaleId] = useState<number | null>(null)
@@ -35,9 +45,19 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
   }, [customerSearch])
 
   const totalAmount = total()
-  const change = paymentMethod === 'cash' ? (parseInt(cashReceived) || 0) - totalAmount : 0
+  const change = paymentMethod === 'cash' ? cashReceived - totalAmount : 0
+  const mixedTotal = mixedCash + mixedTransfer + mixedCredit
 
-  const handleConfirm = async () => {
+  const canConfirm = (): boolean => {
+    if (items.length === 0) return false
+    if (paymentMethod === 'cash' && cashReceived < totalAmount) return false
+    if (paymentMethod === 'credit' && !selectedCustomer) return false
+    if (paymentMethod === 'mixed' && mixedTotal !== totalAmount) return false
+    if (paymentMethod === 'mixed' && mixedCredit > 0 && !selectedCustomer) return false
+    return true
+  }
+
+  const handleConfirm = async (): Promise<void> => {
     if (!user || !register) return
     setLoading(true)
 
@@ -51,9 +71,9 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
     let payments: { method: string; amount: number }[] | undefined
     if (paymentMethod === 'mixed') {
       payments = []
-      if (parseInt(mixedCash) > 0) payments.push({ method: 'cash', amount: parseInt(mixedCash) })
-      if (parseInt(mixedTransfer) > 0) payments.push({ method: 'transfer', amount: parseInt(mixedTransfer) })
-      if (parseInt(mixedCredit) > 0) payments.push({ method: 'credit', amount: parseInt(mixedCredit) })
+      if (mixedCash > 0) payments.push({ method: 'cash', amount: mixedCash })
+      if (mixedTransfer > 0) payments.push({ method: 'transfer', amount: mixedTransfer })
+      if (mixedCredit > 0) payments.push({ method: 'credit', amount: mixedCredit })
     }
 
     try {
@@ -76,76 +96,114 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
     setLoading(false)
   }
 
-  const mixedTotal = (parseInt(mixedCash) || 0) + (parseInt(mixedTransfer) || 0) + (parseInt(mixedCredit) || 0)
-  const canConfirm = () => {
-    if (items.length === 0) return false
-    if (paymentMethod === 'cash' && (parseInt(cashReceived) || 0) < totalAmount) return false
-    if (paymentMethod === 'credit' && !selectedCustomer) return false
-    if (paymentMethod === 'mixed' && mixedTotal !== totalAmount) return false
-    if (paymentMethod === 'mixed' && (parseInt(mixedCredit) || 0) > 0 && !selectedCustomer) return false
-    return true
-  }
-
   if (success) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8 max-w-sm w-full mx-4 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-green-600 text-3xl">✓</span>
-          </div>
-          <h3 className="text-xl font-bold mb-2">Venta Exitosa</h3>
-          <p className="text-text-muted mb-1">Ticket #{saleId}</p>
-          <p className="text-2xl font-bold text-brand mb-6">{formatGs(totalAmount)}</p>
-          {paymentMethod === 'cash' && change > 0 && (
-            <p className="text-lg mb-4 bg-green-50 p-3 rounded-lg">
-              Vuelto: <span className="font-bold text-green-600">{formatGs(change)}</span>
-            </p>
-          )}
-          <button
-            onClick={onSuccess}
-            className="w-full bg-brand text-white py-3 rounded-lg font-medium hover:bg-brand-hover"
+      <Modal open onClose={onSuccess} size="sm" closeOnBackdrop={false}>
+        <div className="text-center py-2">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white"
+            style={{ background: 'var(--gradient-kpi-green)' }}
           >
+            <Check size={32} />
+          </div>
+          <h3 className="text-xl font-bold text-text-main">Venta exitosa</h3>
+          <p className="text-sm text-text-muted mb-2">Ticket #{saleId}</p>
+          <p className="text-3xl font-bold text-brand mb-5 tabular-nums">{formatGs(totalAmount)}</p>
+          {paymentMethod === 'cash' && change > 0 && (
+            <div className="bg-success-50 rounded-xl p-3 mb-5">
+              <p className="text-xs text-text-muted mb-0.5">Vuelto</p>
+              <p className="text-lg font-bold text-success-700 tabular-nums">{formatGs(change)}</p>
+            </div>
+          )}
+          <Button className="w-full rounded-xl" size="lg" onClick={onSuccess}>
             Nueva Venta
-          </button>
+          </Button>
         </div>
-      </div>
+      </Modal>
     )
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <h3 className="text-xl font-bold mb-2">Cobrar</h3>
-        <p className="text-3xl font-bold text-brand mb-6">{formatGs(totalAmount)}</p>
-
-        {/* Customer selection */}
-        <div className="mb-4">
-          <label className="block text-sm text-text-muted mb-1">Cliente (opcional)</label>
+    <Modal
+      open
+      onClose={onClose}
+      size="md"
+      title={
+        <div className="flex items-baseline gap-3">
+          <span>Cobrar</span>
+          <span className="text-2xl font-bold text-brand tabular-nums">
+            {formatGs(totalAmount)}
+          </span>
+        </div>
+      }
+      footer={
+        <div className="flex gap-3">
+          <Button variant="secondary" className="flex-1 rounded-xl" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            className="flex-1 rounded-xl"
+            size="lg"
+            onClick={handleConfirm}
+            disabled={loading || !canConfirm()}
+          >
+            {loading ? 'Procesando...' : 'Confirmar y Cobrar'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-5">
+        <div>
+          <label className="block text-sm text-text-muted mb-1.5">Cliente (opcional)</label>
           {selectedCustomer ? (
-            <div className="flex items-center justify-between border rounded-lg p-2">
-              <div>
-                <p className="font-medium">{selectedCustomer.name}</p>
-                <p className="text-xs text-text-muted">Saldo: {formatGs(selectedCustomer.balance)}</p>
+            <div className="flex items-center justify-between border border-border rounded-xl p-3 bg-surface-muted/40">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-full bg-brand-light text-brand flex items-center justify-center shrink-0">
+                  <User size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium truncate text-text-main">{selectedCustomer.name}</p>
+                  <p className="text-xs text-text-muted tabular-nums">
+                    Saldo: {formatGs(selectedCustomer.balance)}
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setSelectedCustomer(null)} className="text-sm text-red-500">Quitar</button>
+              <button
+                type="button"
+                onClick={() => setSelectedCustomer(null)}
+                className="text-danger-500 hover:text-danger-700 p-1 rounded shrink-0"
+                aria-label="Quitar cliente"
+              >
+                <X size={16} />
+              </button>
             </div>
           ) : (
             <div className="relative">
-              <input
+              <Input
                 value={customerSearch}
                 onChange={(e) => setCustomerSearch(e.target.value)}
-                className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand"
                 placeholder="Buscar cliente..."
               />
               {customers.length > 0 && (
-                <div className="absolute top-full left-0 right-0 bg-white border rounded-lg mt-1 shadow-lg z-10 max-h-40 overflow-y-auto">
+                <div
+                  className="absolute top-full left-0 right-0 bg-surface border border-border rounded-xl mt-1 z-10 max-h-44 overflow-y-auto"
+                  style={{ boxShadow: 'var(--shadow-popover)' }}
+                >
                   {customers.map((c) => (
                     <button
                       key={c.id}
-                      onClick={() => { setSelectedCustomer(c); setCustomerSearch(''); setCustomers([]) }}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm"
+                      type="button"
+                      onClick={() => {
+                        setSelectedCustomer(c)
+                        setCustomerSearch('')
+                        setCustomers([])
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-surface-muted text-sm flex items-center justify-between gap-2"
                     >
-                      {c.name} <span className="text-text-muted">({formatGs(c.balance)})</span>
+                      <span className="truncate text-text-main">{c.name}</span>
+                      <span className="text-xs text-text-muted tabular-nums shrink-0">
+                        {formatGs(c.balance)}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -154,83 +212,106 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
           )}
         </div>
 
-        {/* Payment method */}
-        <div className="mb-4">
+        <div>
           <label className="block text-sm text-text-muted mb-2">Método de pago</label>
           <div className="grid grid-cols-4 gap-2">
-            {(['cash', 'transfer', 'credit', 'mixed'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setPaymentMethod(m)}
-                className={`py-2 rounded-lg text-sm font-medium border-2 transition-colors ${
-                  paymentMethod === m ? 'border-brand bg-brand text-white' : 'border-gray-200 hover:border-brand'
-                }`}
-              >
-                {{ cash: 'Efectivo', transfer: 'Transfer.', credit: 'Fiado', mixed: 'Mixto' }[m]}
-              </button>
-            ))}
+            {methodOptions.map((m) => {
+              const active = paymentMethod === m.value
+              const Icon = m.icon
+              return (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setPaymentMethod(m.value)}
+                  className={cn(
+                    'flex flex-col items-center gap-1 py-3 rounded-xl text-xs font-medium border transition-colors',
+                    active
+                      ? 'border-brand bg-brand text-white'
+                      : 'border-border bg-surface text-text-main hover:border-brand hover:text-brand'
+                  )}
+                >
+                  <Icon size={18} />
+                  {m.label}
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {paymentMethod === 'cash' && (
-          <div className="mb-4">
-            <label className="block text-sm text-text-muted mb-1">Efectivo recibido</label>
-            <input
-              type="number"
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">Efectivo recibido</label>
+            <MoneyInput
               value={cashReceived}
-              onChange={(e) => setCashReceived(e.target.value)}
-              className="w-full border rounded-lg p-3 text-right text-lg focus:outline-none focus:ring-2 focus:ring-brand"
+              onValueChange={setCashReceived}
+              className="h-12 text-right text-lg tabular-nums"
+              placeholder="0"
               autoFocus
             />
-            {(parseInt(cashReceived) || 0) >= totalAmount && (
-              <p className="text-right mt-1 text-green-600 font-medium">
-                Vuelto: {formatGs(change)}
-              </p>
+            {cashReceived >= totalAmount && cashReceived > 0 && (
+              <div className="flex items-center justify-between mt-2 px-3 py-2 bg-success-50 rounded-lg">
+                <span className="text-xs text-text-muted">Vuelto</span>
+                <span className="font-bold text-success-700 tabular-nums">{formatGs(change)}</span>
+              </div>
             )}
           </div>
         )}
 
         {paymentMethod === 'credit' && !selectedCustomer && (
-          <p className="text-red-500 text-sm mb-4">Debe seleccionar un cliente para fiado</p>
-        )}
-
-        {paymentMethod === 'mixed' && (
-          <div className="space-y-3 mb-4">
-            <div>
-              <label className="block text-sm text-text-muted mb-1">Efectivo</label>
-              <input type="number" value={mixedCash} onChange={(e) => setMixedCash(e.target.value)}
-                className="w-full border rounded-lg p-2 text-right focus:outline-none focus:ring-1 focus:ring-brand" />
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1">Transferencia</label>
-              <input type="number" value={mixedTransfer} onChange={(e) => setMixedTransfer(e.target.value)}
-                className="w-full border rounded-lg p-2 text-right focus:outline-none focus:ring-1 focus:ring-brand" />
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1">Fiado</label>
-              <input type="number" value={mixedCredit} onChange={(e) => setMixedCredit(e.target.value)}
-                className="w-full border rounded-lg p-2 text-right focus:outline-none focus:ring-1 focus:ring-brand" />
-            </div>
-            <p className={`text-sm text-right font-medium ${mixedTotal === totalAmount ? 'text-green-600' : 'text-red-500'}`}>
-              Total: {formatGs(mixedTotal)} / {formatGs(totalAmount)}
-              {mixedTotal !== totalAmount && ' (debe coincidir)'}
-            </p>
+          <div className="px-3 py-2 bg-warning-50 rounded-lg text-sm text-warning-700">
+            Seleccioná un cliente para registrar la venta a crédito.
           </div>
         )}
 
-        <div className="flex gap-3 pt-4 border-t">
-          <button onClick={onClose} className="flex-1 border rounded-lg py-3 hover:bg-gray-50">
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={loading || !canConfirm()}
-            className="flex-1 bg-brand text-white py-3 rounded-lg font-medium hover:bg-brand-hover disabled:opacity-50"
-          >
-            {loading ? 'Procesando...' : 'Confirmar y Cobrar'}
-          </button>
-        </div>
+        {paymentMethod === 'mixed' && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Efectivo</label>
+                <MoneyInput
+                  value={mixedCash}
+                  onValueChange={setMixedCash}
+                  className="text-right tabular-nums"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Transferencia</label>
+                <MoneyInput
+                  value={mixedTransfer}
+                  onValueChange={setMixedTransfer}
+                  className="text-right tabular-nums"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Fiado</label>
+                <MoneyInput
+                  value={mixedCredit}
+                  onValueChange={setMixedCredit}
+                  className="text-right tabular-nums"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div
+              className={cn(
+                'flex items-center justify-between px-3 py-2 rounded-lg text-sm',
+                mixedTotal === totalAmount
+                  ? 'bg-success-50 text-success-700'
+                  : 'bg-danger-50 text-danger-700'
+              )}
+            >
+              <span className="font-medium">
+                {mixedTotal === totalAmount ? 'Suma correcta' : 'Debe coincidir con el total'}
+              </span>
+              <span className="font-bold tabular-nums">
+                {formatGs(mixedTotal)} / {formatGs(totalAmount)}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   )
 }

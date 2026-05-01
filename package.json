@@ -23,6 +23,7 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@fontsource/inter": "^5.2.8",
     "@tailwindcss/vite": "^4.2.4",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.9.0",
@@ -32,6 +33,7 @@
     "lucide-react": "^1.11.0",
     "node-thermal-printer": "^4.6.0",
     "react-router-dom": "^7.14.2",
+    "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.4",
     "xlsx": "^0.18.5",

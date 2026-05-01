@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { formatGs } from '../../lib/utils'
+import { formatGs, cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
 import type { Product, Category } from '@shared/types'
-import { Search, Plus, Edit2, AlertTriangle, Package } from 'lucide-react'
+import { Search, Plus, Edit2, AlertTriangle, Package, TrendingUp, TrendingDown } from 'lucide-react'
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  Modal,
+  PageHeader,
+  Select
+} from '../../components/ui'
 
 export default function ProductosPage() {
   const navigate = useNavigate()
@@ -17,7 +27,9 @@ export default function ProductosPage() {
   const [newStock, setNewStock] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
 
-  useEffect(() => { window.api.products.categories().then(setCategories) }, [])
+  useEffect(() => {
+    window.api.products.categories().then(setCategories)
+  }, [])
 
   useEffect(() => {
     const filters: Record<string, unknown> = { search: search || undefined, active: true }
@@ -26,119 +38,253 @@ export default function ProductosPage() {
     window.api.products.getAll(filters).then(setProducts)
   }, [search, filterCat, filterStock])
 
-  const handleAdjust = async () => {
+  const handleAdjust = async (): Promise<void> => {
     if (!adjustModal || !newStock || !adjustReason || !user) return
-    await window.api.products.adjustStock(adjustModal.id, parseFloat(newStock), adjustReason, user.id)
-    setAdjustModal(null)
-    setNewStock('')
-    setAdjustReason('')
+    await window.api.products.adjustStock(
+      adjustModal.id,
+      parseFloat(newStock),
+      adjustReason,
+      user.id
+    )
+    closeAdjustModal()
     window.api.products.getAll({ search: search || undefined, active: true }).then(setProducts)
   }
 
+  const closeAdjustModal = (): void => {
+    setAdjustModal(null)
+    setNewStock('')
+    setAdjustReason('')
+  }
+
+  const stockDiff =
+    adjustModal && newStock !== '' ? parseFloat(newStock) - adjustModal.stock : null
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Productos</h1>
-        <button onClick={() => navigate('/productos/nuevo')} className="bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand-hover flex items-center gap-2">
-          <Plus size={16} /> Nuevo Producto
+    <div className="space-y-5">
+      <PageHeader
+        title="Productos"
+        subtitle={`${products.length} producto${products.length === 1 ? '' : 's'} en catálogo`}
+        actions={
+          <button
+            onClick={() => navigate('/productos/nuevo')}
+            className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+          >
+            <Plus size={18} />
+            Nuevo Producto
+          </button>
+        }
+      />
+
+      <div className="flex gap-3 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
+            size={16}
+          />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 rounded-xl"
+            placeholder="Buscar por nombre o código..."
+          />
+        </div>
+        <Select
+          value={filterCat}
+          onChange={(e) => setFilterCat(e.target.value ? Number(e.target.value) : '')}
+          className="min-w-[180px] rounded-xl"
+        >
+          <option value="">Todas las categorías</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </Select>
+        <button
+          type="button"
+          onClick={() => setFilterStock((v) => !v)}
+          className={cn(
+            'inline-flex items-center gap-2 h-10 px-3 rounded-xl text-sm font-medium border transition-colors',
+            filterStock
+              ? 'border-warning-500 bg-warning-50 text-warning-700'
+              : 'border-border bg-surface text-text-main hover:bg-surface-muted'
+          )}
+        >
+          <AlertTriangle size={14} />
+          Stock bajo
         </button>
       </div>
 
-      <div className="flex gap-3 mb-4 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-lg border bg-white focus:outline-none focus:ring-2 focus:ring-brand text-sm"
-            placeholder="Buscar..." />
-        </div>
-        <select value={filterCat} onChange={(e) => setFilterCat(e.target.value ? Number(e.target.value) : '')}
-          className="border rounded-lg px-3 py-2 text-sm bg-white">
-          <option value="">Todas las categorías</option>
-          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <label className="flex items-center gap-2 text-sm border rounded-lg px-3 bg-white cursor-pointer">
-          <input type="checkbox" checked={filterStock} onChange={(e) => setFilterStock(e.target.checked)} />
-          Stock bajo
-        </label>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-bg-secondary text-left text-text-muted">
-              <th className="p-3">Nombre</th>
-              <th className="p-3">Categoría</th>
-              <th className="p-3 text-right">Precio</th>
-              <th className="p-3">Tipo</th>
-              <th className="p-3 text-right">Stock</th>
-              <th className="p-3 text-right">Mín.</th>
-              <th className="p-3">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((p) => (
-              <tr key={p.id} className="border-b hover:bg-gray-50">
-                <td className="p-3 font-medium flex items-center gap-2">
-                  {p.stock <= p.min_stock && <AlertTriangle size={14} className="text-red-500 shrink-0" />}
-                  {p.name}
-                </td>
-                <td className="p-3 text-text-muted">{p.category_name || '-'}</td>
-                <td className="p-3 text-right">{formatGs(p.price)}</td>
-                <td className="p-3">{p.price_type === 'kg' ? 'Por kg' : 'Unidad'}</td>
-                <td className={`p-3 text-right font-medium ${p.stock <= p.min_stock ? 'text-red-600' : ''}`}>
-                  {p.price_type === 'kg' ? p.stock.toFixed(2) : p.stock}
-                </td>
-                <td className="p-3 text-right">{p.min_stock}</td>
-                <td className="p-3">
-                  <div className="flex gap-1">
-                    <button onClick={() => navigate(`/productos/${p.id}`)} className="p-1.5 hover:bg-gray-100 rounded" title="Editar">
-                      <Edit2 size={14} />
-                    </button>
-                    <button onClick={() => { setAdjustModal(p); setNewStock(String(p.stock)) }} className="p-1.5 hover:bg-gray-100 rounded" title="Ajustar stock">
-                      <Package size={14} />
-                    </button>
-                  </div>
-                </td>
+      <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-surface-muted/60 text-left text-text-muted">
+                <th className="px-4 py-3 font-medium">Nombre</th>
+                <th className="px-4 py-3 font-medium">Categoría</th>
+                <th className="px-4 py-3 font-medium text-right">Precio</th>
+                <th className="px-4 py-3 font-medium">Tipo</th>
+                <th className="px-4 py-3 font-medium text-right">Stock</th>
+                <th className="px-4 py-3 font-medium text-right">Mínimo</th>
+                <th className="px-4 py-3 font-medium w-20"></th>
               </tr>
-            ))}
-            {products.length === 0 && (
-              <tr><td colSpan={7} className="p-8 text-center text-text-muted">No se encontraron productos</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {adjustModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-            <h3 className="font-semibold mb-4">Ajustar Stock: {adjustModal.name}</h3>
-            <p className="text-sm text-text-muted mb-3">Stock actual: {adjustModal.stock}</p>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm text-text-muted mb-1">Nuevo stock</label>
-                <input type="number" value={newStock} onChange={(e) => setNewStock(e.target.value)}
-                  step={adjustModal.price_type === 'kg' ? '0.01' : '1'}
-                  className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand" autoFocus />
-              </div>
-              {newStock && (
-                <p className="text-sm">Diferencia: <span className={`font-medium ${parseFloat(newStock) - adjustModal.stock >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {parseFloat(newStock) - adjustModal.stock >= 0 ? '+' : ''}{(parseFloat(newStock) - adjustModal.stock).toFixed(2)}
-                </span></p>
+            </thead>
+            <tbody>
+              {products.map((p) => {
+                const low = p.stock <= p.min_stock
+                const out = p.stock <= 0
+                return (
+                  <tr
+                    key={p.id}
+                    className="border-t border-border hover:bg-surface-muted/40 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-medium text-text-main">
+                      <div className="flex items-center gap-2">
+                        {low && (
+                          <AlertTriangle
+                            size={14}
+                            className={out ? 'text-danger-500 shrink-0' : 'text-warning-500 shrink-0'}
+                          />
+                        )}
+                        {p.name}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-text-muted">{p.category_name || '—'}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatGs(p.price)}</td>
+                    <td className="px-4 py-3">
+                      <Badge tone={p.price_type === 'kg' ? 'info' : 'neutral'}>
+                        {p.price_type === 'kg' ? 'Por kg' : 'Unidad'}
+                      </Badge>
+                    </td>
+                    <td
+                      className={cn(
+                        'px-4 py-3 text-right font-medium tabular-nums',
+                        out ? 'text-danger-700' : low ? 'text-warning-700' : ''
+                      )}
+                    >
+                      {p.price_type === 'kg' ? p.stock.toFixed(2) : p.stock}
+                    </td>
+                    <td className="px-4 py-3 text-right text-text-muted tabular-nums">
+                      {p.min_stock}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 justify-end">
+                        <button
+                          onClick={() => navigate(`/productos/${p.id}`)}
+                          className="p-1.5 hover:bg-surface-muted rounded-lg text-text-muted hover:text-text-main transition-colors"
+                          title="Editar"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAdjustModal(p)
+                            setNewStock(String(p.stock))
+                          }}
+                          className="p-1.5 hover:bg-surface-muted rounded-lg text-text-muted hover:text-text-main transition-colors"
+                          title="Ajustar stock"
+                        >
+                          <Package size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {products.length === 0 && (
+                <tr>
+                  <td colSpan={7}>
+                    {search || filterCat || filterStock ? (
+                      <EmptyState
+                        icon={<Search size={40} />}
+                        title="Sin resultados"
+                        description="Ningún producto coincide con los filtros aplicados."
+                      />
+                    ) : (
+                      <EmptyState
+                        icon={<Package size={40} />}
+                        title="Aún no hay productos"
+                        description="Empezá cargando los productos que vendés en el local."
+                        action={
+                          <Button onClick={() => navigate('/productos/nuevo')}>
+                            <Plus size={16} /> Nuevo Producto
+                          </Button>
+                        }
+                      />
+                    )}
+                  </td>
+                </tr>
               )}
-              <div>
-                <label className="block text-sm text-text-muted mb-1">Motivo (requerido)</label>
-                <input value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)}
-                  className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand" />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setAdjustModal(null)} className="flex-1 border rounded-lg py-2 hover:bg-gray-50">Cancelar</button>
-                <button onClick={handleAdjust} disabled={!newStock || !adjustReason}
-                  className="flex-1 bg-brand text-white py-2 rounded-lg hover:bg-brand-hover disabled:opacity-50">Guardar</button>
-              </div>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Modal
+        open={adjustModal !== null}
+        onClose={closeAdjustModal}
+        size="sm"
+        title={adjustModal ? `Ajustar stock — ${adjustModal.name}` : 'Ajustar stock'}
+        footer={
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={closeAdjustModal}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAdjust} disabled={!newStock || !adjustReason}>
+              Guardar
+            </Button>
+          </div>
+        }
+      >
+        {adjustModal && (
+          <div className="space-y-4">
+            <div className="bg-surface-muted rounded-xl px-4 py-3">
+              <p className="text-xs text-text-muted">Stock actual</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {adjustModal.price_type === 'kg'
+                  ? adjustModal.stock.toFixed(2)
+                  : adjustModal.stock}{' '}
+                {adjustModal.price_type === 'kg' ? 'kg' : 'u.'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Nuevo stock</label>
+              <Input
+                type="number"
+                value={newStock}
+                onChange={(e) => setNewStock(e.target.value)}
+                step={adjustModal.price_type === 'kg' ? '0.01' : '1'}
+                className="text-right tabular-nums"
+                autoFocus
+              />
+              {stockDiff !== null && !Number.isNaN(stockDiff) && (
+                <div
+                  className={cn(
+                    'mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium',
+                    stockDiff >= 0
+                      ? 'bg-success-50 text-success-700'
+                      : 'bg-danger-50 text-danger-700'
+                  )}
+                >
+                  {stockDiff >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  {stockDiff >= 0 ? '+' : ''}
+                  {stockDiff.toFixed(2)} {adjustModal.price_type === 'kg' ? 'kg' : 'u.'}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Motivo (requerido)</label>
+              <Input
+                value={adjustReason}
+                onChange={(e) => setAdjustReason(e.target.value)}
+                placeholder="Compra, merma, conteo, etc."
+              />
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }
