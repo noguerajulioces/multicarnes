@@ -8,7 +8,7 @@ import type { Product } from '@shared/types'
 import {
   Search, Trash2, Plus, Minus, Package, ScanLine, ShoppingCart, DollarSign
 } from 'lucide-react'
-import { Button, Input, Modal, EmptyState, Badge } from '../../components/ui'
+import { Button, Input, Modal, MoneyInput, EmptyState, Badge } from '../../components/ui'
 import CobroModal from './CobroModal'
 
 export default function VentasPage() {
@@ -153,9 +153,17 @@ export default function VentasPage() {
     <div className="flex flex-col h-full">
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Left: Cart */}
-        <div className="w-[45%] bg-surface rounded-lg shadow-card border border-border flex flex-col">
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <h2 className="font-bold text-lg">Carrito</h2>
+        <div
+          className="w-[45%] bg-surface rounded-2xl border border-border flex flex-col overflow-hidden"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+            <div>
+              <h2 className="font-bold text-lg text-text-main">Carrito</h2>
+              <p className="text-xs text-text-muted mt-0.5">
+                {items.length} producto{items.length === 1 ? '' : 's'} en el ticket
+              </p>
+            </div>
             <Badge
               tone={scannerActive ? 'danger' : 'neutral'}
               className={scannerActive ? 'animate-pulse' : ''}
@@ -240,32 +248,31 @@ export default function VentasPage() {
           </div>
 
           {/* TOTAL section */}
-          <div className="border-t border-border bg-surface-muted px-4 py-3 space-y-2">
+          <div className="border-t border-border bg-surface-muted px-5 py-4 space-y-2.5">
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Subtotal</span>
-              <span className="font-medium">{formatGs(subtotal())}</span>
+              <span className="font-medium tabular-nums">{formatGs(subtotal())}</span>
             </div>
             <div className="flex justify-between text-sm items-center">
               <span className="text-text-muted">Descuento</span>
-              <Input
+              <MoneyInput
                 ref={discountRef}
-                type="number"
-                value={discount || ''}
-                onChange={(e) => setDiscount(parseInt(e.target.value) || 0)}
+                value={discount}
+                onValueChange={setDiscount}
                 className="w-32 h-8 text-right"
                 placeholder="0"
               />
             </div>
-            <div className="flex items-baseline justify-between pt-2 border-t border-border">
+            <div className="flex items-baseline justify-between pt-3 border-t border-border">
               <span className="text-sm font-semibold text-text-muted">TOTAL</span>
-              <span className="text-display font-bold text-brand leading-none">
+              <span className="text-display font-bold text-brand leading-none tabular-nums">
                 {formatGs(total())}
               </span>
             </div>
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-3">
               <Button
                 variant="secondary"
-                className="flex-1"
+                className="flex-1 rounded-xl"
                 onClick={cancelCart}
                 disabled={items.length === 0}
               >
@@ -273,7 +280,7 @@ export default function VentasPage() {
               </Button>
               <Button
                 size="xl"
-                className="flex-[2]"
+                className="flex-[2] rounded-xl"
                 onClick={() => setShowCobro(true)}
                 disabled={items.length === 0}
               >
@@ -287,14 +294,14 @@ export default function VentasPage() {
         <div className="flex-1 flex flex-col min-w-0">
           <div className="relative mb-4">
             <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted z-10"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted z-10"
               size={18}
             />
             <Input
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 h-12 text-base"
+              className="pl-11 h-12 text-base rounded-xl"
               placeholder="Buscar por nombre o código de barras..."
               autoFocus
             />
@@ -321,7 +328,8 @@ export default function VentasPage() {
                       type="button"
                       onClick={() => handleProductClick(p)}
                       disabled={p.stock <= 0}
-                      className="bg-surface rounded-lg shadow-card border border-border text-left hover:shadow-popover hover:border-brand transition-all disabled:opacity-40 disabled:cursor-not-allowed overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      style={{ boxShadow: 'var(--shadow-card-soft)' }}
+                      className="bg-surface rounded-xl border border-border text-left hover:border-brand hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     >
                       {p.image ? (
                         <div className="w-full h-24 bg-surface-muted">
@@ -337,9 +345,11 @@ export default function VentasPage() {
                         </div>
                       )}
                       <div className="p-3">
-                        <p className="font-medium text-sm truncate">{p.name}</p>
-                        <p className="text-brand font-bold mt-1">{formatGs(p.price)}</p>
-                        <div className="flex items-center justify-between mt-1 gap-2">
+                        <p className="font-medium text-sm truncate text-text-main">{p.name}</p>
+                        <p className="text-brand font-bold mt-1 tabular-nums">
+                          {formatGs(p.price)}
+                        </p>
+                        <div className="flex items-center justify-between mt-1.5 gap-2">
                           <span className="text-xs text-text-muted">
                             Stock: {p.stock} {p.price_type === 'kg' ? 'kg' : 'u.'}
                           </span>

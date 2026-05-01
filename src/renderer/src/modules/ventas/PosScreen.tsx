@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, DollarSign, Lock } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
-import { EmptyState, Button } from '../../components/ui'
+import { Badge, EmptyState, Button } from '../../components/ui'
 import VentasPage from './VentasPage'
 
 export default function PosScreen() {
@@ -46,32 +46,38 @@ function PosHeader({
   userName: string
   cashOpen: boolean
   onClose: () => void
-}) {
+}): React.ReactElement {
+  const initials = userName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p.charAt(0).toUpperCase())
+    .join('')
+
   return (
     <div className="bg-surface border-b border-border h-12 flex items-center px-4 gap-3 shrink-0">
       <button
         type="button"
         onClick={onClose}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-text-main hover:bg-surface-muted transition-colors"
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-text-main hover:bg-surface-muted transition-colors"
       >
         <ArrowLeft size={16} />
         Salir
       </button>
       <div className="h-5 w-px bg-border" />
-      <h1 className="font-semibold text-sm">Punto de Venta</h1>
+      <h1 className="font-semibold text-sm text-text-main">Punto de Venta</h1>
       <div className="ml-auto flex items-center gap-3 text-xs">
-        <span
-          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full font-medium ${
-            cashOpen
-              ? 'bg-success-50 text-success-700'
-              : 'bg-surface-muted text-text-muted'
-          }`}
-        >
+        <Badge tone={cashOpen ? 'success' : 'neutral'}>
           <DollarSign size={12} />
           {cashOpen ? 'Caja abierta' : 'Caja cerrada'}
-        </span>
-        <span className="text-text-muted">{userName}</span>
+        </Badge>
         <PosClock />
+        <div
+          className="w-7 h-7 rounded-full bg-brand-light text-brand text-xs font-semibold flex items-center justify-center"
+          title={userName}
+        >
+          {initials || userName.charAt(0).toUpperCase()}
+        </div>
       </div>
     </div>
   )
