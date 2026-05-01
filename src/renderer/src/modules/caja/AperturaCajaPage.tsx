@@ -4,10 +4,10 @@ import { Wallet } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
-import { Input } from '../../components/ui'
+import { MoneyInput } from '../../components/ui'
 
 export default function AperturaCajaPage() {
-  const [amount, setAmount] = useState('')
+  const [amount, setAmount] = useState(0)
   const [loading, setLoading] = useState(false)
   const user = useAuthStore((s) => s.user)
   const setRegister = useCashStore((s) => s.setRegister)
@@ -17,7 +17,7 @@ export default function AperturaCajaPage() {
     if (!user) return
     setLoading(true)
     try {
-      const register = await window.api.cash.open(user.id, parseInt(amount) || 0)
+      const register = await window.api.cash.open(user.id, amount)
       setRegister(register)
       navigate('/caja')
     } catch (err: unknown) {
@@ -47,17 +47,16 @@ export default function AperturaCajaPage() {
 
         <div className="mb-6">
           <label className="block text-sm text-text-muted mb-2">Monto de apertura (Gs.)</label>
-          <Input
-            type="number"
+          <MoneyInput
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onValueChange={setAmount}
             className="h-12 text-right text-lg tabular-nums"
             placeholder="0"
             autoFocus
           />
-          {amount && (
+          {amount > 0 && (
             <p className="text-sm text-text-muted mt-1.5 text-right tabular-nums">
-              {formatGs(parseInt(amount) || 0)}
+              {formatGs(amount)}
             </p>
           )}
         </div>

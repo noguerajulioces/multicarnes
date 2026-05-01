@@ -14,6 +14,7 @@ import {
   Input,
   KpiCard,
   Modal,
+  MoneyInput,
   PageHeader
 } from '../../components/ui'
 
@@ -28,7 +29,7 @@ export default function CajaPage() {
     expenses: number
   } | null>(null)
   const [modal, setModal] = useState<{ type: 'income' | 'expense' } | null>(null)
-  const [movAmount, setMovAmount] = useState('')
+  const [movAmount, setMovAmount] = useState(0)
   const [movDesc, setMovDesc] = useState('')
 
   useEffect(() => {
@@ -51,22 +52,16 @@ export default function CajaPage() {
 
   const handleAddMovement = async (): Promise<void> => {
     if (!register || !user || !modal || !movAmount || !movDesc) return
-    await window.api.cash.addMovement(
-      register.id,
-      user.id,
-      modal.type,
-      parseInt(movAmount) || 0,
-      movDesc
-    )
+    await window.api.cash.addMovement(register.id, user.id, modal.type, movAmount, movDesc)
     setModal(null)
-    setMovAmount('')
+    setMovAmount(0)
     setMovDesc('')
     loadData()
   }
 
   const closeModal = (): void => {
     setModal(null)
-    setMovAmount('')
+    setMovAmount(0)
     setMovDesc('')
   }
 
@@ -223,17 +218,14 @@ export default function CajaPage() {
           </div>
           <div>
             <label className="block text-sm text-text-muted mb-1.5">Monto (Gs.)</label>
-            <Input
-              type="number"
+            <MoneyInput
               value={movAmount}
-              onChange={(e) => setMovAmount(e.target.value)}
+              onValueChange={setMovAmount}
               className="text-right"
               placeholder="0"
             />
-            {movAmount && (
-              <p className="text-xs text-text-muted mt-1 text-right">
-                {formatGs(parseInt(movAmount) || 0)}
-              </p>
+            {movAmount > 0 && (
+              <p className="text-xs text-text-muted mt-1 text-right">{formatGs(movAmount)}</p>
             )}
           </div>
         </div>

@@ -4,12 +4,13 @@ import { Coins, TrendingUp, TrendingDown } from 'lucide-react'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
 import { toast } from '../../lib/toast'
-import { Input } from '../../components/ui'
+import { MoneyInput } from '../../components/ui'
 
 export default function CierreCajaPage() {
   const { register, setRegister } = useCashStore()
   const navigate = useNavigate()
-  const [closingAmount, setClosingAmount] = useState('')
+  const [counted, setCounted] = useState(0)
+  const [touched, setTouched] = useState(false)
   const [notes, setNotes] = useState('')
   const [expected, setExpected] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -25,7 +26,6 @@ export default function CierreCajaPage() {
     })
   }, [register])
 
-  const counted = parseInt(closingAmount) || 0
   const difference = counted - expected
   const positiveDiff = difference >= 0
 
@@ -87,17 +87,19 @@ export default function CierreCajaPage() {
           <label className="block text-sm text-text-muted mb-1.5">
             Monto contado físicamente (Gs.)
           </label>
-          <Input
-            type="number"
-            value={closingAmount}
-            onChange={(e) => setClosingAmount(e.target.value)}
+          <MoneyInput
+            value={counted}
+            onValueChange={(v) => {
+              setCounted(v)
+              setTouched(true)
+            }}
             className="h-12 text-right text-lg tabular-nums"
             placeholder="0"
             autoFocus
           />
         </div>
 
-        {closingAmount && (
+        {touched && (
           <div
             className={`rounded-xl p-4 mb-5 ${
               positiveDiff ? 'bg-success-50' : 'bg-danger-50'
@@ -142,7 +144,7 @@ export default function CierreCajaPage() {
           </button>
           <button
             onClick={handleClose}
-            disabled={loading || !closingAmount}
+            disabled={loading || !touched}
             className="flex-1 bg-brand text-white py-3 rounded-xl font-medium hover:bg-brand-hover disabled:opacity-50 transition-colors shadow-sm"
           >
             {loading ? 'Cerrando...' : 'Confirmar Cierre'}
