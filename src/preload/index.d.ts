@@ -75,12 +75,42 @@ interface ApiPurchases {
   cancel(id: number): Promise<PurchaseOrder>
 }
 
+interface PendingCreditRow {
+  id: number
+  name: string
+  phone: string | null
+  is_employee: number
+  balance: number
+  last_credit_sale_at: string | null
+  last_payment_at: string | null
+}
+
+interface SalesSummaryResult {
+  totals: { sales_count: number; total: number; discount: number; subtotal: number }
+  byDay: { day: string; sales_count: number; total: number }[]
+  byMethod: { method: string; sales_count: number; total: number }[]
+  byUser: { user_id: number; user_name: string; sales_count: number; total: number }[]
+}
+
+interface SalesComparisonResult {
+  current: { sales_count: number; total: number; discount: number; units: number; avg_ticket: number }
+  previous: { sales_count: number; total: number; discount: number; units: number; avg_ticket: number }
+  period: {
+    current_from: string; current_to: string
+    previous_from: string; previous_to: string
+    length_days: number
+  }
+}
+
 interface ApiReports {
   salesByPeriod(from: string, to: string, method?: string, userId?: number): Promise<Sale[]>
   topProducts(from: string, to: string, categoryId?: number): Promise<unknown[]>
   profitMargin(): Promise<unknown[]>
   stockMovements(from: string, to: string, productId?: number): Promise<StockAdjustment[]>
   cashRegisters(): Promise<CashRegister[]>
+  pendingCredits(): Promise<PendingCreditRow[]>
+  salesSummary(from: string, to: string): Promise<SalesSummaryResult>
+  salesComparison(from: string, to: string): Promise<SalesComparisonResult>
 }
 
 interface ApiBackup {
