@@ -1,6 +1,14 @@
 import { getDb } from '../index'
 import bcrypt from 'bcryptjs'
 
+const PIN_LENGTH = 6
+
+function assertValidPin(pin: string): void {
+  if (typeof pin !== 'string' || pin.length !== PIN_LENGTH || !/^\d+$/.test(pin)) {
+    throw new Error(`El PIN debe tener exactamente ${PIN_LENGTH} dígitos numéricos`)
+  }
+}
+
 export function getAllUsers() {
   return getDb()
     .prepare('SELECT id, name, role, active, created_at FROM users ORDER BY name')
@@ -30,6 +38,7 @@ export function loginUser(userId: number, pin: string) {
 }
 
 export function createUser(data: { name: string; role: string; pin: string }) {
+  assertValidPin(data.pin)
   const pinHash = bcrypt.hashSync(data.pin, 10)
   const result = getDb()
     .prepare('INSERT INTO users (name, role, pin_hash) VALUES (?, ?, ?)')
@@ -46,6 +55,7 @@ export function updateUser(id: number, data: { name?: string; role?: string; pin
     db.prepare('UPDATE users SET role = ? WHERE id = ?').run(data.role, id)
   }
   if (data.pin) {
+    assertValidPin(data.pin)
     const pinHash = bcrypt.hashSync(data.pin, 10)
     db.prepare('UPDATE users SET pin_hash = ? WHERE id = ?').run(pinHash, id)
   }

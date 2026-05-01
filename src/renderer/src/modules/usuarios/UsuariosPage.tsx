@@ -58,8 +58,8 @@ export default function UsuariosPage() {
       setError('PIN requerido')
       return
     }
-    if (form.pin && form.pin.length < 4) {
-      setError('PIN mínimo 4 dígitos')
+    if (form.pin && form.pin.length !== 6) {
+      setError('El PIN debe tener exactamente 6 dígitos')
       return
     }
     if (form.pin && form.pin !== form.confirmPin) {
@@ -229,7 +229,7 @@ export default function UsuariosPage() {
 
           <div>
             <label className="block text-sm text-text-muted mb-1.5">
-              PIN (4-6 dígitos)
+              PIN (6 dígitos)
               {editId ? (
                 <span className="text-text-disabled ml-1">— dejar vacío para no cambiar</span>
               ) : (
@@ -240,9 +240,10 @@ export default function UsuariosPage() {
               type="password"
               inputMode="numeric"
               maxLength={6}
+              minLength={6}
               value={form.pin}
               onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })}
-              placeholder="••••"
+              placeholder="••••••"
             />
           </div>
 
