@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronRight, DollarSign } from 'lucide-react'
 import { useCashStore } from '../store/cash.store'
+import { useAuthStore } from '../store/auth.store'
 
 const routeLabels: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -66,8 +67,28 @@ export default function Header() {
       <div className="flex items-center gap-3 shrink-0">
         <CashBadge />
         <Clock />
+        <UserAvatar />
       </div>
     </header>
+  )
+}
+
+function UserAvatar() {
+  const user = useAuthStore((s) => s.user)
+  if (!user) return null
+  const initials = user.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p.charAt(0).toUpperCase())
+    .join('')
+  return (
+    <div
+      className="w-7 h-7 rounded-full bg-brand-light text-brand text-xs font-semibold flex items-center justify-center shrink-0"
+      title={user.name}
+    >
+      {initials || user.name.charAt(0).toUpperCase()}
+    </div>
   )
 }
 

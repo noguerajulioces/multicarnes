@@ -1,123 +1,317 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Plus, ShoppingCart, Wallet, Receipt, AlertTriangle, Package } from 'lucide-react'
 import { formatGs } from '../../lib/utils'
-import { ShoppingCart, AlertTriangle, TrendingUp } from 'lucide-react'
-import { Skeleton, TableSkeleton } from '../../components/ui'
-import type { Product } from '@shared/types'
+import { Card, CardBody, CardHeader } from '../../components/ui'
+import type { Product, Sale } from '@shared/types'
+import { KpiCard } from './components/KpiCard'
+import { SalesBarChart, type SalesBarPoint } from './components/SalesBarChart'
+import { TopProductsDonut, type TopProductSlice } from './components/TopProductsDonut'
+import { RecentSalesTable } from './components/RecentSalesTable'
+import { StockSummaryCard } from './components/StockSummaryCard'
+import { PeriodSelector, type PeriodOption } from './components/PeriodSelector'
+
+type ChartPeriod = '7d' | '30d' | '6m'
+type DonutPeriod = '7d' | '30d' | '6m'
+
+const chartPeriods: PeriodOption<ChartPeriod>[] = [
+  { value: '7d', label: '7 días' },
+  { value: '30d', label: '30 días' },
+  { value: '6m', label: '6 meses' }
+]
+
+const donutPeriods: PeriodOption<DonutPeriod>[] = [
+  { value: '7d', label: '7 días' },
+  { value: '30d', label: '30 días' },
+  { value: '6m', label: '6 meses' }
+]
+
+interface PendingCreditRow {
+  id: number
+  name: string
+  balance: number
+}
+
+interface TopProductRow {
+  product_name: string
+  total_quantity: number
+  total_revenue: number
+}
+
+interface SalesSummaryByDay {
+  day: string
+  sales_count: number
+  total: number
+}
+
+interface ComparisonResult {
+  current: { total: number; sales_count: number }
+  previous: { total: number; sales_count: number }
+}
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function isoOffsetDays(days: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function periodRange(p: ChartPeriod): { from: string; to: string } {
+  const to = todayISO()
+  if (p === '7d') return { from: isoOffsetDays(-6), to }
+  if (p === '30d') return { from: isoOffsetDays(-29), to }
+  return { from: isoOffsetDays(-179), to }
+}
+
+function deltaPct(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return ((current - previous) / previous) * 100
+}
+
+function buildChartData(byDay: SalesSummaryByDay[], period: ChartPeriod): SalesBarPoint[] {
+  if (period === '6m') {
+    const buckets = new Map<string, number>()
+    for (const row of byDay) {
+      const key = row.day.slice(0, 7)
+      buckets.set(key, (buckets.get(key) ?? 0) + row.total)
+    }
+    const months: { key: string; label: string }[] = []
+    const now = new Date()
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      const label = d.toLocaleDateString('es-PY', { month: 'short' })
+      months.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1, 3) })
+    }
+    const points = months.map((m) => ({
+      label: m.label,
+      ventas: buckets.get(m.key) ?? 0,
+      target: 0
+    }))
+    const maxVentas = Math.max(...points.map((p) => p.ventas), 0)
+    return points.map((p) => ({ ...p, target: Math.round(maxVentas * 1.15) }))
+  }
+
+  const days = period === '7d' ? 7 : 30
+  const map = new Map<string, number>()
+  for (const row of byDay) map.set(row.day, row.total)
+  const out: SalesBarPoint[] = []
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const key = d.toISOString().slice(0, 10)
+    const label =
+      period === '7d'
+        ? d.toLocaleDateString('es-PY', { weekday: 'short' }).slice(0, 3)
+        : `${d.getDate()}`
+    out.push({ label, ventas: map.get(key) ?? 0, target: 0 })
+  }
+  const maxVentas = Math.max(...out.map((p) => p.ventas), 0)
+  return out.map((p) => ({ ...p, target: Math.round(maxVentas * 1.15) }))
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate()
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('6m')
+  const [donutPeriod, setDonutPeriod] = useState<DonutPeriod>('30d')
+
   const [dayTotal, setDayTotal] = useState({ total: 0, count: 0 })
+  const [comparison, setComparison] = useState<ComparisonResult | null>(null)
   const [lowStock, setLowStock] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const [pendingCredits, setPendingCredits] = useState<PendingCreditRow[]>([])
+  const [recentSales, setRecentSales] = useState<Sale[]>([])
+  const [byDay, setByDay] = useState<SalesSummaryByDay[]>([])
+  const [topProducts, setTopProducts] = useState<TopProductRow[]>([])
+
+  const [headerLoading, setHeaderLoading] = useState(true)
+  const [chartLoading, setChartLoading] = useState(true)
+  const [donutLoading, setDonutLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([window.api.sales.dayTotal(), window.api.products.lowStock()])
-      .then(([dt, ls]) => {
-        setDayTotal(dt)
-        setLowStock(ls)
+    const today = todayISO()
+    Promise.all([
+      window.api.sales.dayTotal(),
+      window.api.reports.salesComparison(today, today),
+      window.api.products.lowStock(),
+      window.api.reports.pendingCredits(),
+      window.api.sales.getRecent(8)
+    ])
+      .then(([dt, cmp, ls, pc, rs]) => {
+        setDayTotal(dt as { total: number; count: number })
+        setComparison(cmp as ComparisonResult)
+        setLowStock(ls as Product[])
+        setPendingCredits(pc as PendingCreditRow[])
+        setRecentSales(rs as Sale[])
       })
-      .finally(() => setLoading(false))
+      .finally(() => setHeaderLoading(false))
   }, [])
 
+  useEffect(() => {
+    setChartLoading(true)
+    const { from, to } = periodRange(chartPeriod)
+    window.api.reports
+      .salesSummary(from, to)
+      .then((res) => {
+        const r = res as { byDay: SalesSummaryByDay[] }
+        setByDay(r.byDay)
+      })
+      .finally(() => setChartLoading(false))
+  }, [chartPeriod])
+
+  useEffect(() => {
+    setDonutLoading(true)
+    const { from, to } = periodRange(donutPeriod)
+    window.api.reports
+      .topProducts(from, to)
+      .then((res) => {
+        const all = res as TopProductRow[]
+        setTopProducts(all.slice(0, 5))
+      })
+      .finally(() => setDonutLoading(false))
+  }, [donutPeriod])
+
+  const chartData = useMemo(() => buildChartData(byDay, chartPeriod), [byDay, chartPeriod])
+
+  const donutData: TopProductSlice[] = useMemo(
+    () =>
+      topProducts.map((p) => ({
+        name: p.product_name,
+        quantity: p.total_quantity,
+        revenue: p.total_revenue
+      })),
+    [topProducts]
+  )
+
+  const totalCreditOwed = pendingCredits.reduce((s, c) => s + Math.abs(c.balance), 0)
+  const salesDelta = comparison ? deltaPct(comparison.current.total, comparison.previous.total) : 0
+  const ticketsDelta = comparison
+    ? deltaPct(comparison.current.sales_count, comparison.previous.sales_count)
+    : 0
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-text-main">Dashboard</h1>
+          <p className="text-sm text-text-muted mt-0.5">Resumen general de tu negocio</p>
+        </div>
         <button
           onClick={() => navigate('/ventas')}
-          className="bg-brand text-white px-6 py-3 rounded-lg font-medium hover:bg-brand-hover flex items-center gap-2 text-lg"
+          className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
         >
-          <ShoppingCart size={20} />
+          <Plus size={18} />
           Nueva Venta
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <StatCard
-          icon={<TrendingUp size={20} className="text-success-700" />}
-          iconBg="bg-success-50"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <KpiCard
+          gradient="green"
+          icon={<Wallet size={20} />}
           label="Total Vendido Hoy"
           value={formatGs(dayTotal.total)}
-          loading={loading}
+          delta={comparison ? { pct: salesDelta, label: 'vs ayer' } : null}
+          loading={headerLoading}
         />
-        <StatCard
-          icon={<ShoppingCart size={20} className="text-info-700" />}
-          iconBg="bg-info-50"
-          label="Ventas del Día"
+        <KpiCard
+          gradient="blue"
+          icon={<Receipt size={20} />}
+          label="Tickets Hoy"
           value={String(dayTotal.count)}
-          loading={loading}
+          delta={comparison ? { pct: ticketsDelta, label: 'vs ayer' } : null}
+          loading={headerLoading}
         />
-        <StatCard
-          icon={<AlertTriangle size={20} className="text-warning-700" />}
-          iconBg="bg-warning-50"
+        <KpiCard
+          gradient="purple"
+          icon={<ShoppingCart size={20} />}
+          label="Cobros Pendientes"
+          value={formatGs(totalCreditOwed)}
+          hint={`${pendingCredits.length} cliente${pendingCredits.length === 1 ? '' : 's'}`}
+          loading={headerLoading}
+        />
+        <KpiCard
+          gradient="teal"
+          icon={<AlertTriangle size={20} />}
           label="Alertas de Stock"
           value={String(lowStock.length)}
-          loading={loading}
+          hint={lowStock.length > 0 ? 'productos críticos' : 'todo en orden'}
+          loading={headerLoading}
         />
       </div>
 
-      {loading ? (
-        <div className="bg-surface rounded-lg shadow-sm p-6">
-          <Skeleton className="h-5 w-56 mb-4" />
-          <TableSkeleton rows={5} columns={3} />
-        </div>
-      ) : lowStock.length > 0 ? (
-        <div className="bg-surface rounded-lg shadow-sm p-6">
-          <h2 className="font-semibold mb-4 flex items-center gap-2">
-            <AlertTriangle size={18} className="text-warning-500" />
-            Productos con Stock Bajo
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-text-muted">
-                  <th className="pb-2">Producto</th>
-                  <th className="pb-2">Stock Actual</th>
-                  <th className="pb-2">Stock Mínimo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lowStock.slice(0, 10).map((p) => (
-                  <tr key={p.id} className="border-b last:border-0">
-                    <td className="py-2 font-medium">{p.name}</td>
-                    <td className="py-2 text-danger-700 font-medium">
-                      {p.stock} {p.price_type === 'kg' ? 'kg' : 'u.'}
-                    </td>
-                    <td className="py-2">
-                      {p.min_stock} {p.price_type === 'kg' ? 'kg' : 'u.'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  )
-}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card
+          className="xl:col-span-2 rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
+          <CardHeader className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-text-main">Ventas</h2>
+              <p className="text-xs text-text-muted">Comparativa por período</p>
+            </div>
+            <PeriodSelector value={chartPeriod} options={chartPeriods} onChange={setChartPeriod} />
+          </CardHeader>
+          <CardBody>
+            <SalesBarChart data={chartData} loading={chartLoading} />
+            <div className="flex items-center gap-4 text-xs text-text-muted pt-3">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-brand" />
+                Ventas
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ background: '#A78BFA', opacity: 0.6 }}
+                />
+                Meta
+              </span>
+            </div>
+          </CardBody>
+        </Card>
 
-interface StatCardProps {
-  icon: React.ReactNode
-  iconBg: string
-  label: string
-  value: string
-  loading?: boolean
-}
-
-function StatCard({ icon, iconBg, label, value, loading }: StatCardProps) {
-  return (
-    <div className="bg-surface rounded-lg p-6 shadow-sm">
-      <div className="flex items-center gap-3 mb-2">
-        <div className={`p-2 rounded-lg ${iconBg}`}>{icon}</div>
-        <span className="text-text-muted text-sm">{label}</span>
+        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <CardHeader className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-text-main">Top Productos</h2>
+              <p className="text-xs text-text-muted">Más vendidos del período</p>
+            </div>
+            <PeriodSelector value={donutPeriod} options={donutPeriods} onChange={setDonutPeriod} />
+          </CardHeader>
+          <CardBody>
+            <TopProductsDonut data={donutData} loading={donutLoading} />
+          </CardBody>
+        </Card>
       </div>
-      {loading ? (
-        <Skeleton className="h-8 w-32" />
-      ) : (
-        <p className="text-2xl font-bold">{value}</p>
-      )}
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card
+          className="xl:col-span-2 rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
+          <CardHeader>
+            <h2 className="font-semibold text-text-main">Ventas Recientes</h2>
+            <p className="text-xs text-text-muted">Últimas 8 transacciones</p>
+          </CardHeader>
+          <CardBody>
+            <RecentSalesTable sales={recentSales} loading={headerLoading} />
+          </CardBody>
+        </Card>
+
+        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <CardHeader className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Package size={16} className="text-text-muted" />
+              <h2 className="font-semibold text-text-main">Resumen Stock</h2>
+            </div>
+          </CardHeader>
+          <CardBody>
+            <StockSummaryCard lowStock={lowStock} loading={headerLoading} />
+          </CardBody>
+        </Card>
+      </div>
     </div>
   )
 }
