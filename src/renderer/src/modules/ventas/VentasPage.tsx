@@ -1,26 +1,47 @@
 import { useState, useEffect, useRef } from 'react'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
-import { formatGs } from '../../lib/utils'
+import { useHeldStore } from '../../store/held.store'
+import { formatGs, formatDateTime } from '../../lib/utils'
+import { parseBalanceCode } from '../../lib/balance-code'
 import { toast } from '../../lib/toast'
 import { confirm } from '../../lib/confirm'
-import type { Product } from '@shared/types'
+import type { Category, Product } from '@shared/types'
 import {
-  Search, Trash2, Plus, Minus, Package, ScanLine, ShoppingCart, DollarSign
+  Search,
+  Trash2,
+  Plus,
+  Minus,
+  Package,
+  ScanLine,
+  ShoppingCart,
+  DollarSign,
+  Pause,
+  Play,
+  Clock
 } from 'lucide-react'
-import { Button, Input, Modal, MoneyInput, EmptyState, Badge } from '../../components/ui'
+import { Badge, Button, EmptyState, Input, Modal, MoneyInput } from '../../components/ui'
+import { cn } from '../../lib/utils'
 import CobroModal from './CobroModal'
 
 export default function VentasPage() {
   const register = useCashStore((s) => s.register)
   const {
-    items, discount, addItem, updateQuantity, removeItem, setDiscount, clear, subtotal, total
+    items, discount, addItem, updateQuantity, removeItem, setDiscount, clear, restore,
+    subtotal, total
   } = useCartStore()
+  const heldTickets = useHeldStore((s) => s.tickets)
+  const addHeld = useHeldStore((s) => s.add)
+  const consumeHeld = useHeldStore((s) => s.consume)
+  const removeHeld = useHeldStore((s) => s.remove)
   const [search, setSearch] = useState('')
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [activeCategory, setActiveCategory] = useState<number | null>(null)
   const [quantityModal, setQuantityModal] = useState<Product | null>(null)
   const [quantity, setQuantity] = useState('')
   const [showCobro, setShowCobro] = useState(false)
+  const [showHeld, setShowHeld] = useState(false)
   const [scannerActive, setScannerActive] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const discountRef = useRef<HTMLInputElement>(null)
@@ -28,11 +49,15 @@ export default function VentasPage() {
   const barcodeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const scannerTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  useEffect(() => { loadProducts() }, [])
+  useEffect(() => {
+    window.api.products.categories().then(setCategories)
+  }, [])
 
-  const loadProducts = async (q?: string) => {
+  const loadProducts = async (q?: string, categoryId?: number | null): Promise<void> => {
     try {
-      const result = await window.api.products.getAll({ search: q, active: true })
+      const filters: Record<string, unknown> = { search: q, active: true }
+      if (categoryId) filters.categoryId = categoryId
+      const result = await window.api.products.getAll(filters)
       setProducts(result)
     } catch {
       toast.error('Error al cargar productos')
@@ -41,11 +66,10 @@ export default function VentasPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (search) loadProducts(search)
-      else loadProducts()
+      loadProducts(search || undefined, activeCategory)
     }, 300)
     return () => clearTimeout(timer)
-  }, [search])
+  }, [search, activeCategory])
 
   // Barcode scanner support
   useEffect(() => {
@@ -57,6 +81,24 @@ export default function VentasPage() {
         const barcode = barcodeBuffer.current
         barcodeBuffer.current = ''
         setScannerActive(false)
+
+        // Código generado por balanza electrónica (EAN-13 con peso embebido)
+        const balance = parseBalanceCode(barcode)
+        if (balance) {
+          window.api.products.getByBarcode(balance.productCode).then((p) => {
+            if (p && p.price_type === 'kg') {
+              addItem(p, balance.weightKg)
+              toast.success(`${p.name}: ${balance.weightKg.toFixed(3)} kg agregado`)
+            } else if (p) {
+              toast.warning(`${p.name} no es un producto por kg`)
+            } else {
+              toast.warning(`Código de balanza ${balance.productCode} no encontrado`)
+            }
+          })
+          return
+        }
+
+        // Lectura normal de código de barras
         window.api.products.getByBarcode(barcode).then((p) => {
           if (p) {
             if (p.price_type === 'kg') {
@@ -98,10 +140,48 @@ export default function VentasPage() {
     toast.info('Carrito cancelado')
   }
 
-  // Global shortcuts: F4 = focus descuento, F8 = cancelar carrito, F12 = abrir cobro
+  const suspendCart = (): void => {
+    if (items.length === 0) return
+    const label = `${items.length} producto${items.length === 1 ? '' : 's'} · ${formatGs(total())}`
+    addHeld(label, items, discount)
+    clear()
+    toast.success('Venta suspendida')
+    searchRef.current?.focus()
+  }
+
+  const resumeHeld = async (id: string): Promise<void> => {
+    if (items.length > 0) {
+      const ok = await confirm({
+        title: 'Reanudar ticket',
+        message: 'El carrito actual se va a reemplazar por el ticket suspendido. ¿Continuar?',
+        confirmLabel: 'Reanudar',
+        cancelLabel: 'Volver'
+      })
+      if (!ok) return
+    }
+    const ticket = consumeHeld(id)
+    if (!ticket) return
+    restore(ticket.items, ticket.discount)
+    setShowHeld(false)
+    toast.success('Venta reanudada')
+  }
+
+  const deleteHeld = async (id: string): Promise<void> => {
+    const ok = await confirm({
+      title: 'Eliminar ticket suspendido',
+      message: 'Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      danger: true
+    })
+    if (!ok) return
+    removeHeld(id)
+    toast.info('Ticket eliminado')
+  }
+
+  // Global shortcuts: F4 = descuento, F8 = cancelar, F9 = suspender, F12 = cobrar
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (showCobro || quantityModal) return
+      if (showCobro || quantityModal || showHeld) return
       if (e.key === 'F4') {
         e.preventDefault()
         discountRef.current?.focus()
@@ -109,6 +189,9 @@ export default function VentasPage() {
       } else if (e.key === 'F8') {
         e.preventDefault()
         cancelCart()
+      } else if (e.key === 'F9') {
+        e.preventDefault()
+        suspendCart()
       } else if (e.key === 'F12') {
         e.preventDefault()
         if (items.length > 0) setShowCobro(true)
@@ -117,7 +200,7 @@ export default function VentasPage() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length, showCobro, quantityModal])
+  }, [items.length, showCobro, quantityModal, showHeld])
 
   const handleProductClick = (product: Product) => {
     if (product.price_type === 'kg') {
@@ -157,20 +240,33 @@ export default function VentasPage() {
           className="w-[45%] bg-surface rounded-2xl border border-border flex flex-col overflow-hidden"
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-            <div>
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <h2 className="font-bold text-lg text-text-main">Carrito</h2>
               <p className="text-xs text-text-muted mt-0.5">
                 {items.length} producto{items.length === 1 ? '' : 's'} en el ticket
               </p>
             </div>
-            <Badge
-              tone={scannerActive ? 'danger' : 'neutral'}
-              className={scannerActive ? 'animate-pulse' : ''}
-            >
-              <ScanLine size={12} />
-              {scannerActive ? 'Escaneando' : 'Lector listo'}
-            </Badge>
+            <div className="flex items-center gap-2 shrink-0">
+              {heldTickets.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowHeld(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-warning-50 text-warning-700 hover:bg-warning-50/70 transition-colors"
+                  title="Tickets suspendidos"
+                >
+                  <Clock size={12} />
+                  Pendientes ({heldTickets.length})
+                </button>
+              )}
+              <Badge
+                tone={scannerActive ? 'danger' : 'neutral'}
+                className={scannerActive ? 'animate-pulse' : ''}
+              >
+                <ScanLine size={12} />
+                {scannerActive ? 'Escaneando' : 'Lector listo'}
+              </Badge>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-2">
@@ -272,15 +368,26 @@ export default function VentasPage() {
             <div className="flex gap-2 pt-3">
               <Button
                 variant="secondary"
-                className="flex-1 rounded-xl"
+                className="rounded-xl"
                 onClick={cancelCart}
                 disabled={items.length === 0}
+                title="Cancelar (F8)"
               >
-                Cancelar (F8)
+                <Trash2 size={14} />
+              </Button>
+              <Button
+                variant="secondary"
+                className="rounded-xl"
+                onClick={suspendCart}
+                disabled={items.length === 0}
+                title="Suspender (F9)"
+              >
+                <Pause size={14} />
+                Suspender
               </Button>
               <Button
                 size="xl"
-                className="flex-[2] rounded-xl"
+                className="flex-1 rounded-xl"
                 onClick={() => setShowCobro(true)}
                 disabled={items.length === 0}
               >
@@ -292,7 +399,7 @@ export default function VentasPage() {
 
         {/* Right: Product Search */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="relative mb-4">
+          <div className="relative mb-3">
             <Search
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted z-10"
               size={18}
@@ -306,6 +413,38 @@ export default function VentasPage() {
               autoFocus
             />
           </div>
+
+          {categories.length > 0 && (
+            <div className="flex gap-2 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
+              <button
+                type="button"
+                onClick={() => setActiveCategory(null)}
+                className={cn(
+                  'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                  activeCategory === null
+                    ? 'bg-brand text-white border-brand'
+                    : 'bg-surface text-text-main border-border hover:bg-surface-muted'
+                )}
+              >
+                Todas
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setActiveCategory(c.id)}
+                  className={cn(
+                    'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                    activeCategory === c.id
+                      ? 'bg-brand text-white border-brand'
+                      : 'bg-surface text-text-main border-border hover:bg-surface-muted'
+                  )}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto">
             {products.length === 0 ? (
@@ -373,6 +512,7 @@ export default function VentasPage() {
       <div className="mt-3 flex items-center gap-3 text-xs text-text-muted bg-surface border border-border rounded-md px-3 py-2 shrink-0">
         <ShortcutHint k="F4" label="Descuento" />
         <ShortcutHint k="F8" label="Cancelar" />
+        <ShortcutHint k="F9" label="Suspender" />
         <ShortcutHint k="F12" label="Cobrar" />
         <ShortcutHint k="F1" label="Ayuda" />
         <span className="ml-auto opacity-70 hidden md:inline">
@@ -441,6 +581,62 @@ export default function VentasPage() {
           }}
         />
       )}
+
+      {/* Tickets suspendidos */}
+      <Modal
+        open={showHeld}
+        onClose={() => setShowHeld(false)}
+        size="md"
+        title="Tickets suspendidos"
+      >
+        {heldTickets.length === 0 ? (
+          <EmptyState
+            icon={<Clock size={36} />}
+            title="Sin tickets suspendidos"
+            description="Cuando suspendés una venta, aparece acá hasta que la reanudes."
+          />
+        ) : (
+          <ul className="space-y-2">
+            {heldTickets.map((t) => (
+              <li
+                key={t.id}
+                className="flex items-center justify-between gap-3 px-3 py-3 rounded-xl border border-border hover:bg-surface-muted/40 transition-colors"
+              >
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="w-9 h-9 rounded-lg bg-warning-50 text-warning-700 flex items-center justify-center shrink-0">
+                    <Clock size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-text-main truncate">{t.label}</p>
+                    <p className="text-xs text-text-muted tabular-nums">
+                      {formatDateTime(t.savedAt)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => deleteHeld(t.id)}
+                    className="p-1.5 text-text-muted hover:text-danger-700 hover:bg-danger-50 rounded-lg transition-colors"
+                    title="Eliminar"
+                    aria-label="Eliminar ticket"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                  <Button
+                    size="sm"
+                    onClick={() => resumeHeld(t.id)}
+                    className="rounded-lg"
+                  >
+                    <Play size={12} />
+                    Reanudar
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
     </div>
   )
 }

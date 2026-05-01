@@ -9,6 +9,7 @@ interface CartState {
   removeItem: (productId: number) => void
   setDiscount: (discount: number) => void
   clear: () => void
+  restore: (items: CartItem[], discount: number) => void
   subtotal: () => number
   total: () => number
 }
@@ -52,6 +53,8 @@ export const useCartStore = create<CartState>((set, get) => ({
   setDiscount: (discount) => set({ discount }),
 
   clear: () => set({ items: [], discount: 0 }),
+
+  restore: (items, discount) => set({ items, discount }),
 
   subtotal: () => get().items.reduce((sum, i) => sum + i.subtotal, 0),
 
