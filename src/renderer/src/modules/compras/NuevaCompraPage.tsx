@@ -3,10 +3,26 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
 import { formatGs } from '../../lib/utils'
 import type { Supplier, Product } from '@shared/types'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Package } from 'lucide-react'
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  EmptyState,
+  Input,
+  Modal,
+  MoneyInput,
+  PageHeader,
+  Select
+} from '../../components/ui'
 
 interface OrderItem {
-  productId: number; productName: string; quantity: number; unitCost: number; subtotal: number
+  productId: number
+  productName: string
+  quantity: number
+  unitCost: number
+  subtotal: number
 }
 
 export default function NuevaCompraPage() {
@@ -28,36 +44,51 @@ export default function NuevaCompraPage() {
   useEffect(() => {
     if (searchProduct.length >= 2) {
       window.api.products.getAll({ search: searchProduct }).then(setProducts)
+    } else {
+      setProducts([])
     }
   }, [searchProduct])
 
-  const addItem = (p: Product) => {
+  const addItem = (p: Product): void => {
     if (items.find((i) => i.productId === p.id)) return
-    setItems([...items, { productId: p.id, productName: p.name, quantity: 1, unitCost: 0, subtotal: 0 }])
+    setItems([
+      ...items,
+      { productId: p.id, productName: p.name, quantity: 1, unitCost: 0, subtotal: 0 }
+    ])
     setShowProductSearch(false)
     setSearchProduct('')
   }
 
-  const updateItem = (idx: number, field: string, value: number) => {
-    setItems(items.map((item, i) => {
-      if (i !== idx) return item
-      const updated = { ...item, [field]: value }
-      updated.subtotal = Math.round(updated.quantity * updated.unitCost)
-      return updated
-    }))
+  const updateItem = (idx: number, field: 'quantity' | 'unitCost', value: number): void => {
+    setItems(
+      items.map((item, i) => {
+        if (i !== idx) return item
+        const updated = { ...item, [field]: value }
+        updated.subtotal = Math.round(updated.quantity * updated.unitCost)
+        return updated
+      })
+    )
   }
 
-  const removeItem = (idx: number) => setItems(items.filter((_, i) => i !== idx))
+  const removeItem = (idx: number): void => setItems(items.filter((_, i) => i !== idx))
   const total = items.reduce((sum, i) => sum + i.subtotal, 0)
 
-  const handleSave = async (receive: boolean) => {
+  const handleSave = async (receive: boolean): Promise<void> => {
     if (!user || items.length === 0) return
     setLoading(true)
     try {
       await window.api.purchases.create({
-        supplierId: supplierId || null, userId: user.id,
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity, unitCost: i.unitCost, subtotal: i.subtotal })),
-        total, notes: notes || undefined, receive
+        supplierId: supplierId || null,
+        userId: user.id,
+        items: items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          unitCost: i.unitCost,
+          subtotal: i.subtotal
+        })),
+        total,
+        notes: notes || undefined,
+        receive
       })
       navigate('/compras')
     } catch (err: unknown) {
@@ -67,86 +98,217 @@ export default function NuevaCompraPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Nueva Orden de Compra</h1>
-      <div className="bg-surface rounded-lg shadow-sm p-6 space-y-4">
-        <div>
-          <label className="block text-sm text-text-muted mb-1">Proveedor</label>
-          <select value={supplierId} onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}
-            className="w-full border rounded-lg p-2 bg-surface">
-            <option value="">Seleccionar...</option>
-            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        </div>
+    <div className="max-w-4xl mx-auto space-y-5">
+      <PageHeader
+        title="Nueva Orden de Compra"
+        subtitle="Registrá una compra a un proveedor. Si la marcás como recibida, el stock se actualiza automáticamente."
+      />
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-sm text-text-muted">Items</label>
-            <button onClick={() => setShowProductSearch(true)} className="text-sm text-brand flex items-center gap-1 hover:underline">
-              <Plus size={14} /> Agregar producto
-            </button>
-          </div>
-          <table className="w-full text-sm">
-            <thead><tr className="border-b text-text-muted text-left">
-              <th className="pb-2">Producto</th><th className="pb-2 w-24">Cantidad</th>
-              <th className="pb-2 w-32">Costo unit.</th><th className="pb-2 w-28 text-right">Subtotal</th><th className="pb-2 w-8"></th>
-            </tr></thead>
-            <tbody>
-              {items.map((item, idx) => (
-                <tr key={item.productId} className="border-b">
-                  <td className="py-2">{item.productName}</td>
-                  <td className="py-2"><input type="number" value={item.quantity} min={0.01} step={0.01}
-                    onChange={(e) => updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)}
-                    className="w-full border rounded p-1 text-right text-sm" /></td>
-                  <td className="py-2"><input type="number" value={item.unitCost}
-                    onChange={(e) => updateItem(idx, 'unitCost', parseInt(e.target.value) || 0)}
-                    className="w-full border rounded p-1 text-right text-sm" /></td>
-                  <td className="py-2 text-right font-medium">{formatGs(item.subtotal)}</td>
-                  <td className="py-2"><button onClick={() => removeItem(idx)} className="text-red-500 p-1"><Trash2 size={14} /></button></td>
-                </tr>
+      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <CardHeader>
+          <h2 className="font-semibold text-text-main">Detalles de la orden</h2>
+          <p className="text-xs text-text-muted">Proveedor y notas</p>
+        </CardHeader>
+        <CardBody className="space-y-4">
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">Proveedor</label>
+            <Select
+              value={supplierId}
+              onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}
+            >
+              <option value="">Sin proveedor / consumidor final</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
-            </tbody>
-          </table>
-          <div className="text-right text-lg font-bold mt-2">Total: {formatGs(total)}</div>
-        </div>
+            </Select>
+          </div>
 
-        <div>
-          <label className="block text-sm text-text-muted mb-1">Notas</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
-            className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-brand" rows={2} />
-        </div>
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">Notas (opcional)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-main placeholder:text-text-disabled focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition-colors"
+              rows={2}
+              placeholder="Observaciones, número de factura, etc."
+            />
+          </div>
+        </CardBody>
+      </Card>
 
-        <div className="flex gap-3 pt-4 border-t">
-          <button onClick={() => navigate('/compras')} className="flex-1 border rounded-lg py-2 hover:bg-surface-muted">Cancelar</button>
-          <button onClick={() => handleSave(false)} disabled={loading || items.length === 0}
-            className="flex-1 border border-brand text-brand py-2 rounded-lg hover:bg-brand-light disabled:opacity-50">
-            Guardar Pendiente
-          </button>
-          <button onClick={() => handleSave(true)} disabled={loading || items.length === 0}
-            className="flex-1 bg-brand text-white py-2 rounded-lg hover:bg-brand-hover disabled:opacity-50">
-            Guardar y Recibir
-          </button>
-        </div>
+      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <CardHeader className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-text-main">Productos</h2>
+            <p className="text-xs text-text-muted">
+              {items.length === 0
+                ? 'Agregá los productos comprados'
+                : `${items.length} producto${items.length === 1 ? '' : 's'} en la orden`}
+            </p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={() => setShowProductSearch(true)}>
+            <Plus size={14} /> Agregar producto
+          </Button>
+        </CardHeader>
+        <CardBody>
+          {items.length === 0 ? (
+            <EmptyState
+              icon={<Package size={36} />}
+              title="Sin productos"
+              description="Agregá al menos un producto para crear la orden."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-text-muted border-b border-border">
+                    <th className="pb-2 font-normal pr-3">Producto</th>
+                    <th className="pb-2 font-normal pr-3 w-28">Cantidad</th>
+                    <th className="pb-2 font-normal pr-3 w-36">Costo unit.</th>
+                    <th className="pb-2 font-normal text-right w-32">Subtotal</th>
+                    <th className="pb-2 w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, idx) => (
+                    <tr key={item.productId} className="border-b border-border last:border-0">
+                      <td className="py-3 pr-3 font-medium text-text-main">{item.productName}</td>
+                      <td className="py-3 pr-3">
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          min={0.01}
+                          step={0.01}
+                          onChange={(e) =>
+                            updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
+                          }
+                          className="h-9 text-right text-sm tabular-nums"
+                        />
+                      </td>
+                      <td className="py-3 pr-3">
+                        <MoneyInput
+                          value={item.unitCost}
+                          onValueChange={(v) => updateItem(idx, 'unitCost', v)}
+                          className="h-9 text-right text-sm tabular-nums"
+                          placeholder="0"
+                        />
+                      </td>
+                      <td className="py-3 text-right font-medium tabular-nums">
+                        {formatGs(item.subtotal)}
+                      </td>
+                      <td className="py-3">
+                        <button
+                          type="button"
+                          onClick={() => removeItem(idx)}
+                          className="p-1.5 text-danger-500 hover:bg-danger-50 rounded-lg"
+                          aria-label="Quitar"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border">
+                    <td colSpan={3} className="pt-3 text-right font-medium text-text-muted">
+                      Total
+                    </td>
+                    <td className="pt-3 text-right text-xl font-bold text-brand tabular-nums">
+                      {formatGs(total)}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      <div className="flex gap-3 justify-end flex-wrap">
+        <Button
+          variant="secondary"
+          size="lg"
+          className="rounded-xl"
+          onClick={() => navigate('/compras')}
+        >
+          Cancelar
+        </Button>
+        <Button
+          variant="secondary"
+          size="lg"
+          className="rounded-xl border-brand text-brand"
+          onClick={() => handleSave(false)}
+          disabled={loading || items.length === 0}
+        >
+          Guardar Pendiente
+        </Button>
+        <Button
+          size="lg"
+          className="rounded-xl"
+          onClick={() => handleSave(true)}
+          disabled={loading || items.length === 0}
+        >
+          {loading ? 'Guardando...' : 'Guardar y Recibir'}
+        </Button>
       </div>
 
-      {showProductSearch && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="font-semibold mb-3">Buscar Producto</h3>
-            <input value={searchProduct} onChange={(e) => setSearchProduct(e.target.value)}
-              className="w-full border rounded-lg p-2 mb-3 focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Nombre o código..." autoFocus />
-            <div className="max-h-60 overflow-y-auto">
-              {products.map((p) => (
-                <button key={p.id} onClick={() => addItem(p)}
-                  className="w-full text-left px-3 py-2 hover:bg-surface-muted text-sm border-b">{p.name}</button>
-              ))}
-            </div>
-            <button onClick={() => { setShowProductSearch(false); setSearchProduct('') }}
-              className="w-full mt-3 border rounded-lg py-2 hover:bg-surface-muted text-sm">Cerrar</button>
+      <Modal
+        open={showProductSearch}
+        onClose={() => {
+          setShowProductSearch(false)
+          setSearchProduct('')
+        }}
+        size="md"
+        title="Buscar producto"
+      >
+        <div className="space-y-3">
+          <Input
+            value={searchProduct}
+            onChange={(e) => setSearchProduct(e.target.value)}
+            placeholder="Nombre o código de barras..."
+            autoFocus
+          />
+          <div className="max-h-72 overflow-y-auto -mx-4">
+            {searchProduct.length < 2 ? (
+              <p className="text-center text-sm text-text-muted py-8 px-4">
+                Escribí al menos 2 caracteres para buscar
+              </p>
+            ) : products.length === 0 ? (
+              <p className="text-center text-sm text-text-muted py-8 px-4">
+                Sin resultados para "{searchProduct}"
+              </p>
+            ) : (
+              products.map((p) => {
+                const alreadyAdded = items.some((i) => i.productId === p.id)
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => addItem(p)}
+                    disabled={alreadyAdded}
+                    className="w-full text-left px-4 py-2.5 hover:bg-surface-muted text-sm border-b border-border last:border-0 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate text-text-main">{p.name}</p>
+                      <p className="text-xs text-text-muted">
+                        {p.category_name ?? 'Sin categoría'} · Stock: {p.stock}{' '}
+                        {p.price_type === 'kg' ? 'kg' : 'u.'}
+                      </p>
+                    </div>
+                    {alreadyAdded && (
+                      <span className="text-xs text-text-disabled shrink-0">Ya agregado</span>
+                    )}
+                  </button>
+                )
+              })
+            )}
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   )
 }
