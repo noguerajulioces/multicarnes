@@ -44,6 +44,7 @@ Currency: **Guaraníes (Gs.)** — integers, no decimals.
 
 ```
 pos-multicarnes/
+├── docs/            # Technical documentation (DB schema, ER diagram, etc.)
 ├── src/
 │   ├── main/        # Electron main process (DB, IPC, services)
 │   │   ├── db/      # SQLite schema, seed, and queries
@@ -119,7 +120,7 @@ Initial data (seed):
 
 ## Documentation
 
-The full technical specification (DB schema, modules, business rules, IPC, and types) lives in [spec_pos_multicarnes.md](spec_pos_multicarnes.md).
+All project documentation lives in [`docs/`](docs/README.md). Start at the [docs index](docs/README.md) — it links to the database schema, the technical specification, and any future docs.
 
 ## Recommended IDE
 
