@@ -11,6 +11,7 @@ import {
   Input,
   Modal,
   PageHeader,
+  Pagination,
   Select
 } from '../../components/ui'
 
@@ -23,20 +24,38 @@ const emptyForm: {
   is_employee: boolean
 } = { name: '', phone: '', address: '', document: '', document_type: 'CI', is_employee: false }
 
+const PER_PAGE = 50
+
 export default function ClientesPage() {
   const navigate = useNavigate()
   const [customers, setCustomers] = useState<Customer[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [editId, setEditId] = useState<number | null>(null)
 
   useEffect(() => {
-    window.api.customers.getAll(search || undefined).then(setCustomers)
+    setPage(1)
   }, [search])
 
+  useEffect(() => {
+    window.api.customers
+      .getAll({ search: search || undefined, page, perPage: PER_PAGE })
+      .then((res) => {
+        setCustomers(res.items)
+        setTotal(res.total)
+      })
+  }, [search, page])
+
   const reload = (): void => {
-    window.api.customers.getAll(search || undefined).then(setCustomers)
+    window.api.customers
+      .getAll({ search: search || undefined, page, perPage: PER_PAGE })
+      .then((res) => {
+        setCustomers(res.items)
+        setTotal(res.total)
+      })
   }
 
   const handleSave = async (): Promise<void> => {
@@ -79,7 +98,7 @@ export default function ClientesPage() {
     <div className="space-y-5">
       <PageHeader
         title="Clientes"
-        subtitle={`${customers.length} cliente${customers.length === 1 ? '' : 's'} registrado${customers.length === 1 ? '' : 's'}`}
+        subtitle={`${total} cliente${total === 1 ? '' : 's'} registrado${total === 1 ? '' : 's'}`}
         actions={
           <button
             onClick={handleNew}
@@ -201,6 +220,7 @@ export default function ClientesPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} />
       </Card>
 
       <Modal

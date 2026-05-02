@@ -1,7 +1,8 @@
 import type {
   User, Product, Category, Customer, Supplier, CashRegister, CashMovement,
   Sale, PurchaseOrder, StockAdjustment, CustomerPayment, AppSetting, BackupFile,
-  ProductStockMovement, ProductRecentSale, ProductSalesStats, ProductLastPurchase
+  ProductStockMovement, ProductRecentSale, ProductSalesStats, ProductLastPurchase,
+  Paginated, PageOpts
 } from '../shared/types'
 
 interface ApiUsers {
@@ -14,7 +15,7 @@ interface ApiUsers {
 }
 
 interface ApiProducts {
-  getAll(filters?: { categoryId?: number; active?: boolean; lowStock?: boolean; search?: string }): Promise<Product[]>
+  getAll(filters?: { categoryId?: number; active?: boolean; lowStock?: boolean; search?: string } & PageOpts): Promise<Paginated<Product>>
   getById(id: number): Promise<Product | null>
   getByBarcode(barcode: string): Promise<Product | null>
   create(data: Partial<Product>): Promise<Product>
@@ -48,7 +49,7 @@ interface ApiSales {
 }
 
 interface ApiCustomers {
-  getAll(search?: string): Promise<Customer[]>
+  getAll(opts?: { search?: string } & PageOpts): Promise<Paginated<Customer>>
   getById(id: number): Promise<Customer | null>
   create(data: { name: string; phone?: string; address?: string; document?: string; document_type?: 'CI' | 'RUC' | null; is_employee?: boolean }): Promise<Customer>
   update(id: number, data: Partial<Customer>): Promise<Customer>
@@ -68,14 +69,14 @@ interface ApiCash {
 }
 
 interface ApiSuppliers {
-  getAll(search?: string): Promise<Supplier[]>
+  getAll(opts?: { search?: string } & PageOpts): Promise<Paginated<Supplier>>
   getById(id: number): Promise<Supplier | null>
   create(data: Partial<Supplier>): Promise<Supplier>
   update(id: number, data: Partial<Supplier>): Promise<Supplier>
 }
 
 interface ApiPurchases {
-  getAll(status?: string): Promise<PurchaseOrder[]>
+  getAll(opts?: { status?: string } & PageOpts): Promise<Paginated<PurchaseOrder>>
   getById(id: number): Promise<PurchaseOrder | null>
   create(data: unknown): Promise<PurchaseOrder>
   receive(id: number): Promise<PurchaseOrder>

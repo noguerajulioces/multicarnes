@@ -84,7 +84,7 @@ export default function VentasPage() {
       const filters: Record<string, unknown> = { search: q, active: true }
       if (categoryId) filters.categoryId = categoryId
       const result = await window.api.products.getAll(filters)
-      setProducts(result)
+      setProducts(result.items)
     } catch {
       toast.error('Error al cargar productos')
     }

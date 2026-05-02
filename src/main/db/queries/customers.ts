@@ -1,18 +1,24 @@
 import { getDb } from '../index'
 
-export function getAllCustomers(search?: string) {
+export function getAllCustomers(opts: { search?: string; page?: number; perPage?: number } = {}) {
   const db = getDb()
-  if (search) {
-    const term = `%${search}%`
-    return db
-      .prepare(`
-        SELECT * FROM customers
-        WHERE name LIKE ? OR phone LIKE ? OR document LIKE ?
-        ORDER BY name
-      `)
-      .all(term, term, term)
+  const params: unknown[] = []
+  let where = ''
+  if (opts.search) {
+    const term = `%${opts.search}%`
+    where = 'WHERE name LIKE ? OR phone LIKE ? OR document LIKE ?'
+    params.push(term, term, term)
   }
-  return db.prepare('SELECT * FROM customers ORDER BY name').all()
+  const total = (db.prepare(`SELECT COUNT(*) as c FROM customers ${where}`).get(...params) as { c: number }).c
+  const isPaginated = opts.page !== undefined
+  const page = Math.max(1, opts.page ?? 1)
+  const perPage = opts.perPage ?? (isPaginated ? 50 : total)
+  const limitClause = isPaginated ? 'LIMIT ? OFFSET ?' : ''
+  const limitParams = isPaginated ? [perPage, (page - 1) * perPage] : []
+  const items = db
+    .prepare(`SELECT * FROM customers ${where} ORDER BY name ${limitClause}`)
+    .all(...params, ...limitParams)
+  return { items, total, page, perPage: perPage || total }
 }
 
 export function getCustomerById(id: number) {

@@ -38,12 +38,14 @@ export default function NuevaCompraPage() {
   const [showProductSearch, setShowProductSearch] = useState(false)
 
   useEffect(() => {
-    window.api.suppliers.getAll().then(setSuppliers)
+    window.api.suppliers.getAll().then((res) => setSuppliers(res.items))
   }, [])
 
   useEffect(() => {
     if (searchProduct.length >= 2) {
-      window.api.products.getAll({ search: searchProduct }).then(setProducts)
+      window.api.products.getAll({ search: searchProduct, active: true }).then((res) =>
+        setProducts(res.items)
+      )
     } else {
       setProducts([])
     }

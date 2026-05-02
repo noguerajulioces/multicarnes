@@ -38,7 +38,7 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
 
   useEffect(() => {
     if (customerSearch.length >= 2) {
-      window.api.customers.getAll(customerSearch).then(setCustomers)
+      window.api.customers.getAll({ search: customerSearch }).then((res) => setCustomers(res.items))
     } else {
       setCustomers([])
     }

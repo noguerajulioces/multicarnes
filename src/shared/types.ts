@@ -37,6 +37,18 @@ export interface Product {
 
 export type DocumentType = 'CI' | 'RUC'
 
+export interface Paginated<T> {
+  items: T[]
+  total: number
+  page: number
+  perPage: number
+}
+
+export interface PageOpts {
+  page?: number
+  perPage?: number
+}
+
 export interface Customer {
   id: number
   name: string

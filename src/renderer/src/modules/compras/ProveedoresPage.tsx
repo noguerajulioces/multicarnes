@@ -8,21 +8,32 @@ import {
   EmptyState,
   Input,
   Modal,
-  PageHeader
+  PageHeader,
+  Pagination
 } from '../../components/ui'
 
 const emptyForm = { name: '', phone: '', email: '', address: '' }
+const PER_PAGE = 50
 
 export default function ProveedoresPage() {
   const navigate = useNavigate()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm)
 
+  const load = (): void => {
+    window.api.suppliers.getAll({ page, perPage: PER_PAGE }).then((res) => {
+      setSuppliers(res.items)
+      setTotal(res.total)
+    })
+  }
+
   useEffect(() => {
-    window.api.suppliers.getAll().then(setSuppliers)
-  }, [])
+    load()
+  }, [page])
 
   const handleSave = async (): Promise<void> => {
     if (!form.name) return
@@ -32,7 +43,7 @@ export default function ProveedoresPage() {
       await window.api.suppliers.create(form)
     }
     closeForm()
-    window.api.suppliers.getAll().then(setSuppliers)
+    load()
   }
 
   const handleEdit = (s: Supplier): void => {
@@ -70,7 +81,7 @@ export default function ProveedoresPage() {
 
       <PageHeader
         title="Proveedores"
-        subtitle={`${suppliers.length} proveedor${suppliers.length === 1 ? '' : 'es'} registrado${suppliers.length === 1 ? '' : 's'}`}
+        subtitle={`${total} proveedor${total === 1 ? '' : 'es'} registrado${total === 1 ? '' : 's'}`}
         actions={
           <button
             onClick={handleNew}
@@ -140,6 +151,7 @@ export default function ProveedoresPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} />
       </Card>
 
       <Modal

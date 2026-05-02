@@ -1,34 +1,42 @@
 import { getDb } from '../index'
 
-export function getAllProducts(filters?: { categoryId?: number; active?: boolean; lowStock?: boolean; search?: string }) {
+export function getAllProducts(filters?: {
+  categoryId?: number; active?: boolean; lowStock?: boolean; search?: string;
+  page?: number; perPage?: number
+}) {
   const db = getDb()
-  let sql = `
-    SELECT p.*, c.name as category_name,
-      CASE WHEN p.stock <= p.min_stock THEN 1 ELSE 0 END as low_stock
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    WHERE 1=1
-  `
+  const conditions: string[] = []
   const params: unknown[] = []
 
-  if (filters?.categoryId) {
-    sql += ' AND p.category_id = ?'
-    params.push(filters.categoryId)
-  }
-  if (filters?.active !== undefined) {
-    sql += ' AND p.active = ?'
-    params.push(filters.active ? 1 : 0)
-  }
-  if (filters?.lowStock) {
-    sql += ' AND p.stock <= p.min_stock'
-  }
+  if (filters?.categoryId) { conditions.push('p.category_id = ?'); params.push(filters.categoryId) }
+  if (filters?.active !== undefined) { conditions.push('p.active = ?'); params.push(filters.active ? 1 : 0) }
+  if (filters?.lowStock) conditions.push('p.stock <= p.min_stock')
   if (filters?.search) {
-    sql += ' AND (p.name LIKE ? OR p.barcode LIKE ?)'
+    conditions.push('(p.name LIKE ? OR p.barcode LIKE ?)')
     const term = `%${filters.search}%`
     params.push(term, term)
   }
-  sql += ' ORDER BY p.name'
-  return db.prepare(sql).all(...params)
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  const total = (db
+    .prepare(`SELECT COUNT(*) as c FROM products p ${where}`)
+    .get(...params) as { c: number }).c
+  const isPaginated = filters?.page !== undefined
+  const page = Math.max(1, filters?.page ?? 1)
+  const perPage = filters?.perPage ?? (isPaginated ? 50 : total)
+  const limitClause = isPaginated ? 'LIMIT ? OFFSET ?' : ''
+  const limitParams = isPaginated ? [perPage, (page - 1) * perPage] : []
+  const items = db
+    .prepare(`
+      SELECT p.*, c.name as category_name,
+        CASE WHEN p.stock <= p.min_stock THEN 1 ELSE 0 END as low_stock
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      ${where}
+      ORDER BY p.name
+      ${limitClause}
+    `)
+    .all(...params, ...limitParams)
+  return { items, total, page, perPage: perPage || total }
 }
 
 export function getProductById(id: number) {

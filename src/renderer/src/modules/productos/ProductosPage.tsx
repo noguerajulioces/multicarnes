@@ -12,13 +12,18 @@ import {
   Input,
   Modal,
   PageHeader,
+  Pagination,
   Select
 } from '../../components/ui'
+
+const PER_PAGE = 50
 
 export default function ProductosPage() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const [products, setProducts] = useState<Product[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [categories, setCategories] = useState<Category[]>([])
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState<number | ''>('')
@@ -33,7 +38,11 @@ export default function ProductosPage() {
   }, [])
 
   const buildFilters = (): Record<string, unknown> => {
-    const filters: Record<string, unknown> = { search: search || undefined }
+    const filters: Record<string, unknown> = {
+      search: search || undefined,
+      page,
+      perPage: PER_PAGE
+    }
     if (filterStatus === 'active') filters.active = true
     else if (filterStatus === 'inactive') filters.active = false
     if (filterCat) filters.categoryId = filterCat
@@ -42,8 +51,15 @@ export default function ProductosPage() {
   }
 
   useEffect(() => {
-    window.api.products.getAll(buildFilters()).then(setProducts)
+    setPage(1)
   }, [search, filterCat, filterStock, filterStatus])
+
+  useEffect(() => {
+    window.api.products.getAll(buildFilters()).then((res) => {
+      setProducts(res.items)
+      setTotal(res.total)
+    })
+  }, [search, filterCat, filterStock, filterStatus, page])
 
   const handleAdjust = async (): Promise<void> => {
     if (!adjustModal || !newStock || !adjustReason || !user) return
@@ -54,7 +70,10 @@ export default function ProductosPage() {
       user.id
     )
     closeAdjustModal()
-    window.api.products.getAll(buildFilters()).then(setProducts)
+    window.api.products.getAll(buildFilters()).then((res) => {
+      setProducts(res.items)
+      setTotal(res.total)
+    })
   }
 
   const closeAdjustModal = (): void => {
@@ -70,7 +89,7 @@ export default function ProductosPage() {
     <div className="space-y-5">
       <PageHeader
         title="Productos"
-        subtitle={`${products.length} producto${products.length === 1 ? '' : 's'} en catálogo`}
+        subtitle={`${total} producto${total === 1 ? '' : 's'} en catálogo`}
         actions={
           <button
             onClick={() => navigate('/productos/nuevo')}
@@ -251,6 +270,7 @@ export default function ProductosPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} />
       </Card>
 
       <Modal
