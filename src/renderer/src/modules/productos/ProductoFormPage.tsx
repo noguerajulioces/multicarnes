@@ -109,7 +109,7 @@ export default function ProductoFormPage() {
   const stockUnit = form.price_type === 'kg' ? 'kg' : 'u.'
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-6xl mx-auto space-y-5">
       <PageHeader
         title={isEdit ? 'Editar Producto' : 'Nuevo Producto'}
         subtitle={
@@ -119,36 +119,44 @@ export default function ProductoFormPage() {
         }
       />
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
-        <CardHeader>
-          <h2 className="font-semibold text-text-main">Información básica</h2>
-          <p className="text-xs text-text-muted">Nombre, categoría, código e imagen</p>
-        </CardHeader>
-        <CardBody className="space-y-4">
-          <div className="flex items-center gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <Card className="rounded-2xl lg:col-span-1 self-start" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <CardHeader>
+            <h2 className="font-semibold text-text-main">Imagen</h2>
+            <p className="text-xs text-text-muted">PNG, JPG o WebP</p>
+          </CardHeader>
+          <CardBody className="space-y-3">
             <button
               type="button"
               onClick={handleUploadImage}
-              className="w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-brand hover:bg-brand-light transition-colors overflow-hidden"
+              className="w-full aspect-square rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-brand hover:bg-brand-light transition-colors overflow-hidden"
             >
               {imageUrl ? (
                 <img src={imageUrl} alt={form.name} className="w-full h-full object-cover" />
               ) : (
-                <ImagePlus size={28} className="text-text-muted" />
+                <div className="flex flex-col items-center gap-2 text-text-muted">
+                  <ImagePlus size={36} />
+                  <span className="text-sm">Sin imagen</span>
+                </div>
               )}
             </button>
-            <div>
-              <button
-                type="button"
-                onClick={handleUploadImage}
-                className="text-sm font-medium text-brand hover:text-brand-hover"
-              >
-                {hasImage ? 'Cambiar imagen' : 'Subir imagen'}
-              </button>
-              <p className="text-xs text-text-muted mt-1">PNG, JPG o WebP</p>
-            </div>
-          </div>
+            <button
+              type="button"
+              onClick={handleUploadImage}
+              className="w-full text-sm font-medium text-brand hover:text-brand-hover"
+            >
+              {hasImage ? 'Cambiar imagen' : 'Subir imagen'}
+            </button>
+          </CardBody>
+        </Card>
 
+        <div className="lg:col-span-2 space-y-5">
+        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <CardHeader>
+          <h2 className="font-semibold text-text-main">Información básica</h2>
+          <p className="text-xs text-text-muted">Nombre, categoría y código</p>
+        </CardHeader>
+        <CardBody className="space-y-4">
           <div>
             <label className="block text-sm text-text-muted mb-1.5">
               Nombre <span className="text-danger-500">*</span>
@@ -281,6 +289,8 @@ export default function ProductoFormPage() {
           </label>
         </CardBody>
       </Card>
+        </div>
+      </div>
 
       <div className="flex gap-3 justify-end">
         <Button
