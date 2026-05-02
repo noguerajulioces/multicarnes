@@ -1,7 +1,8 @@
 import { app, shell, BrowserWindow, protocol, net } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import iconPng from '../../resources/icon.png?asset'
+import iconIco from '../../resources/icon.ico?asset'
 import { initDatabase, getImagesDir } from './db'
 import { registerUsersIpc } from './ipc/users.ipc'
 import { registerProductsIpc } from './ipc/products.ipc'
@@ -52,7 +53,7 @@ function createWindow(): void {
           }
         }
       : {}),
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon: process.platform === 'win32' ? iconIco : iconPng,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -87,6 +88,12 @@ protocol.registerSchemesAsPrivileged([
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.multicarnes.pos')
+
+  // macOS dev: the Dock takes the icon from the Electron binary's bundle, not
+  // from BrowserWindow. Override it so the Multicarnes icon shows during dev.
+  if (is.dev && process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(iconPng)
+  }
 
   // Show splash while DB and IPC initialize
   splashWindow = createSplash()
