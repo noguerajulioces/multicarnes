@@ -139,14 +139,19 @@ export default function ProductosPage() {
                     className="border-t border-border hover:bg-surface-muted/40 transition-colors"
                   >
                     <td className="px-4 py-3 font-medium text-text-main">
-                      <div className="flex items-center gap-2">
-                        {low && (
-                          <AlertTriangle
-                            size={14}
-                            className={out ? 'text-danger-500 shrink-0' : 'text-warning-500 shrink-0'}
-                          />
-                        )}
-                        {p.name}
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-surface-muted shrink-0 flex items-center justify-center">
+                          {p.image ? (
+                            <img
+                              src={`product-img://${p.image}`}
+                              alt={p.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Package size={16} className="text-text-disabled" />
+                          )}
+                        </div>
+                        <span className="truncate">{p.name}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-text-muted">{p.category_name || '—'}</td>
@@ -156,13 +161,22 @@ export default function ProductosPage() {
                         {p.price_type === 'kg' ? 'Por kg' : 'Unidad'}
                       </Badge>
                     </td>
-                    <td
-                      className={cn(
-                        'px-4 py-3 text-right font-medium tabular-nums',
-                        out ? 'text-danger-700' : low ? 'text-warning-700' : ''
-                      )}
-                    >
-                      {p.price_type === 'kg' ? p.stock.toFixed(2) : p.stock}
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {out ? (
+                          <Badge tone="danger">Sin stock</Badge>
+                        ) : low ? (
+                          <Badge tone="warning">Bajo</Badge>
+                        ) : null}
+                        <span
+                          className={cn(
+                            'font-medium tabular-nums',
+                            out ? 'text-danger-700' : low ? 'text-warning-700' : ''
+                          )}
+                        >
+                          {p.price_type === 'kg' ? p.stock.toFixed(2) : p.stock}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right text-text-muted tabular-nums">
                       {p.min_stock}
