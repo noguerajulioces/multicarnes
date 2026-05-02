@@ -45,6 +45,9 @@ export default function VentasPage() {
   const removeHeld = useHeldStore((s) => s.remove)
   const [search, setSearch] = useState('')
   const [products, setProducts] = useState<Product[]>([])
+  const [productsTotal, setProductsTotal] = useState(0)
+  const [productsPage, setProductsPage] = useState(1)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [activeCategory, setActiveCategory] = useState<number | null>(null)
   const [quantityModal, setQuantityModal] = useState<Product | null>(null)
@@ -57,6 +60,8 @@ export default function VentasPage() {
   const barcodeBuffer = useRef('')
   const barcodeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const scannerTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+  const PRODUCTS_PER_PAGE = 30
 
   useEffect(() => {
     window.api.products.categories().then(setCategories)
@@ -79,23 +84,57 @@ export default function VentasPage() {
     setTourOpen(true)
   }
 
-  const loadProducts = async (q?: string, categoryId?: number | null): Promise<void> => {
+  const loadProducts = async (
+    page: number,
+    q?: string,
+    categoryId?: number | null
+  ): Promise<void> => {
     try {
-      const filters: Record<string, unknown> = { search: q, active: true }
+      const filters: Record<string, unknown> = {
+        search: q,
+        active: true,
+        page,
+        perPage: PRODUCTS_PER_PAGE
+      }
       if (categoryId) filters.categoryId = categoryId
       const result = await window.api.products.getAll(filters)
-      setProducts(result.items)
+      setProductsTotal(result.total)
+      setProducts((prev) => (page === 1 ? result.items : [...prev, ...result.items]))
     } catch {
       toast.error('Error al cargar productos')
+    } finally {
+      setLoadingMore(false)
     }
   }
 
   useEffect(() => {
+    setProductsPage(1)
     const timer = setTimeout(() => {
-      loadProducts(search || undefined, activeCategory)
+      loadProducts(1, search || undefined, activeCategory)
     }, 300)
     return () => clearTimeout(timer)
   }, [search, activeCategory])
+
+  useEffect(() => {
+    if (productsPage === 1) return
+    setLoadingMore(true)
+    loadProducts(productsPage, search || undefined, activeCategory)
+  }, [productsPage])
+
+  useEffect(() => {
+    const target = loadMoreRef.current
+    if (!target) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !loadingMore && products.length < productsTotal) {
+          setProductsPage((p) => p + 1)
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [loadingMore, products.length, productsTotal])
 
   // Barcode scanner support
   useEffect(() => {
@@ -512,6 +551,7 @@ export default function VentasPage() {
                 }
               />
             ) : (
+              <>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {products.map((p) => {
                   const lowStock = p.stock > 0 && p.stock <= p.min_stock
@@ -557,6 +597,12 @@ export default function VentasPage() {
                   )
                 })}
               </div>
+              {products.length < productsTotal && (
+                <div ref={loadMoreRef} className="py-4 text-center text-xs text-text-muted">
+                  {loadingMore ? 'Cargando más productos...' : ' '}
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>
