@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTour } from '@reactour/tour'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
 import { useHeldStore } from '../../store/held.store'
+import { useTourStore } from '../../store/tour.store'
 import { formatGs, formatDateTime } from '../../lib/utils'
 import { parseBalanceCode } from '../../lib/balance-code'
 import { toast } from '../../lib/toast'
@@ -18,7 +20,8 @@ import {
   DollarSign,
   Pause,
   Play,
-  Clock
+  Clock,
+  HelpCircle
 } from 'lucide-react'
 import { Badge, Button, EmptyState, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
@@ -26,6 +29,9 @@ import CobroModal from './CobroModal'
 
 export default function VentasPage() {
   const register = useCashStore((s) => s.register)
+  const { setIsOpen: setTourOpen, setCurrentStep } = useTour()
+  const ventasSeen = useTourStore((s) => s.ventasSeen)
+  const markVentasSeen = useTourStore((s) => s.markVentasSeen)
   const {
     items, discount, addItem, updateQuantity, removeItem, setDiscount, clear, restore,
     subtotal, total
@@ -52,6 +58,21 @@ export default function VentasPage() {
   useEffect(() => {
     window.api.products.categories().then(setCategories)
   }, [])
+
+  useEffect(() => {
+    if (!register || ventasSeen) return
+    const id = setTimeout(() => {
+      setCurrentStep(0)
+      setTourOpen(true)
+      markVentasSeen()
+    }, 600)
+    return () => clearTimeout(id)
+  }, [register, ventasSeen, setCurrentStep, setTourOpen, markVentasSeen])
+
+  const startTour = () => {
+    setCurrentStep(0)
+    setTourOpen(true)
+  }
 
   const loadProducts = async (q?: string, categoryId?: number | null): Promise<void> => {
     try {
@@ -237,6 +258,7 @@ export default function VentasPage() {
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Left: Cart */}
         <div
+          data-tour="ventas-cart"
           className="w-[45%] bg-surface rounded-2xl border border-border flex flex-col overflow-hidden"
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
@@ -344,7 +366,10 @@ export default function VentasPage() {
           </div>
 
           {/* TOTAL section */}
-          <div className="border-t border-border bg-surface-muted px-5 py-4 space-y-2.5">
+          <div
+            data-tour="ventas-totals"
+            className="border-t border-border bg-surface-muted px-5 py-4 space-y-2.5"
+          >
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Subtotal</span>
               <span className="font-medium tabular-nums">{formatGs(subtotal())}</span>
@@ -376,6 +401,7 @@ export default function VentasPage() {
                 <Trash2 size={14} />
               </Button>
               <Button
+                data-tour="ventas-suspend"
                 variant="secondary"
                 className="rounded-xl"
                 onClick={suspendCart}
@@ -399,7 +425,7 @@ export default function VentasPage() {
 
         {/* Right: Product Search */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="relative mb-3">
+          <div data-tour="ventas-search" className="relative mb-3">
             <Search
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted z-10"
               size={18}
@@ -415,7 +441,10 @@ export default function VentasPage() {
           </div>
 
           {categories.length > 0 && (
-            <div className="flex gap-2 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
+            <div
+              data-tour="ventas-categories"
+              className="flex gap-2 mb-3 overflow-x-auto pb-1 -mx-1 px-1"
+            >
               <button
                 type="button"
                 onClick={() => setActiveCategory(null)}
@@ -446,7 +475,7 @@ export default function VentasPage() {
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto">
+          <div data-tour="ventas-products" className="flex-1 overflow-y-auto">
             {products.length === 0 ? (
               <EmptyState
                 icon={<Package size={48} />}
@@ -509,15 +538,24 @@ export default function VentasPage() {
       </div>
 
       {/* Shortcut footer bar */}
-      <div className="mt-3 flex items-center gap-3 text-xs text-text-muted bg-surface border border-border rounded-md px-3 py-2 shrink-0">
+      <div
+        data-tour="ventas-shortcuts"
+        className="mt-3 flex items-center gap-3 text-xs text-text-muted bg-surface border border-border rounded-md px-3 py-2 shrink-0"
+      >
         <ShortcutHint k="F4" label="Descuento" />
         <ShortcutHint k="F8" label="Cancelar" />
         <ShortcutHint k="F9" label="Suspender" />
         <ShortcutHint k="F12" label="Cobrar" />
         <ShortcutHint k="F1" label="Ayuda" />
-        <span className="ml-auto opacity-70 hidden md:inline">
-          Pasá un código o tipeá Enter para confirmar
-        </span>
+        <button
+          type="button"
+          onClick={startTour}
+          className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-surface-muted text-text-muted hover:text-text-main transition-colors"
+          title="Ver tutorial de la pantalla de ventas"
+        >
+          <HelpCircle size={12} />
+          Ver tutorial
+        </button>
       </div>
 
       {/* Quantity Modal */}

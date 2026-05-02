@@ -24,6 +24,7 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@fontsource/inter": "^5.2.8",
+    "@reactour/tour": "^3.8.0",
     "@tailwindcss/vite": "^4.2.4",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.9.0",
