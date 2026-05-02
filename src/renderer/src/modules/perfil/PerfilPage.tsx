@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { KeyRound, ShieldCheck, UserCircle2 } from 'lucide-react'
 import type { Role, User } from '@shared/types'
 import {
@@ -27,14 +27,21 @@ const roleLabel: Record<Role, string> = {
 const emptyPinForm = { current: '', next: '', confirm: '' }
 
 export default function PerfilPage() {
-  const user = useAuthStore((s) => s.user)
+  const sessionUser = useAuthStore((s) => s.user)
   const pushToast = useToastStore((s) => s.push)
+  const [profile, setProfile] = useState<User | null>(null)
   const [showPinModal, setShowPinModal] = useState(false)
   const [pinForm, setPinForm] = useState(emptyPinForm)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  if (!user) return null
+  useEffect(() => {
+    if (!sessionUser) return
+    window.api.users.getById(sessionUser.id).then((u) => setProfile(u as User | null))
+  }, [sessionUser])
+
+  if (!sessionUser) return null
+  const user = profile ?? sessionUser
 
   const initials =
     user.name
@@ -112,11 +119,7 @@ export default function PerfilPage() {
           <InfoRow
             icon={<UserCircle2 size={16} />}
             label="Miembro desde"
-            value={new Date(user.created_at).toLocaleDateString('es-PY', {
-              day: '2-digit',
-              month: 'long',
-              year: 'numeric'
-            })}
+            value={formatMemberSince(user.created_at)}
           />
         </div>
       </Card>
@@ -213,6 +216,17 @@ export default function PerfilPage() {
       </Modal>
     </div>
   )
+}
+
+function formatMemberSince(value: string | undefined | null): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('es-PY', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
 }
 
 interface InfoRowProps {
