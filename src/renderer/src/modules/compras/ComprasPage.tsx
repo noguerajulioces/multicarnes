@@ -51,7 +51,7 @@ export default function ComprasPage() {
             <Button
               variant="secondary"
               className="rounded-xl"
-              onClick={() => navigate('/compras/proveedores')}
+              onClick={() => navigate('/proveedores')}
             >
               <Users size={16} />
               Proveedores

@@ -20,7 +20,7 @@ const routeLabels: Record<string, string> = {
   '/productos/nuevo': 'Nuevo',
   '/compras': 'Compras',
   '/compras/nueva': 'Nueva',
-  '/compras/proveedores': 'Proveedores',
+  '/proveedores': 'Proveedores',
   '/clientes': 'Clientes',
   '/reportes': 'Reportes',
   '/usuarios': 'Usuarios',

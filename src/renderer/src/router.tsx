@@ -37,7 +37,7 @@ export default function AppRouter() {
           <Route path="/productos/:id/editar" element={<ProductoFormPage />} />
           <Route path="/compras" element={<ComprasPage />} />
           <Route path="/compras/nueva" element={<NuevaCompraPage />} />
-          <Route path="/compras/proveedores" element={<ProveedoresPage />} />
+          <Route path="/proveedores" element={<ProveedoresPage />} />
           <Route path="/compras/:id" element={<CompraDetallePage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/clientes/:id" element={<ClienteFichaPage />} />

@@ -12,6 +12,7 @@ import {
   LogOut,
   Truck,
   UserCheck,
+  Building2,
   HardDrive,
   ChevronLeft,
   ChevronRight,
@@ -56,6 +57,7 @@ const navSections: NavSection[] = [
     items: [
       { to: '/productos', label: 'Productos', icon: Package, roles: ['admin', 'supervisor'] },
       { to: '/compras', label: 'Compras', icon: Truck, roles: ['admin', 'supervisor'] },
+      { to: '/proveedores', label: 'Proveedores', icon: Building2, roles: ['admin', 'supervisor'] },
       { to: '/clientes', label: 'Clientes', icon: UserCheck, roles: ['admin', 'supervisor'] },
       { to: '/reportes', label: 'Reportes', icon: FileText, roles: ['admin', 'supervisor'] }
     ]
