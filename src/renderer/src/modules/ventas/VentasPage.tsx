@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTour } from '@reactour/tour'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
@@ -18,17 +19,18 @@ import {
   Package,
   ScanLine,
   ShoppingCart,
-  DollarSign,
   Pause,
   Play,
   Clock,
-  HelpCircle
+  HelpCircle,
+  Wallet
 } from 'lucide-react'
 import { Badge, Button, EmptyState, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
 import CobroModal from './CobroModal'
 
 export default function VentasPage() {
+  const navigate = useNavigate()
   const register = useCashStore((s) => s.register)
   const { setIsOpen: setTourOpen, setCurrentStep, setSteps } = useTour()
   const ventasSeen = useTourStore((s) => s.seen.ventas)
@@ -248,11 +250,31 @@ export default function VentasPage() {
 
   if (!register) {
     return (
-      <EmptyState
-        icon={<DollarSign size={48} />}
-        title="Caja no abierta"
-        description="Debe abrir una caja antes de empezar a vender."
-      />
+      <div className="h-full flex items-center justify-center">
+        <div
+          className="w-full max-w-md bg-surface rounded-2xl border border-border p-8"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
+          <div className="flex flex-col items-center text-center">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4"
+              style={{ background: 'var(--gradient-kpi-blue)' }}
+            >
+              <Wallet size={26} />
+            </div>
+            <h1 className="text-xl font-bold text-text-main">Caja no abierta</h1>
+            <p className="text-sm text-text-muted mt-1 mb-6">
+              Debe abrir una caja antes de empezar a vender.
+            </p>
+            <button
+              onClick={() => navigate('/caja/apertura')}
+              className="w-full bg-brand text-white py-3 rounded-xl font-medium hover:bg-brand-hover transition-colors shadow-sm"
+            >
+              Abrir caja
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 

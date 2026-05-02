@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, DollarSign, Lock } from 'lucide-react'
+import { ArrowLeft, DollarSign, Lock, LogOut } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { Badge, EmptyState, Button } from '../../components/ui'
@@ -30,6 +30,7 @@ export default function PosScreen() {
         userName={user.name}
         cashOpen={register != null}
         onClose={() => navigate('/dashboard')}
+        onCloseRegister={() => navigate('/caja/cierre')}
       />
       <div className="flex-1 min-h-0 p-4">
         <VentasPage />
@@ -41,11 +42,13 @@ export default function PosScreen() {
 function PosHeader({
   userName,
   cashOpen,
-  onClose
+  onClose,
+  onCloseRegister
 }: {
   userName: string
   cashOpen: boolean
   onClose: () => void
+  onCloseRegister: () => void
 }): React.ReactElement {
   const initials = userName
     .split(/\s+/)
@@ -67,10 +70,28 @@ function PosHeader({
       <div className="h-5 w-px bg-border" />
       <h1 className="font-semibold text-sm text-text-main">Punto de Venta</h1>
       <div className="ml-auto flex items-center gap-3 text-xs">
-        <Badge tone={cashOpen ? 'success' : 'neutral'}>
-          <DollarSign size={12} />
-          {cashOpen ? 'Caja abierta' : 'Caja cerrada'}
-        </Badge>
+        {cashOpen ? (
+          <div className="inline-flex items-center bg-success-50 text-success-700 rounded-full pl-2.5 pr-1 py-0.5 gap-2 border border-success-200">
+            <span className="inline-flex items-center gap-1 font-medium">
+              <DollarSign size={12} />
+              Caja abierta
+            </span>
+            <span className="h-3.5 w-px bg-success-200" />
+            <button
+              type="button"
+              onClick={onCloseRegister}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium hover:bg-success-100 transition-colors"
+            >
+              <LogOut size={12} />
+              Cerrar
+            </button>
+          </div>
+        ) : (
+          <Badge tone="neutral">
+            <DollarSign size={12} />
+            Caja cerrada
+          </Badge>
+        )}
         <PosClock />
         <div
           className="w-7 h-7 rounded-full bg-brand-light text-brand text-xs font-semibold flex items-center justify-center"
