@@ -84,18 +84,20 @@ export default function ProductoFormPage() {
     try {
       if (isEdit) {
         await window.api.products.update(Number(id), data)
+        navigate('/productos')
       } else {
         const created = await window.api.products.create(data)
         if (created) {
           navigate(`/productos/${created.id}`)
-          return
+        } else {
+          navigate('/productos')
         }
       }
-      navigate('/productos')
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Error al guardar')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const imageUrl = image ? `product-img://${image}` : null
