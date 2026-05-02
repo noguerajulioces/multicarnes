@@ -1,15 +1,32 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, DollarSign, Lock } from 'lucide-react'
+import { ArrowLeft, DollarSign, Lock, LogOut } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { Badge, EmptyState, Button } from '../../components/ui'
 import VentasPage from './VentasPage'
+import logo from '../../assets/logo.png'
+
+const SPLASH_MIN_MS = 600
+const SPLASH_FADE_MS = 300
 
 export default function PosScreen() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const register = useCashStore((s) => s.register)
+  const [splashState, setSplashState] = useState<'visible' | 'fading' | 'gone'>('visible')
+
+  useEffect(() => {
+    const fadeTimer = setTimeout(() => setSplashState('fading'), SPLASH_MIN_MS)
+    const goneTimer = setTimeout(
+      () => setSplashState('gone'),
+      SPLASH_MIN_MS + SPLASH_FADE_MS
+    )
+    return () => {
+      clearTimeout(fadeTimer)
+      clearTimeout(goneTimer)
+    }
+  }, [])
 
   if (!user) {
     return (
@@ -25,15 +42,47 @@ export default function PosScreen() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-bg-secondary">
-      <PosHeader
-        userName={user.name}
-        cashOpen={register != null}
-        onClose={() => navigate('/dashboard')}
-      />
-      <div className="flex-1 min-h-0 p-4">
-        <VentasPage />
+    <div className="h-full relative bg-bg-secondary">
+      <div
+        className="h-full flex flex-col"
+        style={{ animation: 'fadeIn 260ms ease-out both' }}
+      >
+        <PosHeader
+          userName={user.name}
+          cashOpen={register != null}
+          onClose={() => navigate('/dashboard')}
+          onCloseRegister={() => navigate('/caja/cierre')}
+        />
+        <div className="flex-1 min-h-0 p-4">
+          <VentasPage />
+        </div>
       </div>
+      {splashState !== 'gone' && <PosSplash fading={splashState === 'fading'} />}
+    </div>
+  )
+}
+
+function PosSplash({ fading }: { fading: boolean }): React.ReactElement {
+  return (
+    <div
+      aria-hidden={fading}
+      className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-brand text-white"
+      style={{
+        animation: fading ? `fadeOut ${SPLASH_FADE_MS}ms ease-in forwards` : undefined,
+        pointerEvents: fading ? 'none' : 'auto'
+      }}
+    >
+      <img
+        src={logo}
+        alt="Multicarnes"
+        className="h-20 w-20 object-contain mb-4 drop-shadow"
+      />
+      <p className="text-lg font-semibold tracking-tight">Punto de Venta</p>
+      <p className="text-sm opacity-80 mt-1">Cargando…</p>
+      <span
+        className="mt-5 inline-block h-6 w-6 rounded-full border-2 border-white/30 border-t-white"
+        style={{ animation: 'spin 700ms linear infinite' }}
+      />
     </div>
   )
 }
@@ -41,11 +90,13 @@ export default function PosScreen() {
 function PosHeader({
   userName,
   cashOpen,
-  onClose
+  onClose,
+  onCloseRegister
 }: {
   userName: string
   cashOpen: boolean
   onClose: () => void
+  onCloseRegister: () => void
 }): React.ReactElement {
   const initials = userName
     .split(/\s+/)
@@ -67,10 +118,28 @@ function PosHeader({
       <div className="h-5 w-px bg-border" />
       <h1 className="font-semibold text-sm text-text-main">Punto de Venta</h1>
       <div className="ml-auto flex items-center gap-3 text-xs">
-        <Badge tone={cashOpen ? 'success' : 'neutral'}>
-          <DollarSign size={12} />
-          {cashOpen ? 'Caja abierta' : 'Caja cerrada'}
-        </Badge>
+        {cashOpen ? (
+          <div className="inline-flex items-center bg-success-50 text-success-700 rounded-full pl-2.5 pr-1 py-0.5 gap-2 border border-success-200">
+            <span className="inline-flex items-center gap-1 font-medium">
+              <DollarSign size={12} />
+              Caja abierta
+            </span>
+            <span className="h-3.5 w-px bg-success-200" />
+            <button
+              type="button"
+              onClick={onCloseRegister}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium hover:bg-success-100 transition-colors"
+            >
+              <LogOut size={12} />
+              Cerrar
+            </button>
+          </div>
+        ) : (
+          <Badge tone="neutral">
+            <DollarSign size={12} />
+            Caja cerrada
+          </Badge>
+        )}
         <PosClock />
         <div
           className="w-7 h-7 rounded-full bg-brand-light text-brand text-xs font-semibold flex items-center justify-center"

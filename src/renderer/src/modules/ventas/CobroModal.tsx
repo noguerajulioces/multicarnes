@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Check, X, User, Banknote, ArrowLeftRight, Clock, Layers } from 'lucide-react'
+import { X, User, Banknote, ArrowLeftRight, Clock, Layers } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
 import { Button, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
-import type { Customer, PaymentMethod } from '@shared/types'
+import type { Customer, PaymentMethod, Sale } from '@shared/types'
+import TicketPreviewModal from './TicketPreviewModal'
 
 interface Props {
   onClose: () => void
@@ -33,12 +34,11 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
   const [mixedTransfer, setMixedTransfer] = useState(0)
   const [mixedCredit, setMixedCredit] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
-  const [saleId, setSaleId] = useState<number | null>(null)
+  const [completedSale, setCompletedSale] = useState<Sale | null>(null)
 
   useEffect(() => {
     if (customerSearch.length >= 2) {
-      window.api.customers.getAll(customerSearch).then(setCustomers)
+      window.api.customers.getAll({ search: customerSearch }).then((res) => setCustomers(res.items))
     } else {
       setCustomers([])
     }
@@ -77,7 +77,7 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
     }
 
     try {
-      const sale = await window.api.sales.create({
+      const created = await window.api.sales.create({
         registerId: register.id,
         userId: user.id,
         customerId: selectedCustomer?.id || null,
@@ -88,38 +88,23 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
         paymentMethod,
         payments
       })
-      setSaleId(sale.id)
-      setSuccess(true)
+      // Re-fetch with items + payments populated for the ticket preview
+      const fullSale = await window.api.sales.getById(created.id)
+      setCompletedSale(fullSale ?? created)
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Error al procesar venta')
     }
     setLoading(false)
   }
 
-  if (success) {
+  if (completedSale) {
     return (
-      <Modal open onClose={onSuccess} size="sm" closeOnBackdrop={false}>
-        <div className="text-center py-2">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-white"
-            style={{ background: 'var(--gradient-kpi-green)' }}
-          >
-            <Check size={32} />
-          </div>
-          <h3 className="text-xl font-bold text-text-main">Venta exitosa</h3>
-          <p className="text-sm text-text-muted mb-2">Ticket #{saleId}</p>
-          <p className="text-3xl font-bold text-brand mb-5 tabular-nums">{formatGs(totalAmount)}</p>
-          {paymentMethod === 'cash' && change > 0 && (
-            <div className="bg-success-50 rounded-xl p-3 mb-5">
-              <p className="text-xs text-text-muted mb-0.5">Vuelto</p>
-              <p className="text-lg font-bold text-success-700 tabular-nums">{formatGs(change)}</p>
-            </div>
-          )}
-          <Button className="w-full rounded-xl" size="lg" onClick={onSuccess}>
-            Nueva Venta
-          </Button>
-        </div>
-      </Modal>
+      <TicketPreviewModal
+        sale={completedSale}
+        cashReceived={paymentMethod === 'cash' ? cashReceived : undefined}
+        change={paymentMethod === 'cash' && change > 0 ? change : undefined}
+        onClose={onSuccess}
+      />
     )
   }
 

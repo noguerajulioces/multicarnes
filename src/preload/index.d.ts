@@ -1,6 +1,8 @@
 import type {
   User, Product, Category, Customer, Supplier, CashRegister, CashMovement,
-  Sale, PurchaseOrder, StockAdjustment, CustomerPayment, AppSetting, BackupFile
+  Sale, PurchaseOrder, StockAdjustment, CustomerPayment, AppSetting, BackupFile,
+  ProductStockMovement, ProductRecentSale, ProductSalesStats, ProductLastPurchase,
+  Paginated, PageOpts
 } from '../shared/types'
 
 interface ApiUsers {
@@ -13,7 +15,7 @@ interface ApiUsers {
 }
 
 interface ApiProducts {
-  getAll(filters?: { categoryId?: number; active?: boolean; lowStock?: boolean; search?: string }): Promise<Product[]>
+  getAll(filters?: { categoryId?: number; active?: boolean; lowStock?: boolean; search?: string } & PageOpts): Promise<Paginated<Product>>
   getById(id: number): Promise<Product | null>
   getByBarcode(barcode: string): Promise<Product | null>
   create(data: Partial<Product>): Promise<Product>
@@ -22,7 +24,13 @@ interface ApiProducts {
   categories(): Promise<Category[]>
   createCategory(name: string): Promise<Category>
   lowStock(): Promise<Product[]>
+  movements(productId: number, limit?: number): Promise<ProductStockMovement[]>
+  recentSales(productId: number, limit?: number): Promise<ProductRecentSale[]>
+  salesStats(productId: number): Promise<ProductSalesStats>
+  lastPurchase(productId: number): Promise<ProductLastPurchase | null>
   uploadImage(productId: number): Promise<string | null>
+  pickImage(): Promise<{ srcPath: string; dataUrl: string } | null>
+  saveImageFromPath(productId: number, srcPath: string): Promise<string>
   getImagePath(): Promise<string>
 }
 
@@ -41,9 +49,9 @@ interface ApiSales {
 }
 
 interface ApiCustomers {
-  getAll(search?: string): Promise<Customer[]>
+  getAll(opts?: { search?: string; isEmployee?: boolean } & PageOpts): Promise<Paginated<Customer>>
   getById(id: number): Promise<Customer | null>
-  create(data: { name: string; phone?: string; address?: string; is_employee?: boolean }): Promise<Customer>
+  create(data: { name: string; phone?: string; address?: string; document?: string; document_type?: 'CI' | 'RUC' | null; is_employee?: boolean }): Promise<Customer>
   update(id: number, data: Partial<Customer>): Promise<Customer>
   addPayment(customerId: number, userId: number, amount: number, note?: string): Promise<Customer>
   getPayments(customerId: number): Promise<CustomerPayment[]>
@@ -61,14 +69,14 @@ interface ApiCash {
 }
 
 interface ApiSuppliers {
-  getAll(search?: string): Promise<Supplier[]>
+  getAll(opts?: { search?: string } & PageOpts): Promise<Paginated<Supplier>>
   getById(id: number): Promise<Supplier | null>
   create(data: Partial<Supplier>): Promise<Supplier>
   update(id: number, data: Partial<Supplier>): Promise<Supplier>
 }
 
 interface ApiPurchases {
-  getAll(status?: string): Promise<PurchaseOrder[]>
+  getAll(opts?: { status?: string } & PageOpts): Promise<Paginated<PurchaseOrder>>
   getById(id: number): Promise<PurchaseOrder | null>
   create(data: unknown): Promise<PurchaseOrder>
   receive(id: number): Promise<PurchaseOrder>
@@ -129,6 +137,19 @@ interface ApiNotify {
   show(title: string, body: string): Promise<boolean>
 }
 
+interface PrintTicketLine {
+  text: string
+  bold?: boolean
+  emphasized?: boolean
+}
+
+interface ApiPrint {
+  ticket(payload: { lines: PrintTicketLine[]; cut?: boolean }): Promise<
+    { ok: true } | { ok: false; error: string }
+  >
+  hasConfig(): Promise<boolean>
+}
+
 declare global {
   interface Window {
     api: {
@@ -143,6 +164,7 @@ declare global {
       backup: ApiBackup
       settings: ApiSettings
       notify: ApiNotify
+      print: ApiPrint
     }
   }
 }

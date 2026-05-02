@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { Category } from '@shared/types'
+import type { Category, PriceType } from '@shared/types'
 import { ImagePlus, Plus } from 'lucide-react'
 import {
   Button,
@@ -13,6 +13,7 @@ import {
   Select
 } from '../../components/ui'
 import { formatGs } from '../../lib/utils'
+import { PRICE_TYPE_LIST, priceTypeInfo } from '../../lib/price-types'
 
 export default function ProductoFormPage() {
   const navigate = useNavigate()
@@ -32,6 +33,7 @@ export default function ProductoFormPage() {
     active: true
   })
   const [image, setImage] = useState<string | null>(null)
+  const [stagedImage, setStagedImage] = useState<{ srcPath: string; dataUrl: string } | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -64,9 +66,13 @@ export default function ProductoFormPage() {
   }
 
   const handleUploadImage = async (): Promise<void> => {
-    if (!isEdit) return
-    const filename = await window.api.products.uploadImage(Number(id))
-    if (filename) setImage(filename)
+    if (isEdit) {
+      const filename = await window.api.products.uploadImage(Number(id))
+      if (filename) setImage(filename)
+      return
+    }
+    const picked = await window.api.products.pickImage()
+    if (picked) setStagedImage(picked)
   }
 
   const handleSave = async (): Promise<void> => {
@@ -76,7 +82,7 @@ export default function ProductoFormPage() {
       category_id: form.category_id ? Number(form.category_id) : null,
       barcode: form.barcode || null,
       price: form.price,
-      price_type: form.price_type as 'unit' | 'kg',
+      price_type: form.price_type as PriceType,
       stock: parseFloat(form.stock) || 0,
       min_stock: parseFloat(form.min_stock) || 0,
       active: form.active
@@ -84,66 +90,75 @@ export default function ProductoFormPage() {
     try {
       if (isEdit) {
         await window.api.products.update(Number(id), data)
+        navigate(`/productos/${id}`)
       } else {
         const created = await window.api.products.create(data)
-        if (created) {
-          navigate(`/productos/${created.id}`)
-          return
+        if (created && stagedImage) {
+          await window.api.products.saveImageFromPath(created.id, stagedImage.srcPath)
         }
+        navigate(created ? `/productos/${created.id}` : '/productos')
       }
-      navigate('/productos')
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Error al guardar')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
-  const imageUrl = image ? `product-img://${image}` : null
-  const stockUnit = form.price_type === 'kg' ? 'kg' : 'u.'
+  const imageUrl = stagedImage?.dataUrl ?? (image ? `product-img://${image}` : null)
+  const hasImage = !!imageUrl
+  const ptInfo = priceTypeInfo(form.price_type)
+  const stockUnit = ptInfo.unit
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-6xl mx-auto space-y-5">
       <PageHeader
         title={isEdit ? 'Editar Producto' : 'Nuevo Producto'}
         subtitle={
           isEdit
             ? 'Actualizá los datos del producto y guardá los cambios.'
-            : 'Cargá los datos básicos. La imagen se sube después de crear el producto.'
+            : 'Cargá los datos del producto y, si querés, una imagen.'
         }
       />
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <Card className="rounded-2xl lg:col-span-1 self-start" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <CardHeader>
+            <h2 className="font-semibold text-text-main">Imagen</h2>
+            <p className="text-xs text-text-muted">PNG, JPG o WebP</p>
+          </CardHeader>
+          <CardBody className="space-y-3">
+            <button
+              type="button"
+              onClick={handleUploadImage}
+              className="w-full aspect-square rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-brand hover:bg-brand-light transition-colors overflow-hidden"
+            >
+              {imageUrl ? (
+                <img src={imageUrl} alt={form.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-text-muted">
+                  <ImagePlus size={36} />
+                  <span className="text-sm">Sin imagen</span>
+                </div>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleUploadImage}
+              className="w-full text-sm font-medium text-brand hover:text-brand-hover"
+            >
+              {hasImage ? 'Cambiar imagen' : 'Subir imagen'}
+            </button>
+          </CardBody>
+        </Card>
+
+        <div className="lg:col-span-2 space-y-5">
+        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
         <CardHeader>
           <h2 className="font-semibold text-text-main">Información básica</h2>
-          <p className="text-xs text-text-muted">Nombre, categoría, código e imagen</p>
+          <p className="text-xs text-text-muted">Nombre, categoría y código</p>
         </CardHeader>
         <CardBody className="space-y-4">
-          {isEdit && (
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={handleUploadImage}
-                className="w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-brand hover:bg-brand-light transition-colors overflow-hidden"
-              >
-                {imageUrl ? (
-                  <img src={imageUrl} alt={form.name} className="w-full h-full object-cover" />
-                ) : (
-                  <ImagePlus size={28} className="text-text-muted" />
-                )}
-              </button>
-              <div>
-                <button
-                  type="button"
-                  onClick={handleUploadImage}
-                  className="text-sm font-medium text-brand hover:text-brand-hover"
-                >
-                  {image ? 'Cambiar imagen' : 'Subir imagen'}
-                </button>
-                <p className="text-xs text-text-muted mt-1">PNG, JPG o WebP</p>
-              </div>
-            </div>
-          )}
-
           <div>
             <label className="block text-sm text-text-muted mb-1.5">
               Nombre <span className="text-danger-500">*</span>
@@ -226,8 +241,11 @@ export default function ProductoFormPage() {
                 value={form.price_type}
                 onChange={(e) => setForm({ ...form, price_type: e.target.value })}
               >
-                <option value="unit">Por unidad</option>
-                <option value="kg">Por kg</option>
+                {PRICE_TYPE_LIST.map((pt) => (
+                  <option key={pt.code} value={pt.code}>
+                    {pt.label}
+                  </option>
+                ))}
               </Select>
             </div>
           </div>
@@ -241,7 +259,7 @@ export default function ProductoFormPage() {
                 type="number"
                 value={form.stock}
                 onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                step={form.price_type === 'kg' ? '0.01' : '1'}
+                step={ptInfo.inputStep}
                 min="0"
                 className="text-right tabular-nums"
               />
@@ -254,7 +272,7 @@ export default function ProductoFormPage() {
                 type="number"
                 value={form.min_stock}
                 onChange={(e) => setForm({ ...form, min_stock: e.target.value })}
-                step={form.price_type === 'kg' ? '0.01' : '1'}
+                step={ptInfo.inputStep}
                 min="0"
                 className="text-right tabular-nums"
               />
@@ -276,13 +294,15 @@ export default function ProductoFormPage() {
           </label>
         </CardBody>
       </Card>
+        </div>
+      </div>
 
       <div className="flex gap-3 justify-end">
         <Button
           variant="secondary"
           className="rounded-xl"
           size="lg"
-          onClick={() => navigate('/productos')}
+          onClick={() => navigate(isEdit ? `/productos/${id}` : '/productos')}
         >
           Cancelar
         </Button>

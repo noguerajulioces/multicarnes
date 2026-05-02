@@ -1,7 +1,8 @@
 import { app, shell, BrowserWindow, protocol, net } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import iconPng from '../../resources/icon.png?asset'
+import iconIco from '../../resources/icon.ico?asset'
 import { initDatabase, getImagesDir } from './db'
 import { registerUsersIpc } from './ipc/users.ipc'
 import { registerProductsIpc } from './ipc/products.ipc'
@@ -12,9 +13,17 @@ import { registerPurchasesIpc } from './ipc/purchases.ipc'
 import { registerReportsIpc } from './ipc/reports.ipc'
 import { registerBackupIpc } from './ipc/backup.ipc'
 import { registerNotificationsIpc } from './ipc/notifications.ipc'
+import { registerPrintIpc } from './ipc/print.ipc'
 import { pathToFileURL } from 'url'
 
 let splashWindow: BrowserWindow | null = null
+let splashShownAt = 0
+
+// Minimum time the splash stays visible after it actually appears, in ms.
+// If the renderer is ready sooner, we wait this long; if it takes longer,
+// no extra delay is added.
+const SPLASH_MIN_MS = 1500
+const SPLASH_FADE_MS = 250
 
 function createSplash(): BrowserWindow {
   const splash = new BrowserWindow({
@@ -30,8 +39,38 @@ function createSplash(): BrowserWindow {
     backgroundColor: '#CC1C1C'
   })
   splash.loadFile(join(__dirname, '../../resources/splash.html'))
-  splash.once('ready-to-show', () => splash.show())
+  splash.once('ready-to-show', () => {
+    splashShownAt = Date.now()
+    splash.show()
+  })
   return splash
+}
+
+function closeSplashWithFade(onClosed: () => void): void {
+  if (!splashWindow || splashWindow.isDestroyed()) {
+    onClosed()
+    return
+  }
+  const win = splashWindow
+  const steps = 10
+  const stepMs = SPLASH_FADE_MS / steps
+  let i = 0
+  const tick = (): void => {
+    if (!win || win.isDestroyed()) {
+      onClosed()
+      return
+    }
+    i += 1
+    win.setOpacity(Math.max(0, 1 - i / steps))
+    if (i >= steps) {
+      win.close()
+      splashWindow = null
+      onClosed()
+      return
+    }
+    setTimeout(tick, stepMs)
+  }
+  setTimeout(tick, stepMs)
 }
 
 function createWindow(): void {
@@ -52,7 +91,7 @@ function createWindow(): void {
           }
         }
       : {}),
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon: process.platform === 'win32' ? iconIco : iconPng,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -60,12 +99,14 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.close()
-      splashWindow = null
-    }
-    mainWindow.maximize()
-    mainWindow.show()
+    const elapsed = splashShownAt > 0 ? Date.now() - splashShownAt : SPLASH_MIN_MS
+    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed)
+    setTimeout(() => {
+      closeSplashWithFade(() => {
+        mainWindow.maximize()
+        mainWindow.show()
+      })
+    }, remaining)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -87,6 +128,12 @@ protocol.registerSchemesAsPrivileged([
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.multicarnes.pos')
+
+  // macOS dev: the Dock takes the icon from the Electron binary's bundle, not
+  // from BrowserWindow. Override it so the Multicarnes icon shows during dev.
+  if (is.dev && process.platform === 'darwin' && app.dock) {
+    app.dock.setIcon(iconPng)
+  }
 
   // Show splash while DB and IPC initialize
   splashWindow = createSplash()
@@ -115,6 +162,7 @@ app.whenReady().then(() => {
   registerReportsIpc()
   registerBackupIpc()
   registerNotificationsIpc()
+  registerPrintIpc()
 
   createWindow()
 

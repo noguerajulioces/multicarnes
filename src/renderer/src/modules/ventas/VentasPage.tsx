@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useTour } from '@reactour/tour'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
 import { useHeldStore } from '../../store/held.store'
+import { useTourStore } from '../../store/tour.store'
+import { ventasTourSteps } from '../../lib/tour-steps'
 import { formatGs, formatDateTime } from '../../lib/utils'
 import { parseBalanceCode } from '../../lib/balance-code'
 import { toast } from '../../lib/toast'
@@ -15,17 +19,24 @@ import {
   Package,
   ScanLine,
   ShoppingCart,
-  DollarSign,
   Pause,
   Play,
-  Clock
+  Clock,
+  HelpCircle,
+  Wallet,
+  AlertTriangle
 } from 'lucide-react'
 import { Badge, Button, EmptyState, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
+import { priceTypeInfo } from '../../lib/price-types'
 import CobroModal from './CobroModal'
 
 export default function VentasPage() {
+  const navigate = useNavigate()
   const register = useCashStore((s) => s.register)
+  const { setIsOpen: setTourOpen, setCurrentStep, setSteps } = useTour()
+  const ventasSeen = useTourStore((s) => s.seen.ventas)
+  const markSeen = useTourStore((s) => s.markSeen)
   const {
     items, discount, addItem, updateQuantity, removeItem, setDiscount, clear, restore,
     subtotal, total
@@ -36,10 +47,15 @@ export default function VentasPage() {
   const removeHeld = useHeldStore((s) => s.remove)
   const [search, setSearch] = useState('')
   const [products, setProducts] = useState<Product[]>([])
+  const [productsTotal, setProductsTotal] = useState(0)
+  const [productsPage, setProductsPage] = useState(1)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [activeCategory, setActiveCategory] = useState<number | null>(null)
   const [quantityModal, setQuantityModal] = useState<Product | null>(null)
   const [quantity, setQuantity] = useState('')
+  const [inputMode, setInputMode] = useState<'qty' | 'amount'>('qty')
+  const [amountInput, setAmountInput] = useState(0)
   const [showCobro, setShowCobro] = useState(false)
   const [showHeld, setShowHeld] = useState(false)
   const [scannerActive, setScannerActive] = useState(false)
@@ -48,28 +64,81 @@ export default function VentasPage() {
   const barcodeBuffer = useRef('')
   const barcodeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const scannerTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+  const PRODUCTS_PER_PAGE = 30
 
   useEffect(() => {
     window.api.products.categories().then(setCategories)
   }, [])
 
-  const loadProducts = async (q?: string, categoryId?: number | null): Promise<void> => {
+  useEffect(() => {
+    if (!register || ventasSeen) return
+    const id = setTimeout(() => {
+      setSteps?.(ventasTourSteps)
+      setCurrentStep(0)
+      setTourOpen(true)
+      markSeen('ventas')
+    }, 600)
+    return () => clearTimeout(id)
+  }, [register, ventasSeen, setSteps, setCurrentStep, setTourOpen, markSeen])
+
+  const startTour = () => {
+    setSteps?.(ventasTourSteps)
+    setCurrentStep(0)
+    setTourOpen(true)
+  }
+
+  const loadProducts = async (
+    page: number,
+    q?: string,
+    categoryId?: number | null
+  ): Promise<void> => {
     try {
-      const filters: Record<string, unknown> = { search: q, active: true }
+      const filters: Record<string, unknown> = {
+        search: q,
+        active: true,
+        page,
+        perPage: PRODUCTS_PER_PAGE
+      }
       if (categoryId) filters.categoryId = categoryId
       const result = await window.api.products.getAll(filters)
-      setProducts(result)
+      setProductsTotal(result.total)
+      setProducts((prev) => (page === 1 ? result.items : [...prev, ...result.items]))
     } catch {
       toast.error('Error al cargar productos')
+    } finally {
+      setLoadingMore(false)
     }
   }
 
   useEffect(() => {
+    setProductsPage(1)
     const timer = setTimeout(() => {
-      loadProducts(search || undefined, activeCategory)
+      loadProducts(1, search || undefined, activeCategory)
     }, 300)
     return () => clearTimeout(timer)
   }, [search, activeCategory])
+
+  useEffect(() => {
+    if (productsPage === 1) return
+    setLoadingMore(true)
+    loadProducts(productsPage, search || undefined, activeCategory)
+  }, [productsPage])
+
+  useEffect(() => {
+    const target = loadMoreRef.current
+    if (!target) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !loadingMore && products.length < productsTotal) {
+          setProductsPage((p) => p + 1)
+        }
+      },
+      { rootMargin: '200px' }
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [loadingMore, products.length, productsTotal])
 
   // Barcode scanner support
   useEffect(() => {
@@ -102,7 +171,7 @@ export default function VentasPage() {
         window.api.products.getByBarcode(barcode).then((p) => {
           if (p) {
             if (p.price_type === 'kg') {
-              setQuantityModal(p)
+              openQuantityModal(p)
             } else {
               addItem(p, 1)
               toast.success(`${p.name} agregado`)
@@ -202,33 +271,70 @@ export default function VentasPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length, showCobro, quantityModal, showHeld])
 
+  const openQuantityModal = (product: Product) => {
+    setQuantityModal(product)
+    setInputMode('qty')
+    setAmountInput(0)
+    setQuantity(product.price_type === 'kg' ? '' : '1')
+  }
+
+  const closeQuantityModal = () => {
+    setQuantityModal(null)
+    setQuantity('')
+    setAmountInput(0)
+    setInputMode('qty')
+  }
+
   const handleProductClick = (product: Product) => {
-    if (product.price_type === 'kg') {
-      setQuantityModal(product)
-      setQuantity('')
-    } else {
-      setQuantityModal(product)
-      setQuantity('1')
+    openQuantityModal(product)
+  }
+
+  const computeQty = (product: Product): number => {
+    if (inputMode === 'amount') {
+      if (amountInput <= 0 || product.price <= 0) return 0
+      const decimals = priceTypeInfo(product.price_type).decimals
+      const factor = Math.pow(10, decimals)
+      return Math.round((amountInput / product.price) * factor) / factor
     }
+    return parseFloat(quantity) || 0
   }
 
   const handleAddToCart = () => {
-    if (!quantityModal || !quantity) return
-    const qty = parseFloat(quantity)
+    if (!quantityModal) return
+    const qty = computeQty(quantityModal)
     if (qty <= 0) return
     addItem(quantityModal, qty)
-    setQuantityModal(null)
-    setQuantity('')
+    closeQuantityModal()
     searchRef.current?.focus()
   }
 
   if (!register) {
     return (
-      <EmptyState
-        icon={<DollarSign size={48} />}
-        title="Caja no abierta"
-        description="Debe abrir una caja antes de empezar a vender."
-      />
+      <div className="h-full flex items-center justify-center">
+        <div
+          className="w-full max-w-md bg-surface rounded-2xl border border-border p-8"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
+          <div className="flex flex-col items-center text-center">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mb-4"
+              style={{ background: 'var(--gradient-kpi-blue)' }}
+            >
+              <Wallet size={26} />
+            </div>
+            <h1 className="text-xl font-bold text-text-main">Caja no abierta</h1>
+            <p className="text-sm text-text-muted mt-1 mb-6">
+              Debe abrir una caja antes de empezar a vender.
+            </p>
+            <button
+              onClick={() => navigate('/caja/apertura')}
+              className="w-full bg-brand text-white py-3 rounded-xl font-medium hover:bg-brand-hover transition-colors shadow-sm"
+            >
+              Abrir caja
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -237,6 +343,7 @@ export default function VentasPage() {
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Left: Cart */}
         <div
+          data-tour="ventas-cart"
           className="w-[45%] bg-surface rounded-2xl border border-border flex flex-col overflow-hidden"
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
@@ -287,12 +394,14 @@ export default function VentasPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
+                  {items.map((item) => {
+                    const itemPt = priceTypeInfo(item.product.price_type)
+                    return (
                     <tr key={item.product.id} className="border-b border-border">
                       <td className="py-2">
                         <p className="font-medium">{item.product.name}</p>
                         <p className="text-xs text-text-muted">
-                          {formatGs(item.product.price)} / {item.product.price_type === 'kg' ? 'kg' : 'u.'}
+                          {formatGs(item.product.price)} / {itemPt.unit}
                         </p>
                       </td>
                       <td className="py-2">
@@ -301,23 +410,20 @@ export default function VentasPage() {
                             type="button"
                             onClick={() => updateQuantity(
                               item.product.id,
-                              Math.max(
-                                item.product.price_type === 'kg' ? 0.1 : 1,
-                                item.quantity - (item.product.price_type === 'kg' ? 0.25 : 1)
-                              )
+                              Math.max(itemPt.cartStep, item.quantity - itemPt.cartStep)
                             )}
                             className="p-1 hover:bg-surface-muted rounded"
                           >
                             <Minus size={14} />
                           </button>
                           <span className="w-12 text-center font-medium">
-                            {item.product.price_type === 'kg' ? item.quantity.toFixed(3) : item.quantity}
+                            {itemPt.decimals > 0 ? item.quantity.toFixed(itemPt.decimals) : item.quantity}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateQuantity(
                               item.product.id,
-                              item.quantity + (item.product.price_type === 'kg' ? 0.25 : 1)
+                              item.quantity + itemPt.cartStep
                             )}
                             className="p-1 hover:bg-surface-muted rounded"
                           >
@@ -337,14 +443,18 @@ export default function VentasPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             )}
           </div>
 
           {/* TOTAL section */}
-          <div className="border-t border-border bg-surface-muted px-5 py-4 space-y-2.5">
+          <div
+            data-tour="ventas-totals"
+            className="border-t border-border bg-surface-muted px-5 py-4 space-y-2.5"
+          >
             <div className="flex justify-between text-sm">
               <span className="text-text-muted">Subtotal</span>
               <span className="font-medium tabular-nums">{formatGs(subtotal())}</span>
@@ -376,6 +486,7 @@ export default function VentasPage() {
                 <Trash2 size={14} />
               </Button>
               <Button
+                data-tour="ventas-suspend"
                 variant="secondary"
                 className="rounded-xl"
                 onClick={suspendCart}
@@ -399,7 +510,7 @@ export default function VentasPage() {
 
         {/* Right: Product Search */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="relative mb-3">
+          <div data-tour="ventas-search" className="relative mb-3">
             <Search
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted z-10"
               size={18}
@@ -415,7 +526,10 @@ export default function VentasPage() {
           </div>
 
           {categories.length > 0 && (
-            <div className="flex gap-2 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
+            <div
+              data-tour="ventas-categories"
+              className="flex gap-2 mb-3 overflow-x-auto pb-1 -mx-1 px-1"
+            >
               <button
                 type="button"
                 onClick={() => setActiveCategory(null)}
@@ -446,7 +560,7 @@ export default function VentasPage() {
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto">
+          <div data-tour="ventas-products" className="flex-1 overflow-y-auto">
             {products.length === 0 ? (
               <EmptyState
                 icon={<Package size={48} />}
@@ -458,6 +572,7 @@ export default function VentasPage() {
                 }
               />
             ) : (
+              <>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {products.map((p) => {
                   const lowStock = p.stock > 0 && p.stock <= p.min_stock
@@ -490,7 +605,7 @@ export default function VentasPage() {
                         </p>
                         <div className="flex items-center justify-between mt-1.5 gap-2">
                           <span className="text-xs text-text-muted">
-                            Stock: {p.stock} {p.price_type === 'kg' ? 'kg' : 'u.'}
+                            Stock: {p.stock} {priceTypeInfo(p.price_type).unit}
                           </span>
                           {p.stock <= 0 ? (
                             <Badge tone="danger">Sin stock</Badge>
@@ -503,71 +618,251 @@ export default function VentasPage() {
                   )
                 })}
               </div>
+              {products.length < productsTotal && (
+                <div ref={loadMoreRef} className="py-4 text-center text-xs text-text-muted">
+                  {loadingMore ? 'Cargando más productos...' : ' '}
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>
       </div>
 
       {/* Shortcut footer bar */}
-      <div className="mt-3 flex items-center gap-3 text-xs text-text-muted bg-surface border border-border rounded-md px-3 py-2 shrink-0">
+      <div
+        data-tour="ventas-shortcuts"
+        className="mt-3 flex items-center gap-3 text-xs text-text-muted bg-surface border border-border rounded-md px-3 py-2 shrink-0"
+      >
         <ShortcutHint k="F4" label="Descuento" />
         <ShortcutHint k="F8" label="Cancelar" />
         <ShortcutHint k="F9" label="Suspender" />
         <ShortcutHint k="F12" label="Cobrar" />
         <ShortcutHint k="F1" label="Ayuda" />
-        <span className="ml-auto opacity-70 hidden md:inline">
-          Pasá un código o tipeá Enter para confirmar
-        </span>
+        <button
+          type="button"
+          onClick={startTour}
+          className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-surface-muted text-text-muted hover:text-text-main transition-colors"
+          title="Ver tutorial de la pantalla de ventas"
+        >
+          <HelpCircle size={12} />
+          Ver tutorial
+        </button>
       </div>
 
       {/* Quantity Modal */}
       <Modal
         open={quantityModal != null}
-        onClose={() => setQuantityModal(null)}
+        onClose={closeQuantityModal}
         title={quantityModal?.name}
         size="sm"
       >
-        {quantityModal && (
-          <>
-            <p className="text-sm text-text-muted mb-4">
-              {formatGs(quantityModal.price)} / {quantityModal.price_type === 'kg' ? 'kg' : 'unidad'}
-            </p>
-            <div className="mb-4">
-              <label className="block text-sm text-text-muted mb-1">
-                Cantidad ({quantityModal.price_type === 'kg' ? 'kg' : 'unidades'})
-              </label>
-              <Input
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddToCart()}
-                step={quantityModal.price_type === 'kg' ? '0.001' : '1'}
-                min={quantityModal.price_type === 'kg' ? '0.001' : '1'}
-                className="text-center text-xl h-14"
-                autoFocus
-              />
-            </div>
+        {quantityModal && (() => {
+          const product = quantityModal
+          const qmPt = priceTypeInfo(product.price_type)
+          const allowAmountMode = qmPt.decimals > 0
+          const presets = qmPt.decimals > 0 ? [0.25, 0.5, 1, 2] : [1, 2, 5, 10]
+          const stock = product.stock
+          const stockLabel = qmPt.decimals > 0 ? stock.toFixed(qmPt.decimals) : String(stock)
 
-            {quantity && parseFloat(quantity) > 0 && (
-              <p className="text-center text-2xl font-bold text-brand mb-4">
-                {formatGs(Math.round(parseFloat(quantity) * quantityModal.price))}
+          const setQty = (n: number): void => {
+            if (n <= 0) {
+              setQuantity('')
+              return
+            }
+            const factor = Math.pow(10, qmPt.decimals)
+            const rounded = Math.round(n * factor) / factor
+            setQuantity(String(rounded))
+          }
+
+          const currentQty = parseFloat(quantity) || 0
+          const finalQty = computeQty(product)
+          const finalTotal = Math.round(finalQty * product.price)
+          const exceedsStock = finalQty > stock && stock > 0
+
+          return (
+            <>
+              {/* Header con imagen, precio y stock */}
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-14 h-14 rounded-xl border border-border bg-surface-muted overflow-hidden flex items-center justify-center shrink-0">
+                  {product.image ? (
+                    <img
+                      src={`product-img://${product.image}`}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Package size={20} className="text-text-disabled" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-text-muted">
+                    {formatGs(product.price)} / {qmPt.unit}
+                  </p>
+                  <p
+                    className={cn(
+                      'text-xs mt-0.5',
+                      stock <= 0
+                        ? 'text-danger-700'
+                        : stock <= product.min_stock
+                          ? 'text-warning-700'
+                          : 'text-text-muted'
+                    )}
+                  >
+                    Disponible: {stockLabel} {qmPt.unit}
+                  </p>
+                </div>
+              </div>
+
+              {/* Toggle Cantidad / Monto */}
+              {allowAmountMode && (
+                <div className="flex gap-1 p-1 bg-surface-muted rounded-xl mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setInputMode('qty')}
+                    className={cn(
+                      'flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors',
+                      inputMode === 'qty'
+                        ? 'bg-surface text-text-main shadow-sm'
+                        : 'text-text-muted hover:text-text-main'
+                    )}
+                  >
+                    Por cantidad
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputMode('amount')}
+                    className={cn(
+                      'flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors',
+                      inputMode === 'amount'
+                        ? 'bg-surface text-text-main shadow-sm'
+                        : 'text-text-muted hover:text-text-main'
+                    )}
+                  >
+                    Por monto
+                  </button>
+                </div>
+              )}
+
+              {/* Input principal */}
+              <div className="mb-3">
+                <label className="block text-sm text-text-muted mb-1">
+                  {inputMode === 'amount' ? 'Monto (Gs.)' : `Cantidad (${qmPt.unit})`}
+                </label>
+                {inputMode === 'amount' ? (
+                  <MoneyInput
+                    value={amountInput}
+                    onValueChange={setAmountInput}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddToCart()}
+                    onFocus={(e) => e.target.select()}
+                    className="text-center text-xl h-14"
+                    placeholder="0"
+                    autoFocus
+                  />
+                ) : (
+                  <div className="flex items-stretch gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQty(currentQty - qmPt.cartStep)}
+                      disabled={currentQty <= 0}
+                      className="w-12 rounded-xl border border-border hover:bg-surface-muted text-text-main flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                      aria-label="Disminuir"
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <Input
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddToCart()}
+                      onFocus={(e) => e.target.select()}
+                      step={qmPt.inputStep}
+                      min={qmPt.inputStep}
+                      className="text-center text-xl h-14 flex-1"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setQty(currentQty + qmPt.cartStep)}
+                      className="w-12 rounded-xl border border-border hover:bg-surface-muted text-text-main flex items-center justify-center"
+                      aria-label="Aumentar"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Presets rápidos */}
+              {inputMode === 'qty' && (
+                <div className="mb-3">
+                  <p className="text-xs text-text-muted mb-1.5">Cantidad rápida</p>
+                  <div className="flex gap-2">
+                    {presets.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setQty(p)}
+                        className="flex-1 py-1.5 text-sm rounded-lg border border-border hover:bg-surface-muted text-text-main transition-colors"
+                      >
+                        {p}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setQty(stock)}
+                      disabled={stock <= 0}
+                      className="flex-1 py-1.5 text-sm rounded-lg border border-border hover:bg-surface-muted text-text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={`Establecer al stock disponible (${stockLabel} ${qmPt.unit})`}
+                    >
+                      máx
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Indicadores secundarios */}
+              {finalQty > 0 && inputMode === 'amount' && (
+                <p className="text-center text-sm text-text-muted mb-3">
+                  ≈ {qmPt.decimals > 0 ? finalQty.toFixed(qmPt.decimals) : finalQty}{' '}
+                  {qmPt.unit}
+                </p>
+              )}
+
+              {finalQty > 0 && exceedsStock && (
+                <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-warning-500/50 bg-warning-50 px-3 py-2.5">
+                  <AlertTriangle
+                    size={18}
+                    className="text-warning-700 shrink-0 mt-0.5"
+                  />
+                  <div className="text-sm leading-tight">
+                    <p className="font-semibold text-warning-700">Excede el stock disponible</p>
+                    <p className="text-xs text-warning-700/80 mt-0.5">
+                      Solo quedan {stockLabel} {qmPt.unit} en inventario.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-center text-xs text-text-disabled mb-3">
+                Enter para agregar · Esc para cancelar
               </p>
-            )}
 
-            <div className="flex gap-3">
-              <Button variant="secondary" className="flex-1" onClick={() => setQuantityModal(null)}>
-                Cancelar
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={handleAddToCart}
-                disabled={!quantity || parseFloat(quantity) <= 0}
-              >
-                Agregar
-              </Button>
-            </div>
-          </>
-        )}
+              <div className="flex gap-3">
+                <Button variant="secondary" className="flex-1" onClick={closeQuantityModal}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-[2]"
+                  onClick={handleAddToCart}
+                  disabled={finalQty <= 0}
+                >
+                  Agregar{finalQty > 0 ? ` · ${formatGs(finalTotal)}` : ''}
+                </Button>
+              </div>
+            </>
+          )
+        })()}
       </Modal>
 
       {/* Cobro Modal */}

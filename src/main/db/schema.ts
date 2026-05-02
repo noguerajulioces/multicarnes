@@ -22,7 +22,7 @@ export function createTables(db: Database.Database): void {
       name        TEXT NOT NULL,
       barcode     TEXT UNIQUE,
       price       INTEGER NOT NULL DEFAULT 0,
-      price_type  TEXT NOT NULL DEFAULT 'unit' CHECK(price_type IN ('unit','kg')),
+      price_type  TEXT NOT NULL DEFAULT 'unit',
       stock       REAL NOT NULL DEFAULT 0,
       min_stock   REAL NOT NULL DEFAULT 0,
       image       TEXT,
@@ -32,13 +32,15 @@ export function createTables(db: Database.Database): void {
     );
 
     CREATE TABLE IF NOT EXISTS customers (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      name        TEXT NOT NULL,
-      phone       TEXT,
-      address     TEXT,
-      is_employee INTEGER NOT NULL DEFAULT 0,
-      balance     INTEGER NOT NULL DEFAULT 0,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      name          TEXT NOT NULL,
+      phone         TEXT,
+      address       TEXT,
+      document      TEXT,
+      document_type TEXT,
+      is_employee   INTEGER NOT NULL DEFAULT 0,
+      balance       INTEGER NOT NULL DEFAULT 0,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS suppliers (

@@ -1,5 +1,5 @@
 import { ipcMain, dialog } from 'electron'
-import { copyFileSync } from 'fs'
+import { copyFileSync, readFileSync } from 'fs'
 import { join, extname } from 'path'
 import * as productsQuery from '../db/queries/products'
 import { getImagesDir } from '../db'
@@ -15,6 +15,14 @@ export function registerProductsIpc(): void {
   ipcMain.handle('products:categories', () => productsQuery.getAllCategories())
   ipcMain.handle('products:createCategory', (_, name: string) => productsQuery.createCategory(name))
   ipcMain.handle('products:lowStock', () => productsQuery.getLowStockProducts())
+  ipcMain.handle('products:movements', (_, productId: number, limit?: number) =>
+    productsQuery.getStockMovements(productId, limit))
+  ipcMain.handle('products:recentSales', (_, productId: number, limit?: number) =>
+    productsQuery.getRecentSalesForProduct(productId, limit))
+  ipcMain.handle('products:salesStats', (_, productId: number) =>
+    productsQuery.getProductSalesStats(productId))
+  ipcMain.handle('products:lastPurchase', (_, productId: number) =>
+    productsQuery.getLastPurchaseForProduct(productId))
 
   ipcMain.handle('products:uploadImage', async (_, productId: number) => {
     const result = await dialog.showOpenDialog({
@@ -29,6 +37,29 @@ export function registerProductsIpc(): void {
     const destPath = join(getImagesDir(), filename)
     copyFileSync(srcPath, destPath)
 
+    productsQuery.updateProduct(productId, { image: filename })
+    return filename
+  })
+
+  ipcMain.handle('products:pickImage', async () => {
+    const result = await dialog.showOpenDialog({
+      filters: [{ name: 'Imágenes', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+      properties: ['openFile']
+    })
+    if (result.canceled || !result.filePaths[0]) return null
+
+    const srcPath = result.filePaths[0]
+    const ext = extname(srcPath).slice(1).toLowerCase()
+    const mime = ext === 'jpg' ? 'jpeg' : ext
+    const dataUrl = `data:image/${mime};base64,${readFileSync(srcPath).toString('base64')}`
+    return { srcPath, dataUrl }
+  })
+
+  ipcMain.handle('products:saveImageFromPath', (_, productId: number, srcPath: string) => {
+    const ext = extname(srcPath)
+    const filename = `product_${productId}_${Date.now()}${ext}`
+    const destPath = join(getImagesDir(), filename)
+    copyFileSync(srcPath, destPath)
     productsQuery.updateProduct(productId, { image: filename })
     return filename
   })

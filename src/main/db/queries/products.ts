@@ -1,34 +1,42 @@
 import { getDb } from '../index'
 
-export function getAllProducts(filters?: { categoryId?: number; active?: boolean; lowStock?: boolean; search?: string }) {
+export function getAllProducts(filters?: {
+  categoryId?: number; active?: boolean; lowStock?: boolean; search?: string;
+  page?: number; perPage?: number
+}) {
   const db = getDb()
-  let sql = `
-    SELECT p.*, c.name as category_name,
-      CASE WHEN p.stock <= p.min_stock THEN 1 ELSE 0 END as low_stock
-    FROM products p
-    LEFT JOIN categories c ON p.category_id = c.id
-    WHERE 1=1
-  `
+  const conditions: string[] = []
   const params: unknown[] = []
 
-  if (filters?.categoryId) {
-    sql += ' AND p.category_id = ?'
-    params.push(filters.categoryId)
-  }
-  if (filters?.active !== undefined) {
-    sql += ' AND p.active = ?'
-    params.push(filters.active ? 1 : 0)
-  }
-  if (filters?.lowStock) {
-    sql += ' AND p.stock <= p.min_stock'
-  }
+  if (filters?.categoryId) { conditions.push('p.category_id = ?'); params.push(filters.categoryId) }
+  if (filters?.active !== undefined) { conditions.push('p.active = ?'); params.push(filters.active ? 1 : 0) }
+  if (filters?.lowStock) conditions.push('p.stock <= p.min_stock')
   if (filters?.search) {
-    sql += ' AND (p.name LIKE ? OR p.barcode LIKE ?)'
+    conditions.push('(p.name LIKE ? OR p.barcode LIKE ?)')
     const term = `%${filters.search}%`
     params.push(term, term)
   }
-  sql += ' ORDER BY p.name'
-  return db.prepare(sql).all(...params)
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  const total = (db
+    .prepare(`SELECT COUNT(*) as c FROM products p ${where}`)
+    .get(...params) as { c: number }).c
+  const isPaginated = filters?.page !== undefined
+  const page = Math.max(1, filters?.page ?? 1)
+  const perPage = filters?.perPage ?? (isPaginated ? 50 : total)
+  const limitClause = isPaginated ? 'LIMIT ? OFFSET ?' : ''
+  const limitParams = isPaginated ? [perPage, (page - 1) * perPage] : []
+  const items = db
+    .prepare(`
+      SELECT p.*, c.name as category_name,
+        CASE WHEN p.stock <= p.min_stock THEN 1 ELSE 0 END as low_stock
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      ${where}
+      ORDER BY p.name
+      ${limitClause}
+    `)
+    .all(...params, ...limitParams)
+  return { items, total, page, perPage: perPage || total }
 }
 
 export function getProductById(id: number) {
@@ -112,6 +120,80 @@ export function getAllCategories() {
 export function createCategory(name: string) {
   const result = getDb().prepare('INSERT INTO categories (name) VALUES (?)').run(name)
   return { id: result.lastInsertRowid as number, name }
+}
+
+export function getStockMovements(productId: number, limit = 50) {
+  return getDb()
+    .prepare(`
+      SELECT sa.id, sa.user_id, u.name as user_name,
+             sa.quantity_before, sa.quantity_after,
+             (sa.quantity_after - sa.quantity_before) as delta,
+             sa.reason, sa.created_at
+      FROM stock_adjustments sa
+      LEFT JOIN users u ON u.id = sa.user_id
+      WHERE sa.product_id = ?
+      ORDER BY sa.created_at DESC, sa.id DESC
+      LIMIT ?
+    `)
+    .all(productId, limit)
+}
+
+export function getRecentSalesForProduct(productId: number, limit = 20) {
+  return getDb()
+    .prepare(`
+      SELECT s.id as sale_id, s.created_at, si.quantity, si.unit_price, si.subtotal,
+             s.user_id, u.name as user_name,
+             c.name as customer_name
+      FROM sale_items si
+      JOIN sales s ON s.id = si.sale_id
+      LEFT JOIN users u ON u.id = s.user_id
+      LEFT JOIN customers c ON c.id = s.customer_id
+      WHERE si.product_id = ? AND s.status = 'completed'
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT ?
+    `)
+    .all(productId, limit)
+}
+
+export function getProductSalesStats(productId: number) {
+  const db = getDb()
+  const r7 = db.prepare(`
+    SELECT COALESCE(SUM(si.quantity), 0) as units, COALESCE(SUM(si.subtotal), 0) as total
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    WHERE si.product_id = ? AND s.status = 'completed'
+      AND s.created_at >= datetime('now','localtime','-7 days')
+  `).get(productId) as { units: number; total: number }
+  const r30 = db.prepare(`
+    SELECT COALESCE(SUM(si.quantity), 0) as units, COALESCE(SUM(si.subtotal), 0) as total
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    WHERE si.product_id = ? AND s.status = 'completed'
+      AND s.created_at >= datetime('now','localtime','-30 days')
+  `).get(productId) as { units: number; total: number }
+  const last = db.prepare(`
+    SELECT MAX(s.created_at) as last_sale_at
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    WHERE si.product_id = ? AND s.status = 'completed'
+  `).get(productId) as { last_sale_at: string | null }
+  return {
+    units_7d: r7.units, total_7d: r7.total,
+    units_30d: r30.units, total_30d: r30.total,
+    last_sale_at: last.last_sale_at
+  }
+}
+
+export function getLastPurchaseForProduct(productId: number) {
+  return getDb().prepare(`
+    SELECT po.id as order_id, po.created_at, pi.unit_cost, pi.quantity, sup.name as supplier_name
+    FROM purchase_items pi
+    JOIN purchase_orders po ON po.id = pi.order_id
+    LEFT JOIN suppliers sup ON sup.id = po.supplier_id
+    WHERE pi.product_id = ? AND po.status != 'cancelled'
+    ORDER BY po.created_at DESC, po.id DESC
+    LIMIT 1
+  `).get(productId) || null
 }
 
 export function getLowStockProducts() {

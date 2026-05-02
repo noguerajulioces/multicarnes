@@ -1,6 +1,7 @@
 import { Package, AlertTriangle, XCircle } from 'lucide-react'
 import { Skeleton } from '../../../components/ui'
 import type { Product } from '@shared/types'
+import { priceTypeInfo } from '../../../lib/price-types'
 
 interface StockSummaryCardProps {
   lowStock: Product[]
@@ -40,7 +41,7 @@ export function StockSummaryCard({ lowStock, loading }: StockSummaryCardProps) {
               <li key={p.id} className="flex items-center justify-between gap-2">
                 <span className="truncate">{p.name}</span>
                 <span className="text-danger-700 font-medium tabular-nums shrink-0">
-                  {p.stock} {p.price_type === 'kg' ? 'kg' : 'u'}
+                  {p.stock} {priceTypeInfo(p.price_type).unit}
                 </span>
               </li>
             ))}

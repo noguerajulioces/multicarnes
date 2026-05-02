@@ -22,7 +22,18 @@ const api = {
     categories: () => ipcRenderer.invoke('products:categories'),
     createCategory: (name: string) => ipcRenderer.invoke('products:createCategory', name),
     lowStock: () => ipcRenderer.invoke('products:lowStock'),
+    movements: (productId: number, limit?: number) =>
+      ipcRenderer.invoke('products:movements', productId, limit),
+    recentSales: (productId: number, limit?: number) =>
+      ipcRenderer.invoke('products:recentSales', productId, limit),
+    salesStats: (productId: number) =>
+      ipcRenderer.invoke('products:salesStats', productId),
+    lastPurchase: (productId: number) =>
+      ipcRenderer.invoke('products:lastPurchase', productId),
     uploadImage: (productId: number) => ipcRenderer.invoke('products:uploadImage', productId),
+    pickImage: () => ipcRenderer.invoke('products:pickImage'),
+    saveImageFromPath: (productId: number, srcPath: string) =>
+      ipcRenderer.invoke('products:saveImageFromPath', productId, srcPath),
     getImagePath: () => ipcRenderer.invoke('products:getImagePath')
   },
   // Sales
@@ -36,7 +47,7 @@ const api = {
   },
   // Customers
   customers: {
-    getAll: (search?: string) => ipcRenderer.invoke('customers:getAll', search),
+    getAll: (opts?: unknown) => ipcRenderer.invoke('customers:getAll', opts),
     getById: (id: number) => ipcRenderer.invoke('customers:getById', id),
     create: (data: unknown) => ipcRenderer.invoke('customers:create', data),
     update: (id: number, data: unknown) => ipcRenderer.invoke('customers:update', id, data),
@@ -59,13 +70,13 @@ const api = {
   },
   // Purchases & Suppliers
   suppliers: {
-    getAll: (search?: string) => ipcRenderer.invoke('suppliers:getAll', search),
+    getAll: (opts?: unknown) => ipcRenderer.invoke('suppliers:getAll', opts),
     getById: (id: number) => ipcRenderer.invoke('suppliers:getById', id),
     create: (data: unknown) => ipcRenderer.invoke('suppliers:create', data),
     update: (id: number, data: unknown) => ipcRenderer.invoke('suppliers:update', id, data)
   },
   purchases: {
-    getAll: (status?: string) => ipcRenderer.invoke('purchases:getAll', status),
+    getAll: (opts?: unknown) => ipcRenderer.invoke('purchases:getAll', opts),
     getById: (id: number) => ipcRenderer.invoke('purchases:getById', id),
     create: (data: unknown) => ipcRenderer.invoke('purchases:create', data),
     receive: (id: number) => ipcRenderer.invoke('purchases:receive', id),
@@ -100,6 +111,10 @@ const api = {
   },
   notify: {
     show: (title: string, body: string) => ipcRenderer.invoke('notify:show', title, body)
+  },
+  print: {
+    ticket: (payload: unknown) => ipcRenderer.invoke('print:ticket', payload),
+    hasConfig: () => ipcRenderer.invoke('print:hasConfig')
   }
 }
 

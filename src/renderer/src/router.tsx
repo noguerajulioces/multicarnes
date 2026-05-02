@@ -8,6 +8,7 @@ import CierreCajaPage from './modules/caja/CierreCajaPage'
 import PosScreen from './modules/ventas/PosScreen'
 import ProductosPage from './modules/productos/ProductosPage'
 import ProductoFormPage from './modules/productos/ProductoFormPage'
+import ProductoDetallePage from './modules/productos/ProductoDetallePage'
 import ComprasPage from './modules/compras/ComprasPage'
 import NuevaCompraPage from './modules/compras/NuevaCompraPage'
 import CompraDetallePage from './modules/compras/CompraDetallePage'
@@ -18,6 +19,7 @@ import ReportesPage from './modules/reportes/ReportesPage'
 import UsuariosPage from './modules/usuarios/UsuariosPage'
 import ConfiguracionPage from './modules/configuracion/ConfiguracionPage'
 import BackupPage from './modules/backup/BackupPage'
+import PerfilPage from './modules/perfil/PerfilPage'
 
 export default function AppRouter() {
   return (
@@ -32,15 +34,17 @@ export default function AppRouter() {
           <Route path="/caja/cierre" element={<CierreCajaPage />} />
           <Route path="/productos" element={<ProductosPage />} />
           <Route path="/productos/nuevo" element={<ProductoFormPage />} />
-          <Route path="/productos/:id" element={<ProductoFormPage />} />
+          <Route path="/productos/:id" element={<ProductoDetallePage />} />
+          <Route path="/productos/:id/editar" element={<ProductoFormPage />} />
           <Route path="/compras" element={<ComprasPage />} />
           <Route path="/compras/nueva" element={<NuevaCompraPage />} />
-          <Route path="/compras/proveedores" element={<ProveedoresPage />} />
+          <Route path="/proveedores" element={<ProveedoresPage />} />
           <Route path="/compras/:id" element={<CompraDetallePage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/clientes/:id" element={<ClienteFichaPage />} />
           <Route path="/reportes" element={<ReportesPage />} />
           <Route path="/usuarios" element={<UsuariosPage />} />
+          <Route path="/perfil" element={<PerfilPage />} />
           <Route path="/configuracion" element={<ConfiguracionPage />} />
           <Route path="/backup" element={<BackupPage />} />
         </Route>

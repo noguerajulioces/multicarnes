@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   CreditCard,
   Phone,
   MapPin,
@@ -11,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { formatGs, formatDateTime, cn } from '../../lib/utils'
+import { formatQty } from '../../lib/price-types'
 import {
   Badge,
   Button,
@@ -49,6 +52,7 @@ export default function ClienteFichaPage() {
   const [showPayment, setShowPayment] = useState(false)
   const [payAmount, setPayAmount] = useState(0)
   const [payNote, setPayNote] = useState('')
+  const [expandedSale, setExpandedSale] = useState<number | null>(null)
 
   useEffect(() => {
     loadData()
@@ -141,7 +145,7 @@ export default function ClienteFichaPage() {
                 <h1 className="text-2xl font-bold text-text-main">{customer.name}</h1>
                 {customer.is_employee && <Badge tone="info">Empleado</Badge>}
               </div>
-              <div className="mt-2 flex flex-col sm:flex-row sm:gap-4 gap-1 text-sm text-text-muted">
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
                 <span className="inline-flex items-center gap-1.5">
                   <Phone size={14} />
                   {customer.phone || (
@@ -154,6 +158,11 @@ export default function ClienteFichaPage() {
                     <span className="text-text-disabled">Sin dirección</span>
                   )}
                 </span>
+                {customer.document && (
+                  <span className="inline-flex items-center gap-1.5 tabular-nums">
+                    {customer.document_type || 'Doc'}: {customer.document}
+                  </span>
+                )}
               </div>
             </div>
           </CardBody>
@@ -227,6 +236,7 @@ export default function ClienteFichaPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-text-muted text-left">
+                  <th className="pb-2 font-normal w-6"></th>
                   <th className="pb-2 font-normal pr-3">Fecha</th>
                   <th className="pb-2 font-normal pr-3 text-right">Total</th>
                   <th className="pb-2 font-normal">Método</th>
@@ -235,29 +245,68 @@ export default function ClienteFichaPage() {
               <tbody>
                 {sales.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="py-8 text-center text-text-muted">
+                    <td colSpan={4} className="py-8 text-center text-text-muted">
                       Sin compras registradas
                     </td>
                   </tr>
                 ) : (
-                  sales.map((s) => (
-                    <tr
-                      key={s.id}
-                      className="border-b border-border last:border-0 hover:bg-surface-muted/40"
-                    >
-                      <td className="py-2.5 pr-3 text-text-muted tabular-nums">
-                        {formatDateTime(s.created_at)}
-                      </td>
-                      <td className="py-2.5 pr-3 text-right font-medium tabular-nums">
-                        {formatGs(s.total)}
-                      </td>
-                      <td className="py-2.5">
-                        <Badge tone={methodTone[s.payment_method]}>
-                          {methodLabel[s.payment_method]}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))
+                  sales.map((s) => {
+                    const isOpen = expandedSale === s.id
+                    const items = s.items ?? []
+                    return (
+                      <Fragment key={s.id}>
+                        <tr
+                          onClick={() => setExpandedSale(isOpen ? null : s.id)}
+                          className="border-b border-border last:border-0 hover:bg-surface-muted/40 cursor-pointer"
+                        >
+                          <td className="py-2.5 pr-1 text-text-muted">
+                            {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </td>
+                          <td className="py-2.5 pr-3 text-text-muted tabular-nums">
+                            {formatDateTime(s.created_at)}
+                          </td>
+                          <td className="py-2.5 pr-3 text-right font-medium tabular-nums">
+                            {formatGs(s.total)}
+                          </td>
+                          <td className="py-2.5">
+                            <Badge tone={methodTone[s.payment_method]}>
+                              {methodLabel[s.payment_method]}
+                            </Badge>
+                          </td>
+                        </tr>
+                        {isOpen && (
+                          <tr className="border-b border-border last:border-0 bg-surface-muted/30">
+                            <td colSpan={4} className="px-3 py-2">
+                              {items.length === 0 ? (
+                                <p className="text-xs text-text-muted py-2">Sin ítems registrados</p>
+                              ) : (
+                                <ul className="divide-y divide-border">
+                                  {items.map((it) => (
+                                    <li
+                                      key={it.id}
+                                      className="py-2 flex items-baseline gap-3 text-xs"
+                                    >
+                                      <span className="font-medium text-text-main flex-1 truncate">
+                                        {it.product_name ?? `#${it.product_id}`}
+                                      </span>
+                                      <span className="text-text-muted tabular-nums whitespace-nowrap">
+                                        {formatQty(it.quantity, it.price_type ?? 'unit')}
+                                        {' × '}
+                                        {formatGs(it.unit_price)}
+                                      </span>
+                                      <span className="font-medium tabular-nums whitespace-nowrap w-24 text-right">
+                                        {formatGs(it.subtotal)}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    )
+                  })
                 )}
               </tbody>
             </table>

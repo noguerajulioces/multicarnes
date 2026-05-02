@@ -5,7 +5,9 @@ import {
   Bell,
   ChevronRight,
   CreditCard,
-  DollarSign
+  DollarSign,
+  LogOut,
+  UserCircle2
 } from 'lucide-react'
 import { useCashStore } from '../store/cash.store'
 import { useAuthStore } from '../store/auth.store'
@@ -20,10 +22,11 @@ const routeLabels: Record<string, string> = {
   '/productos/nuevo': 'Nuevo',
   '/compras': 'Compras',
   '/compras/nueva': 'Nueva',
-  '/compras/proveedores': 'Proveedores',
+  '/proveedores': 'Proveedores',
   '/clientes': 'Clientes',
   '/reportes': 'Reportes',
   '/usuarios': 'Usuarios',
+  '/perfil': 'Mi perfil',
   '/configuracion': 'Configuración',
   '/backup': 'Backup'
 }
@@ -86,6 +89,20 @@ export default function Header() {
 
 function UserAvatar(): React.ReactElement | null {
   const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+  const navigate = useNavigate()
+  const ref = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    function onClick(e: MouseEvent): void {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [open])
+
   if (!user) return null
   const initials = user.name
     .split(/\s+/)
@@ -93,12 +110,59 @@ function UserAvatar(): React.ReactElement | null {
     .slice(0, 2)
     .map((p) => p.charAt(0).toUpperCase())
     .join('')
+
+  const handleLogout = (): void => {
+    setOpen(false)
+    logout()
+    window.location.hash = '#/login'
+  }
+
   return (
-    <div
-      className="w-8 h-8 rounded-full bg-brand-light text-brand text-xs font-semibold flex items-center justify-center shrink-0"
-      title={user.name}
-    >
-      {initials || user.name.charAt(0).toUpperCase()}
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        title={user.name}
+        aria-label="Menú de usuario"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="w-8 h-8 rounded-full bg-brand-light text-brand text-xs font-semibold flex items-center justify-center shrink-0 hover:ring-2 hover:ring-brand/30 transition"
+      >
+        {initials || user.name.charAt(0).toUpperCase()}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-1.5 z-20 w-56 bg-surface border border-border rounded-xl overflow-hidden"
+          style={{ boxShadow: 'var(--shadow-popover)' }}
+        >
+          <div className="px-3 py-2.5 border-b border-border">
+            <p className="text-sm font-semibold text-text-main truncate">{user.name}</p>
+            <p className="text-xs text-text-muted capitalize">{user.role}</p>
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false)
+              navigate('/perfil')
+            }}
+            className="w-full text-left px-3 py-2.5 hover:bg-surface-muted flex items-center gap-2.5 text-sm text-text-main transition-colors"
+          >
+            <UserCircle2 size={16} className="text-text-muted" />
+            Mi perfil
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleLogout}
+            className="w-full text-left px-3 py-2.5 hover:bg-surface-muted flex items-center gap-2.5 text-sm text-danger-700 border-t border-border transition-colors"
+          >
+            <LogOut size={16} />
+            Cerrar sesión
+          </button>
+        </div>
+      )}
     </div>
   )
 }

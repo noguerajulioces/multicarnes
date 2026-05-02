@@ -5,7 +5,6 @@ import { formatGs } from '../../../lib/utils'
 export interface SalesBarPoint {
   label: string
   ventas: number
-  target: number
 }
 
 interface SalesBarChartProps {
@@ -73,10 +72,6 @@ export function SalesBarChart({ data, loading }: SalesBarChartProps) {
               <stop offset="0%" stopColor="#CC1C1C" stopOpacity={1} />
               <stop offset="100%" stopColor="#CC1C1C" stopOpacity={0.7} />
             </linearGradient>
-            <linearGradient id="barTarget" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#A78BFA" stopOpacity={0.45} />
-              <stop offset="100%" stopColor="#A78BFA" stopOpacity={0.15} />
-            </linearGradient>
           </defs>
           <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
           <XAxis
@@ -96,7 +91,6 @@ export function SalesBarChart({ data, loading }: SalesBarChartProps) {
             content={<CustomTooltip />}
             cursor={{ fill: 'var(--color-surface-muted)', opacity: 0.5 }}
           />
-          <Bar dataKey="target" name="Meta" fill="url(#barTarget)" radius={[6, 6, 0, 0]} />
           <Bar dataKey="ventas" name="Ventas" fill="url(#barVentas)" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>

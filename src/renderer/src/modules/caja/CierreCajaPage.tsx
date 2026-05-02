@@ -38,6 +38,22 @@ export default function CierreCajaPage() {
       toast.success('Caja cerrada')
 
       try {
+        const all = await window.api.settings.getAll()
+        const autoBackup = all.find((s) => s.key === 'auto_backup')?.value === '1'
+        if (autoBackup) {
+          const path = await window.api.backup.create()
+          toast.success('Backup automático creado')
+          window.api.notify
+            .show('Backup al cerrar caja', `Se guardó en ${path}`)
+            .catch(() => {})
+        }
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? `Error en backup automático: ${err.message}` : 'Error en backup automático'
+        )
+      }
+
+      try {
         const low = await window.api.products.lowStock()
         if (low.length > 0) {
           await window.api.notify.show(

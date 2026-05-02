@@ -1,11 +1,23 @@
 import { getDb } from '../index'
 
-export function getAllSuppliers(search?: string) {
-  if (search) {
-    return getDb().prepare('SELECT * FROM suppliers WHERE name LIKE ? AND active = 1 ORDER BY name')
-      .all(`%${search}%`)
+export function getAllSuppliers(opts: { search?: string; page?: number; perPage?: number } = {}) {
+  const db = getDb()
+  const params: unknown[] = []
+  let where = 'WHERE active = 1'
+  if (opts.search) {
+    where += ' AND name LIKE ?'
+    params.push(`%${opts.search}%`)
   }
-  return getDb().prepare('SELECT * FROM suppliers WHERE active = 1 ORDER BY name').all()
+  const total = (db.prepare(`SELECT COUNT(*) as c FROM suppliers ${where}`).get(...params) as { c: number }).c
+  const isPaginated = opts.page !== undefined
+  const page = Math.max(1, opts.page ?? 1)
+  const perPage = opts.perPage ?? (isPaginated ? 50 : total)
+  const limitClause = isPaginated ? 'LIMIT ? OFFSET ?' : ''
+  const limitParams = isPaginated ? [perPage, (page - 1) * perPage] : []
+  const items = db
+    .prepare(`SELECT * FROM suppliers ${where} ORDER BY name ${limitClause}`)
+    .all(...params, ...limitParams)
+  return { items, total, page, perPage: perPage || total }
 }
 
 export function getSupplierById(id: number) {
@@ -37,20 +49,32 @@ export function updateSupplier(id: number, data: { name?: string; phone?: string
   return getSupplierById(id)
 }
 
-export function getAllPurchaseOrders(status?: string) {
-  let sql = `
-    SELECT po.*, s.name as supplier_name, u.name as user_name
-    FROM purchase_orders po
-    LEFT JOIN suppliers s ON po.supplier_id = s.id
-    LEFT JOIN users u ON po.user_id = u.id
-  `
-  if (status) {
-    sql += ' WHERE po.status = ?'
-    sql += ' ORDER BY po.created_at DESC'
-    return getDb().prepare(sql).all(status)
+export function getAllPurchaseOrders(opts: { status?: string; page?: number; perPage?: number } = {}) {
+  const db = getDb()
+  const params: unknown[] = []
+  let where = ''
+  if (opts.status) {
+    where = 'WHERE po.status = ?'
+    params.push(opts.status)
   }
-  sql += ' ORDER BY po.created_at DESC'
-  return getDb().prepare(sql).all()
+  const total = (db.prepare(`SELECT COUNT(*) as c FROM purchase_orders po ${where}`).get(...params) as { c: number }).c
+  const isPaginated = opts.page !== undefined
+  const page = Math.max(1, opts.page ?? 1)
+  const perPage = opts.perPage ?? (isPaginated ? 50 : total)
+  const limitClause = isPaginated ? 'LIMIT ? OFFSET ?' : ''
+  const limitParams = isPaginated ? [perPage, (page - 1) * perPage] : []
+  const items = db
+    .prepare(`
+      SELECT po.*, s.name as supplier_name, u.name as user_name
+      FROM purchase_orders po
+      LEFT JOIN suppliers s ON po.supplier_id = s.id
+      LEFT JOIN users u ON po.user_id = u.id
+      ${where}
+      ORDER BY po.created_at DESC
+      ${limitClause}
+    `)
+    .all(...params, ...limitParams)
+  return { items, total, page, perPage: perPage || total }
 }
 
 export function getPurchaseOrderById(id: number) {

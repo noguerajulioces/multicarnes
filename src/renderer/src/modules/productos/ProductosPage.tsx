@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs, cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
+import { priceTypeInfo } from '../../lib/price-types'
 import type { Product, Category } from '@shared/types'
-import { Search, Plus, Edit2, AlertTriangle, Package, TrendingUp, TrendingDown } from 'lucide-react'
+import { Search, Plus, Eye, AlertTriangle, Package, TrendingUp, TrendingDown } from 'lucide-react'
 import {
   Badge,
   Button,
@@ -12,17 +13,23 @@ import {
   Input,
   Modal,
   PageHeader,
+  Pagination,
   Select
 } from '../../components/ui'
+
+const PER_PAGE = 50
 
 export default function ProductosPage() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const [products, setProducts] = useState<Product[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [categories, setCategories] = useState<Category[]>([])
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState<number | ''>('')
   const [filterStock, setFilterStock] = useState(false)
+  const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('all')
   const [adjustModal, setAdjustModal] = useState<Product | null>(null)
   const [newStock, setNewStock] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
@@ -31,12 +38,29 @@ export default function ProductosPage() {
     window.api.products.categories().then(setCategories)
   }, [])
 
-  useEffect(() => {
-    const filters: Record<string, unknown> = { search: search || undefined, active: true }
+  const buildFilters = (): Record<string, unknown> => {
+    const filters: Record<string, unknown> = {
+      search: search || undefined,
+      page,
+      perPage: PER_PAGE
+    }
+    if (filterStatus === 'active') filters.active = true
+    else if (filterStatus === 'inactive') filters.active = false
     if (filterCat) filters.categoryId = filterCat
     if (filterStock) filters.lowStock = true
-    window.api.products.getAll(filters).then(setProducts)
-  }, [search, filterCat, filterStock])
+    return filters
+  }
+
+  useEffect(() => {
+    setPage(1)
+  }, [search, filterCat, filterStock, filterStatus])
+
+  useEffect(() => {
+    window.api.products.getAll(buildFilters()).then((res) => {
+      setProducts(res.items)
+      setTotal(res.total)
+    })
+  }, [search, filterCat, filterStock, filterStatus, page])
 
   const handleAdjust = async (): Promise<void> => {
     if (!adjustModal || !newStock || !adjustReason || !user) return
@@ -47,7 +71,10 @@ export default function ProductosPage() {
       user.id
     )
     closeAdjustModal()
-    window.api.products.getAll({ search: search || undefined, active: true }).then(setProducts)
+    window.api.products.getAll(buildFilters()).then((res) => {
+      setProducts(res.items)
+      setTotal(res.total)
+    })
   }
 
   const closeAdjustModal = (): void => {
@@ -63,7 +90,7 @@ export default function ProductosPage() {
     <div className="space-y-5">
       <PageHeader
         title="Productos"
-        subtitle={`${products.length} producto${products.length === 1 ? '' : 's'} en catálogo`}
+        subtitle={`${total} producto${total === 1 ? '' : 's'} en catálogo`}
         actions={
           <button
             onClick={() => navigate('/productos/nuevo')}
@@ -75,8 +102,8 @@ export default function ProductosPage() {
         }
       />
 
-      <div className="flex gap-3 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px]">
+      <div className="space-y-3">
+        <div className="relative">
           <Search
             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
             size={16}
@@ -88,31 +115,42 @@ export default function ProductosPage() {
             placeholder="Buscar por nombre o código..."
           />
         </div>
-        <Select
-          value={filterCat}
-          onChange={(e) => setFilterCat(e.target.value ? Number(e.target.value) : '')}
-          className="min-w-[180px] rounded-xl"
-        >
-          <option value="">Todas las categorías</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
-        <button
-          type="button"
-          onClick={() => setFilterStock((v) => !v)}
-          className={cn(
-            'inline-flex items-center gap-2 h-10 px-3 rounded-xl text-sm font-medium border transition-colors',
-            filterStock
-              ? 'border-warning-500 bg-warning-50 text-warning-700'
-              : 'border-border bg-surface text-text-main hover:bg-surface-muted'
-          )}
-        >
-          <AlertTriangle size={14} />
-          Stock bajo
-        </button>
+        <div className="flex gap-3 flex-wrap items-center">
+          <Select
+            value={filterCat}
+            onChange={(e) => setFilterCat(e.target.value ? Number(e.target.value) : '')}
+            className="w-auto min-w-[200px] rounded-xl"
+          >
+            <option value="">Todas las categorías</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as 'active' | 'inactive' | 'all')}
+            className="w-auto min-w-[150px] rounded-xl"
+          >
+            <option value="all">Todos</option>
+            <option value="active">Activos</option>
+            <option value="inactive">Inactivos</option>
+          </Select>
+          <button
+            type="button"
+            onClick={() => setFilterStock((v) => !v)}
+            className={cn(
+              'inline-flex items-center gap-2 h-10 px-3 rounded-xl text-sm font-medium border transition-colors',
+              filterStock
+                ? 'border-warning-500 bg-warning-50 text-warning-700'
+                : 'border-border bg-surface text-text-main hover:bg-surface-muted'
+            )}
+          >
+            <AlertTriangle size={14} />
+            Stock bajo
+          </button>
+        </div>
       </div>
 
       <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
@@ -133,36 +171,52 @@ export default function ProductosPage() {
               {products.map((p) => {
                 const low = p.stock <= p.min_stock
                 const out = p.stock <= 0
+                const pt = priceTypeInfo(p.price_type)
                 return (
                   <tr
                     key={p.id}
                     className="border-t border-border hover:bg-surface-muted/40 transition-colors"
                   >
                     <td className="px-4 py-3 font-medium text-text-main">
-                      <div className="flex items-center gap-2">
-                        {low && (
-                          <AlertTriangle
-                            size={14}
-                            className={out ? 'text-danger-500 shrink-0' : 'text-warning-500 shrink-0'}
-                          />
-                        )}
-                        {p.name}
+                      <div className={cn('flex items-center gap-3', !p.active && 'opacity-60')}>
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-surface-muted shrink-0 flex items-center justify-center">
+                          {p.image ? (
+                            <img
+                              src={`product-img://${p.image}`}
+                              alt={p.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Package size={16} className="text-text-disabled" />
+                          )}
+                        </div>
+                        <span className="truncate">{p.name}</span>
+                        {!p.active && <Badge tone="neutral">Inactivo</Badge>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-text-muted">{p.category_name || '—'}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatGs(p.price)}</td>
                     <td className="px-4 py-3">
                       <Badge tone={p.price_type === 'kg' ? 'info' : 'neutral'}>
-                        {p.price_type === 'kg' ? 'Por kg' : 'Unidad'}
+                        {pt.label}
                       </Badge>
                     </td>
-                    <td
-                      className={cn(
-                        'px-4 py-3 text-right font-medium tabular-nums',
-                        out ? 'text-danger-700' : low ? 'text-warning-700' : ''
-                      )}
-                    >
-                      {p.price_type === 'kg' ? p.stock.toFixed(2) : p.stock}
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {out ? (
+                          <Badge tone="danger">Sin stock</Badge>
+                        ) : low ? (
+                          <Badge tone="warning">Bajo</Badge>
+                        ) : null}
+                        <span
+                          className={cn(
+                            'font-medium tabular-nums',
+                            out ? 'text-danger-700' : low ? 'text-warning-700' : ''
+                          )}
+                        >
+                          {pt.decimals > 0 ? p.stock.toFixed(pt.decimals) : p.stock}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right text-text-muted tabular-nums">
                       {p.min_stock}
@@ -172,9 +226,9 @@ export default function ProductosPage() {
                         <button
                           onClick={() => navigate(`/productos/${p.id}`)}
                           className="p-1.5 hover:bg-surface-muted rounded-lg text-text-muted hover:text-text-main transition-colors"
-                          title="Editar"
+                          title="Ver detalle"
                         >
-                          <Edit2 size={14} />
+                          <Eye size={14} />
                         </button>
                         <button
                           onClick={() => {
@@ -218,6 +272,7 @@ export default function ProductosPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} />
       </Card>
 
       <Modal
@@ -236,15 +291,15 @@ export default function ProductosPage() {
           </div>
         }
       >
-        {adjustModal && (
+        {adjustModal && (() => {
+          const adjPt = priceTypeInfo(adjustModal.price_type)
+          return (
           <div className="space-y-4">
             <div className="bg-surface-muted rounded-xl px-4 py-3">
               <p className="text-xs text-text-muted">Stock actual</p>
               <p className="text-lg font-semibold tabular-nums">
-                {adjustModal.price_type === 'kg'
-                  ? adjustModal.stock.toFixed(2)
-                  : adjustModal.stock}{' '}
-                {adjustModal.price_type === 'kg' ? 'kg' : 'u.'}
+                {adjPt.decimals > 0 ? adjustModal.stock.toFixed(adjPt.decimals) : adjustModal.stock}{' '}
+                {adjPt.unit}
               </p>
             </div>
 
@@ -254,7 +309,7 @@ export default function ProductosPage() {
                 type="number"
                 value={newStock}
                 onChange={(e) => setNewStock(e.target.value)}
-                step={adjustModal.price_type === 'kg' ? '0.01' : '1'}
+                step={adjPt.inputStep}
                 className="text-right tabular-nums"
                 autoFocus
               />
@@ -269,7 +324,7 @@ export default function ProductosPage() {
                 >
                   {stockDiff >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                   {stockDiff >= 0 ? '+' : ''}
-                  {stockDiff.toFixed(2)} {adjustModal.price_type === 'kg' ? 'kg' : 'u.'}
+                  {stockDiff.toFixed(Math.max(adjPt.decimals, 2))} {adjPt.unit}
                 </div>
               )}
             </div>
@@ -283,7 +338,8 @@ export default function ProductosPage() {
               />
             </div>
           </div>
-        )}
+          )
+        })()}
       </Modal>
     </div>
   )

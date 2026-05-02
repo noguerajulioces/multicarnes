@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'supervisor' | 'cajero'
-export type PriceType = 'unit' | 'kg'
+export type PriceType = 'unit' | 'kg' | 'g' | 'l' | 'ml' | 'm' | 'docena' | 'paquete'
 export type PaymentMethod = 'cash' | 'credit' | 'transfer' | 'mixed'
 export type SaleStatus = 'completed' | 'cancelled'
 export type OrderStatus = 'pending' | 'received' | 'cancelled'
@@ -35,11 +35,27 @@ export interface Product {
   updated_at?: string
 }
 
+export type DocumentType = 'CI' | 'RUC'
+
+export interface Paginated<T> {
+  items: T[]
+  total: number
+  page: number
+  perPage: number
+}
+
+export interface PageOpts {
+  page?: number
+  perPage?: number
+}
+
 export interface Customer {
   id: number
   name: string
   phone: string | null
   address: string | null
+  document: string | null
+  document_type: DocumentType | null
   is_employee: boolean
   balance: number
   created_at?: string
@@ -103,6 +119,7 @@ export interface SaleItem {
   sale_id: number
   product_id: number
   product_name?: string
+  price_type?: PriceType
   quantity: number
   unit_price: number
   subtotal: number
@@ -155,6 +172,44 @@ export interface StockAdjustment {
   quantity_after: number
   reason: string
   created_at: string
+}
+
+export interface ProductStockMovement {
+  id: number
+  user_id: number
+  user_name: string | null
+  quantity_before: number
+  quantity_after: number
+  delta: number
+  reason: string
+  created_at: string
+}
+
+export interface ProductRecentSale {
+  sale_id: number
+  created_at: string
+  quantity: number
+  unit_price: number
+  subtotal: number
+  user_id: number
+  user_name: string | null
+  customer_name: string | null
+}
+
+export interface ProductSalesStats {
+  units_7d: number
+  total_7d: number
+  units_30d: number
+  total_30d: number
+  last_sale_at: string | null
+}
+
+export interface ProductLastPurchase {
+  order_id: number
+  created_at: string
+  unit_cost: number
+  quantity: number
+  supplier_name: string | null
 }
 
 export interface CustomerPayment {

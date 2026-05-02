@@ -1,6 +1,6 @@
-import { ipcMain, dialog, app } from 'electron'
+import { ipcMain, dialog, app, Notification } from 'electron'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs'
-import { join } from 'path'
+import { basename, join } from 'path'
 import { getDb } from '../db'
 
 function getBackupDir(): string {
@@ -46,10 +46,24 @@ function startBackupScheduler(): void {
     if (currentTime === scheduleTime && lastBackupDate !== today) {
       lastBackupDate = today
       try {
-        createBackup()
+        const file = createBackup()
         console.log(`[Backup] Backup programado ejecutado a las ${currentTime}`)
+        if (Notification.isSupported()) {
+          new Notification({
+            title: 'Backup programado',
+            body: `Se guardó ${basename(file)}`,
+            silent: false
+          }).show()
+        }
       } catch (err) {
         console.error('[Backup] Error en backup programado:', err)
+        if (Notification.isSupported()) {
+          new Notification({
+            title: 'Error en backup programado',
+            body: err instanceof Error ? err.message : 'Error desconocido',
+            silent: false
+          }).show()
+        }
       }
     }
   }, 60_000)

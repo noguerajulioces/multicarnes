@@ -8,7 +8,8 @@ import {
   Button,
   Card,
   EmptyState,
-  PageHeader
+  PageHeader,
+  Pagination
 } from '../../components/ui'
 
 type StatusFilter = '' | OrderStatus
@@ -32,26 +33,39 @@ const statusLabel: Record<OrderStatus, string> = {
   cancelled: 'Cancelada'
 }
 
+const PER_PAGE = 50
+
 export default function ComprasPage() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState<PurchaseOrder[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [filterStatus, setFilterStatus] = useState<StatusFilter>('')
 
   useEffect(() => {
-    window.api.purchases.getAll(filterStatus || undefined).then(setOrders)
+    setPage(1)
   }, [filterStatus])
+
+  useEffect(() => {
+    window.api.purchases
+      .getAll({ status: filterStatus || undefined, page, perPage: PER_PAGE })
+      .then((res) => {
+        setOrders(res.items)
+        setTotal(res.total)
+      })
+  }, [filterStatus, page])
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Compras"
-        subtitle={`${orders.length} orden${orders.length === 1 ? '' : 'es'} en el listado`}
+        subtitle={`${total} orden${total === 1 ? '' : 'es'} en el listado`}
         actions={
           <>
             <Button
               variant="secondary"
               className="rounded-xl"
-              onClick={() => navigate('/compras/proveedores')}
+              onClick={() => navigate('/proveedores')}
             >
               <Users size={16} />
               Proveedores
@@ -144,6 +158,7 @@ export default function ComprasPage() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={setPage} />
       </Card>
     </div>
   )
