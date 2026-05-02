@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatGs, cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
 import type { Product, Category } from '@shared/types'
-import { Search, Plus, Edit2, AlertTriangle, Package, TrendingUp, TrendingDown } from 'lucide-react'
+import { Search, Plus, Eye, AlertTriangle, Package, TrendingUp, TrendingDown } from 'lucide-react'
 import {
   Badge,
   Button,
@@ -172,9 +172,9 @@ export default function ProductosPage() {
                         <button
                           onClick={() => navigate(`/productos/${p.id}`)}
                           className="p-1.5 hover:bg-surface-muted rounded-lg text-text-muted hover:text-text-main transition-colors"
-                          title="Editar"
+                          title="Ver detalle"
                         >
-                          <Edit2 size={14} />
+                          <Eye size={14} />
                         </button>
                         <button
                           onClick={() => {

@@ -89,13 +89,13 @@ export default function ProductoFormPage() {
     try {
       if (isEdit) {
         await window.api.products.update(Number(id), data)
-        navigate('/productos')
+        navigate(`/productos/${id}`)
       } else {
         const created = await window.api.products.create(data)
         if (created && stagedImage) {
           await window.api.products.saveImageFromPath(created.id, stagedImage.srcPath)
         }
-        navigate('/productos')
+        navigate(created ? `/productos/${created.id}` : '/productos')
       }
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Error al guardar')
@@ -297,7 +297,7 @@ export default function ProductoFormPage() {
           variant="secondary"
           className="rounded-xl"
           size="lg"
-          onClick={() => navigate('/productos')}
+          onClick={() => navigate(isEdit ? `/productos/${id}` : '/productos')}
         >
           Cancelar
         </Button>

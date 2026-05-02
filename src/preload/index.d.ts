@@ -1,6 +1,7 @@
 import type {
   User, Product, Category, Customer, Supplier, CashRegister, CashMovement,
-  Sale, PurchaseOrder, StockAdjustment, CustomerPayment, AppSetting, BackupFile
+  Sale, PurchaseOrder, StockAdjustment, CustomerPayment, AppSetting, BackupFile,
+  ProductStockMovement, ProductRecentSale, ProductSalesStats, ProductLastPurchase
 } from '../shared/types'
 
 interface ApiUsers {
@@ -22,6 +23,10 @@ interface ApiProducts {
   categories(): Promise<Category[]>
   createCategory(name: string): Promise<Category>
   lowStock(): Promise<Product[]>
+  movements(productId: number, limit?: number): Promise<ProductStockMovement[]>
+  recentSales(productId: number, limit?: number): Promise<ProductRecentSale[]>
+  salesStats(productId: number): Promise<ProductSalesStats>
+  lastPurchase(productId: number): Promise<ProductLastPurchase | null>
   uploadImage(productId: number): Promise<string | null>
   pickImage(): Promise<{ srcPath: string; dataUrl: string } | null>
   saveImageFromPath(productId: number, srcPath: string): Promise<string>

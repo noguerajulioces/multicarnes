@@ -15,6 +15,14 @@ export function registerProductsIpc(): void {
   ipcMain.handle('products:categories', () => productsQuery.getAllCategories())
   ipcMain.handle('products:createCategory', (_, name: string) => productsQuery.createCategory(name))
   ipcMain.handle('products:lowStock', () => productsQuery.getLowStockProducts())
+  ipcMain.handle('products:movements', (_, productId: number, limit?: number) =>
+    productsQuery.getStockMovements(productId, limit))
+  ipcMain.handle('products:recentSales', (_, productId: number, limit?: number) =>
+    productsQuery.getRecentSalesForProduct(productId, limit))
+  ipcMain.handle('products:salesStats', (_, productId: number) =>
+    productsQuery.getProductSalesStats(productId))
+  ipcMain.handle('products:lastPurchase', (_, productId: number) =>
+    productsQuery.getLastPurchaseForProduct(productId))
 
   ipcMain.handle('products:uploadImage', async (_, productId: number) => {
     const result = await dialog.showOpenDialog({

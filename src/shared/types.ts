@@ -157,6 +157,44 @@ export interface StockAdjustment {
   created_at: string
 }
 
+export interface ProductStockMovement {
+  id: number
+  user_id: number
+  user_name: string | null
+  quantity_before: number
+  quantity_after: number
+  delta: number
+  reason: string
+  created_at: string
+}
+
+export interface ProductRecentSale {
+  sale_id: number
+  created_at: string
+  quantity: number
+  unit_price: number
+  subtotal: number
+  user_id: number
+  user_name: string | null
+  customer_name: string | null
+}
+
+export interface ProductSalesStats {
+  units_7d: number
+  total_7d: number
+  units_30d: number
+  total_30d: number
+  last_sale_at: string | null
+}
+
+export interface ProductLastPurchase {
+  order_id: number
+  created_at: string
+  unit_cost: number
+  quantity: number
+  supplier_name: string | null
+}
+
 export interface CustomerPayment {
   id: number
   customer_id: number

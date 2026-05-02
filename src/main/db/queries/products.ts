@@ -114,6 +114,80 @@ export function createCategory(name: string) {
   return { id: result.lastInsertRowid as number, name }
 }
 
+export function getStockMovements(productId: number, limit = 50) {
+  return getDb()
+    .prepare(`
+      SELECT sa.id, sa.user_id, u.name as user_name,
+             sa.quantity_before, sa.quantity_after,
+             (sa.quantity_after - sa.quantity_before) as delta,
+             sa.reason, sa.created_at
+      FROM stock_adjustments sa
+      LEFT JOIN users u ON u.id = sa.user_id
+      WHERE sa.product_id = ?
+      ORDER BY sa.created_at DESC, sa.id DESC
+      LIMIT ?
+    `)
+    .all(productId, limit)
+}
+
+export function getRecentSalesForProduct(productId: number, limit = 20) {
+  return getDb()
+    .prepare(`
+      SELECT s.id as sale_id, s.created_at, si.quantity, si.unit_price, si.subtotal,
+             s.user_id, u.name as user_name,
+             c.name as customer_name
+      FROM sale_items si
+      JOIN sales s ON s.id = si.sale_id
+      LEFT JOIN users u ON u.id = s.user_id
+      LEFT JOIN customers c ON c.id = s.customer_id
+      WHERE si.product_id = ? AND s.status = 'completed'
+      ORDER BY s.created_at DESC, s.id DESC
+      LIMIT ?
+    `)
+    .all(productId, limit)
+}
+
+export function getProductSalesStats(productId: number) {
+  const db = getDb()
+  const r7 = db.prepare(`
+    SELECT COALESCE(SUM(si.quantity), 0) as units, COALESCE(SUM(si.subtotal), 0) as total
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    WHERE si.product_id = ? AND s.status = 'completed'
+      AND s.created_at >= datetime('now','localtime','-7 days')
+  `).get(productId) as { units: number; total: number }
+  const r30 = db.prepare(`
+    SELECT COALESCE(SUM(si.quantity), 0) as units, COALESCE(SUM(si.subtotal), 0) as total
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    WHERE si.product_id = ? AND s.status = 'completed'
+      AND s.created_at >= datetime('now','localtime','-30 days')
+  `).get(productId) as { units: number; total: number }
+  const last = db.prepare(`
+    SELECT MAX(s.created_at) as last_sale_at
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    WHERE si.product_id = ? AND s.status = 'completed'
+  `).get(productId) as { last_sale_at: string | null }
+  return {
+    units_7d: r7.units, total_7d: r7.total,
+    units_30d: r30.units, total_30d: r30.total,
+    last_sale_at: last.last_sale_at
+  }
+}
+
+export function getLastPurchaseForProduct(productId: number) {
+  return getDb().prepare(`
+    SELECT po.id as order_id, po.created_at, pi.unit_cost, pi.quantity, sup.name as supplier_name
+    FROM purchase_items pi
+    JOIN purchase_orders po ON po.id = pi.order_id
+    LEFT JOIN suppliers sup ON sup.id = po.supplier_id
+    WHERE pi.product_id = ? AND po.status != 'cancelled'
+    ORDER BY po.created_at DESC, po.id DESC
+    LIMIT 1
+  `).get(productId) || null
+}
+
 export function getLowStockProducts() {
   return getDb()
     .prepare(`

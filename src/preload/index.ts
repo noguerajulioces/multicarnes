@@ -22,6 +22,14 @@ const api = {
     categories: () => ipcRenderer.invoke('products:categories'),
     createCategory: (name: string) => ipcRenderer.invoke('products:createCategory', name),
     lowStock: () => ipcRenderer.invoke('products:lowStock'),
+    movements: (productId: number, limit?: number) =>
+      ipcRenderer.invoke('products:movements', productId, limit),
+    recentSales: (productId: number, limit?: number) =>
+      ipcRenderer.invoke('products:recentSales', productId, limit),
+    salesStats: (productId: number) =>
+      ipcRenderer.invoke('products:salesStats', productId),
+    lastPurchase: (productId: number) =>
+      ipcRenderer.invoke('products:lastPurchase', productId),
     uploadImage: (productId: number) => ipcRenderer.invoke('products:uploadImage', productId),
     pickImage: () => ipcRenderer.invoke('products:pickImage'),
     saveImageFromPath: (productId: number, srcPath: string) =>
