@@ -4,6 +4,7 @@ import { Wallet } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
+import { confirm } from '../../lib/confirm'
 import { MoneyInput } from '../../components/ui'
 
 export default function AperturaCajaPage() {
@@ -14,7 +15,19 @@ export default function AperturaCajaPage() {
   const navigate = useNavigate()
 
   const handleOpen = async (): Promise<void> => {
-    if (!user) return
+    if (!user || loading) return
+
+    if (amount === 0) {
+      const ok = await confirm({
+        title: 'Abrir caja sin efectivo',
+        message:
+          'Vas a abrir la caja con saldo inicial en ₲ 0. Podés registrarlo así si todavía no tenés efectivo en el cajón. ¿Continuar?',
+        confirmLabel: 'Sí, abrir en 0',
+        cancelLabel: 'Cancelar'
+      })
+      if (!ok) return
+    }
+
     setLoading(true)
     try {
       const register = await window.api.cash.open(user.id, amount)
@@ -28,7 +41,11 @@ export default function AperturaCajaPage() {
 
   return (
     <div className="max-w-md mx-auto mt-12">
-      <div
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          handleOpen()
+        }}
         className="bg-surface rounded-2xl border border-border p-8"
         style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
@@ -54,21 +71,19 @@ export default function AperturaCajaPage() {
             placeholder="0"
             autoFocus
           />
-          {amount > 0 && (
-            <p className="text-sm text-text-muted mt-1.5 text-right tabular-nums">
-              {formatGs(amount)}
-            </p>
-          )}
+          <p className="text-sm text-text-muted mt-1.5 text-right tabular-nums">
+            {amount > 0 ? formatGs(amount) : 'Sin efectivo inicial — podés abrir en ₲ 0'}
+          </p>
         </div>
 
         <button
-          onClick={handleOpen}
+          type="submit"
           disabled={loading}
           className="w-full bg-brand text-white py-3 rounded-xl font-medium hover:bg-brand-hover disabled:opacity-50 transition-colors shadow-sm"
         >
           {loading ? 'Abriendo...' : 'Abrir Caja'}
         </button>
-      </div>
+      </form>
     </div>
   )
 }
