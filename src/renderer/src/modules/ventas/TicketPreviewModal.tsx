@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Check, Download, Printer } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Check, Download, Printer, Settings } from 'lucide-react'
 import type { Sale, AppSetting } from '@shared/types'
 import { Button, Modal } from '../../components/ui'
 import { renderTicket, type TicketWidth } from '../../lib/ticket'
@@ -23,9 +24,11 @@ export default function TicketPreviewModal({
   onClose,
   closeLabel = 'Nueva Venta'
 }: Props) {
+  const navigate = useNavigate()
   const [business, setBusiness] = useState({ name: '', address: '', phone: '' })
   const [width, setWidth] = useState<TicketWidth>(80)
   const [printing, setPrinting] = useState(false)
+  const [printerReady, setPrinterReady] = useState<boolean | null>(null)
 
   useEffect(() => {
     window.api.settings.getAll().then((rows: AppSetting[]) => {
@@ -38,27 +41,31 @@ export default function TicketPreviewModal({
       const w = map.get('thermal_printer_width')
       setWidth(w === '58' ? 58 : 80)
     })
+    window.api.print.hasConfig().then(setPrinterReady)
   }, [])
+
+  const goToPrinterSettings = (): void => {
+    onClose()
+    navigate('/configuracion')
+  }
 
   const ticket = renderTicket({ sale, business, width, cashReceived, change })
 
   const handlePrint = async (): Promise<void> => {
     setPrinting(true)
-    try {
-      await window.api.print.ticket({
-        lines: ticket.lines.map((l) => ({
-          text: l.text,
-          bold: l.bold,
-          emphasized: l.emphasized
-        })),
-        cut: true
-      })
+    const result = await window.api.print.ticket({
+      lines: ticket.lines.map((l) => ({
+        text: l.text,
+        bold: l.bold,
+        emphasized: l.emphasized
+      })),
+      cut: true
+    })
+    setPrinting(false)
+    if (result.ok) {
       toast.success('Ticket enviado a la impresora')
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'No se pudo imprimir'
-      toast.error(msg)
-    } finally {
-      setPrinting(false)
+    } else {
+      toast.error(result.error)
     }
   }
 
@@ -88,9 +95,19 @@ export default function TicketPreviewModal({
           <Button variant="secondary" onClick={handlePdf}>
             <Download size={16} /> PDF
           </Button>
-          <Button onClick={handlePrint} disabled={printing}>
-            <Printer size={16} /> {printing ? 'Imprimiendo…' : 'Imprimir'}
-          </Button>
+          {printerReady === false ? (
+            <Button variant="secondary" onClick={goToPrinterSettings}>
+              <Settings size={16} /> Configurar impresora
+            </Button>
+          ) : (
+            <Button
+              onClick={handlePrint}
+              disabled={printing || printerReady === null}
+              title={printerReady === null ? 'Verificando impresora…' : undefined}
+            >
+              <Printer size={16} /> {printing ? 'Imprimiendo…' : 'Imprimir'}
+            </Button>
+          )}
           <Button variant="primary" onClick={onClose}>
             {closeLabel}
           </Button>
@@ -104,6 +121,17 @@ export default function TicketPreviewModal({
             <span className="text-xl font-bold text-success-700 tabular-nums">
               {formatGs(change)}
             </span>
+          </div>
+        )}
+        {printerReady === false && (
+          <div className="flex items-start gap-3 bg-warning-50 text-warning-700 rounded-xl px-4 py-3">
+            <Printer size={18} className="shrink-0 mt-0.5" />
+            <div className="flex-1 text-sm">
+              <p className="font-medium">No hay impresora térmica configurada</p>
+              <p className="text-xs opacity-90 mt-0.5">
+                Podés guardar el ticket como PDF o configurar una impresora desde Configuración.
+              </p>
+            </div>
           </div>
         )}
         <div className="bg-surface-muted/40 rounded-xl p-4 max-h-[60vh] overflow-y-auto">

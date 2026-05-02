@@ -144,7 +144,9 @@ interface PrintTicketLine {
 }
 
 interface ApiPrint {
-  ticket(payload: { lines: PrintTicketLine[]; cut?: boolean }): Promise<{ ok: true }>
+  ticket(payload: { lines: PrintTicketLine[]; cut?: boolean }): Promise<
+    { ok: true } | { ok: false; error: string }
+  >
   hasConfig(): Promise<boolean>
 }
 
