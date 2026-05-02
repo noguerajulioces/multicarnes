@@ -15,9 +15,34 @@ export function getImagesDir(): string {
 
 function runMigrations(db: Database.Database): void {
   // Add image column if it doesn't exist
-  const cols = db.prepare("PRAGMA table_info(products)").all() as { name: string }[]
-  if (!cols.find((c) => c.name === 'image')) {
+  const productsCols = db.prepare("PRAGMA table_info(products)").all() as { name: string }[]
+  if (!productsCols.find((c) => c.name === 'image')) {
     db.exec('ALTER TABLE products ADD COLUMN image TEXT')
+  }
+
+  // Add document/document_type columns to customers if they don't exist
+  const customersCols = db.prepare("PRAGMA table_info(customers)").all() as { name: string }[]
+  const hasDocument = !!customersCols.find((c) => c.name === 'document')
+  const hasDocumentType = !!customersCols.find((c) => c.name === 'document_type')
+  const hasCi = !!customersCols.find((c) => c.name === 'ci')
+  const hasRuc = !!customersCols.find((c) => c.name === 'ruc')
+
+  if (!hasDocument) db.exec('ALTER TABLE customers ADD COLUMN document TEXT')
+  if (!hasDocumentType) db.exec('ALTER TABLE customers ADD COLUMN document_type TEXT')
+
+  // Backfill document/document_type from legacy ci/ruc columns if present
+  if (hasCi || hasRuc) {
+    const ruc = hasRuc ? 'ruc' : 'NULL'
+    const ci = hasCi ? 'ci' : 'NULL'
+    db.exec(`
+      UPDATE customers
+      SET document = COALESCE(${ruc}, ${ci}),
+          document_type = CASE
+            WHEN ${ruc} IS NOT NULL THEN 'RUC'
+            WHEN ${ci} IS NOT NULL THEN 'CI'
+          END
+      WHERE document IS NULL AND (${ruc} IS NOT NULL OR ${ci} IS NOT NULL)
+    `)
   }
 
   // Add schedule backup settings if missing

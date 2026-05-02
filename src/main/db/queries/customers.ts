@@ -3,8 +3,14 @@ import { getDb } from '../index'
 export function getAllCustomers(search?: string) {
   const db = getDb()
   if (search) {
-    return db.prepare('SELECT * FROM customers WHERE name LIKE ? ORDER BY name')
-      .all(`%${search}%`)
+    const term = `%${search}%`
+    return db
+      .prepare(`
+        SELECT * FROM customers
+        WHERE name LIKE ? OR phone LIKE ? OR document LIKE ?
+        ORDER BY name
+      `)
+      .all(term, term, term)
   }
   return db.prepare('SELECT * FROM customers ORDER BY name').all()
 }
@@ -13,14 +19,29 @@ export function getCustomerById(id: number) {
   return getDb().prepare('SELECT * FROM customers WHERE id = ?').get(id)
 }
 
-export function createCustomer(data: { name: string; phone?: string; address?: string; is_employee?: boolean }) {
+export function createCustomer(data: {
+  name: string; phone?: string; address?: string;
+  document?: string; document_type?: 'CI' | 'RUC' | null;
+  is_employee?: boolean
+}) {
   const result = getDb()
-    .prepare('INSERT INTO customers (name, phone, address, is_employee) VALUES (?, ?, ?, ?)')
-    .run(data.name, data.phone || null, data.address || null, data.is_employee ? 1 : 0)
+    .prepare('INSERT INTO customers (name, phone, address, document, document_type, is_employee) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(
+      data.name,
+      data.phone || null,
+      data.address || null,
+      data.document || null,
+      data.document ? data.document_type || null : null,
+      data.is_employee ? 1 : 0
+    )
   return getCustomerById(result.lastInsertRowid as number)
 }
 
-export function updateCustomer(id: number, data: { name?: string; phone?: string; address?: string; is_employee?: boolean }) {
+export function updateCustomer(id: number, data: {
+  name?: string; phone?: string; address?: string;
+  document?: string; document_type?: 'CI' | 'RUC' | null;
+  is_employee?: boolean
+}) {
   const db = getDb()
   const fields: string[] = []
   const params: unknown[] = []
@@ -28,6 +49,10 @@ export function updateCustomer(id: number, data: { name?: string; phone?: string
   if (data.name !== undefined) { fields.push('name = ?'); params.push(data.name) }
   if (data.phone !== undefined) { fields.push('phone = ?'); params.push(data.phone || null) }
   if (data.address !== undefined) { fields.push('address = ?'); params.push(data.address || null) }
+  if (data.document !== undefined) {
+    fields.push('document = ?'); params.push(data.document || null)
+    fields.push('document_type = ?'); params.push(data.document ? data.document_type || null : null)
+  }
   if (data.is_employee !== undefined) { fields.push('is_employee = ?'); params.push(data.is_employee ? 1 : 0) }
 
   if (fields.length > 0) {

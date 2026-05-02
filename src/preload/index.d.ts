@@ -50,7 +50,7 @@ interface ApiSales {
 interface ApiCustomers {
   getAll(search?: string): Promise<Customer[]>
   getById(id: number): Promise<Customer | null>
-  create(data: { name: string; phone?: string; address?: string; is_employee?: boolean }): Promise<Customer>
+  create(data: { name: string; phone?: string; address?: string; document?: string; document_type?: 'CI' | 'RUC' | null; is_employee?: boolean }): Promise<Customer>
   update(id: number, data: Partial<Customer>): Promise<Customer>
   addPayment(customerId: number, userId: number, amount: number, note?: string): Promise<Customer>
   getPayments(customerId: number): Promise<CustomerPayment[]>

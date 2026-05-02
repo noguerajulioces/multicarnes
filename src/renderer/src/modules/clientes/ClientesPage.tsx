@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs } from '../../lib/utils'
-import type { Customer } from '@shared/types'
+import type { Customer, DocumentType } from '@shared/types'
 import { Search, Plus, Eye, Edit2, UserCheck } from 'lucide-react'
 import {
   Badge,
@@ -10,10 +10,18 @@ import {
   EmptyState,
   Input,
   Modal,
-  PageHeader
+  PageHeader,
+  Select
 } from '../../components/ui'
 
-const emptyForm = { name: '', phone: '', address: '', is_employee: false }
+const emptyForm: {
+  name: string
+  phone: string
+  address: string
+  document: string
+  document_type: DocumentType
+  is_employee: boolean
+} = { name: '', phone: '', address: '', document: '', document_type: 'CI', is_employee: false }
 
 export default function ClientesPage() {
   const navigate = useNavigate()
@@ -47,6 +55,8 @@ export default function ClientesPage() {
       name: c.name,
       phone: c.phone || '',
       address: c.address || '',
+      document: c.document || '',
+      document_type: c.document_type || 'CI',
       is_employee: !!c.is_employee
     })
     setEditId(c.id)
@@ -90,7 +100,7 @@ export default function ClientesPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-10 rounded-xl"
-          placeholder="Buscar por nombre..."
+          placeholder="Buscar por nombre, teléfono o documento..."
         />
       </div>
 
@@ -100,6 +110,7 @@ export default function ClientesPage() {
             <thead>
               <tr className="bg-surface-muted/60 text-left text-text-muted">
                 <th className="px-4 py-3 font-medium">Nombre</th>
+                <th className="px-4 py-3 font-medium">Documento</th>
                 <th className="px-4 py-3 font-medium">Teléfono</th>
                 <th className="px-4 py-3 font-medium text-right">Saldo</th>
                 <th className="px-4 py-3 font-medium">Tipo</th>
@@ -115,6 +126,16 @@ export default function ClientesPage() {
                     className="border-t border-border hover:bg-surface-muted/40 transition-colors"
                   >
                     <td className="px-4 py-3 font-medium text-text-main">{c.name}</td>
+                    <td className="px-4 py-3 text-text-muted">
+                      {c.document ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Badge tone="neutral">{c.document_type || 'Doc'}</Badge>
+                          <span className="tabular-nums">{c.document}</span>
+                        </span>
+                      ) : (
+                        <span className="text-text-disabled">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-text-muted">
                       {c.phone || <span className="text-text-disabled">—</span>}
                     </td>
@@ -155,7 +176,7 @@ export default function ClientesPage() {
               })}
               {customers.length === 0 && (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     {search ? (
                       <EmptyState
                         icon={<Search size={40} />}
@@ -208,6 +229,27 @@ export default function ClientesPage() {
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               autoFocus
             />
+          </div>
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">Documento</label>
+            <div className="flex gap-2">
+              <Select
+                value={form.document_type}
+                onChange={(e) =>
+                  setForm({ ...form, document_type: e.target.value as DocumentType })
+                }
+                className="w-24"
+              >
+                <option value="CI">CI</option>
+                <option value="RUC">RUC</option>
+              </Select>
+              <Input
+                value={form.document}
+                onChange={(e) => setForm({ ...form, document: e.target.value })}
+                placeholder="Número"
+                className="flex-1 tabular-nums"
+              />
+            </div>
           </div>
           <div>
             <label className="block text-sm text-text-muted mb-1.5">Teléfono</label>

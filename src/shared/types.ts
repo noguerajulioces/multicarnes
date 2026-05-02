@@ -35,11 +35,15 @@ export interface Product {
   updated_at?: string
 }
 
+export type DocumentType = 'CI' | 'RUC'
+
 export interface Customer {
   id: number
   name: string
   phone: string | null
   address: string | null
+  document: string | null
+  document_type: DocumentType | null
   is_employee: boolean
   balance: number
   created_at?: string

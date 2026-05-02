@@ -141,7 +141,7 @@ export default function ClienteFichaPage() {
                 <h1 className="text-2xl font-bold text-text-main">{customer.name}</h1>
                 {customer.is_employee && <Badge tone="info">Empleado</Badge>}
               </div>
-              <div className="mt-2 flex flex-col sm:flex-row sm:gap-4 gap-1 text-sm text-text-muted">
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
                 <span className="inline-flex items-center gap-1.5">
                   <Phone size={14} />
                   {customer.phone || (
@@ -154,6 +154,11 @@ export default function ClienteFichaPage() {
                     <span className="text-text-disabled">Sin dirección</span>
                   )}
                 </span>
+                {customer.document && (
+                  <span className="inline-flex items-center gap-1.5 tabular-nums">
+                    {customer.document_type || 'Doc'}: {customer.document}
+                  </span>
+                )}
               </div>
             </div>
           </CardBody>

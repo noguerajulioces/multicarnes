@@ -32,13 +32,15 @@ export function createTables(db: Database.Database): void {
     );
 
     CREATE TABLE IF NOT EXISTS customers (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      name        TEXT NOT NULL,
-      phone       TEXT,
-      address     TEXT,
-      is_employee INTEGER NOT NULL DEFAULT 0,
-      balance     INTEGER NOT NULL DEFAULT 0,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      name          TEXT NOT NULL,
+      phone         TEXT,
+      address       TEXT,
+      document      TEXT,
+      document_type TEXT,
+      is_employee   INTEGER NOT NULL DEFAULT 0,
+      balance       INTEGER NOT NULL DEFAULT 0,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS suppliers (
