@@ -15,13 +15,14 @@ Desktop Point of Sale (POS) system for **Multicarnes S.R.L.** (Encarnación, Par
 ## Features
 
 - **Sales (POS)** with name or barcode search, support for products by kg or by unit, discounts, and payments in cash, transfer, credit (fiado), or mixed.
-- **Cash management** with opening, closing, and reconciliation, manual income/expense logging, and shift summaries.
+- **Cash management** with opening (zero balance allowed with explicit confirmation), closing, and reconciliation, manual income/expense logging, and shift summaries.
 - **Products and stock** with categories, low-stock alerts, audited adjustments, and traceability.
 - **Purchases and suppliers** with purchase orders, goods reception, and cost history.
 - **Customers** with credit balances, payment recording, and full activity sheet.
 - **Reports** for sales by period, top products, profit margins, stock movements, and cash closures, exportable to Excel and PDF.
 - **Users and roles** (Admin, Supervisor, Cashier) with PIN authentication hashed with bcrypt.
-- **Thermal printing** of receipts (58 mm / 80 mm) via `node-thermal-printer`.
+- **Self-service profile** at `/perfil` (avatar in header or user block in sidebar) so any user can review their account and change their own PIN, with current-PIN verification.
+- **Receipt rendering pipeline** — a single source of truth produces three outputs: an on-screen preview, a downloadable PDF (`jspdf`), and an ESC/POS print stream (`node-thermal-printer`) for 58 mm / 80 mm thermal printers.
 - **Backups** of the database, automated on cash closure with manual restore.
 
 ## Tech stack
@@ -114,9 +115,22 @@ Initial data (seed):
 | Cash register (open / view) | ✓ | ✓ | ✓ |
 | Cash closure | ✓ | ✓ | ✗ |
 | Sales | ✓ | ✓ | ✓ |
+| Profile / change own PIN | ✓ | ✓ | ✓ |
 | Products (edit) | ✓ | ✓ | ✗ |
 | Purchases / Customers / Reports | ✓ | ✓ | ✗ |
 | Users / Settings | ✓ | ✗ | ✗ |
+
+## Receipt printing
+
+The receipt pipeline is centralised in [`src/renderer/src/lib/ticket.ts`](src/renderer/src/lib/ticket.ts), which converts a `Sale` plus business settings into a paper-aware list of formatted lines. From that single representation:
+
+- [`Ticket.tsx`](src/renderer/src/modules/ventas/Ticket.tsx) renders an on-screen preview using a monospaced font and the exact target paper width (220 px for 58 mm, 320 px for 80 mm).
+- [`ticket-pdf.ts`](src/renderer/src/lib/ticket-pdf.ts) exports the same lines to a PDF sized to the paper width.
+- [`print.ipc.ts`](src/main/ipc/print.ipc.ts) sends the lines to a thermal printer via `node-thermal-printer`.
+
+After confirming a sale, [`TicketPreviewModal`](src/renderer/src/modules/ventas/TicketPreviewModal.tsx) opens with the preview and three actions: **PDF**, **Imprimir** and **Nueva Venta**. The print button checks for a configured printer in advance; if none is set, it is replaced by **Configurar impresora**, which navigates to Settings. The IPC handler returns `{ ok, error? }` instead of throwing, keeping the dev console free of stack traces for expected failures (no printer configured, printer offline).
+
+To configure a printer, go to **Configuración → Impresora térmica** and fill in the OS-reported printer name and paper width.
 
 ## Documentation
 
@@ -131,7 +145,17 @@ All project documentation lives in [`docs/`](docs/README.md). Start at the [docs
 All notable changes to this project are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### [Unreleased]
+#### Added
 - Onboarding tour for first-time users (`@reactour/tour`).
+- Self-service profile page at `/perfil` with PIN change protected by current-PIN verification; reachable from the avatar dropdown in the header and from the user block in the sidebar (which now reflects the active route).
+- Receipt rendering pipeline: shared text generator + on-screen preview + PDF export + thermal print, all driven by the same source. Preview modal opens automatically after a successful sale.
+- Smooth POS entry transition (branded splash with fade-in) when navigating to `/ventas`, regardless of cash register state.
+- Configurable minimum display time and fade-out for the boot splash window so the brand introduction is not cut short on fast renders.
+
+#### Changed
+- Cash register opening now allows a zero starting balance with an explicit confirmation dialog; pressing Enter submits the form.
+- Print IPC contract returns `{ ok, error? }` instead of throwing, eliminating noisy stack traces in the dev console for expected failures.
+- Windows / macOS icon configuration cleaned up and made explicit in `electron-builder.yml`; runtime icon for `BrowserWindow` selected per platform.
 
 ### [1.0.0] — 2026-04
 #### Added
