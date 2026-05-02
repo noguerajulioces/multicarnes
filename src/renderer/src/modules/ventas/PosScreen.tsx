@@ -5,11 +5,28 @@ import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { Badge, EmptyState, Button } from '../../components/ui'
 import VentasPage from './VentasPage'
+import logo from '../../assets/logo.png'
+
+const SPLASH_MIN_MS = 600
+const SPLASH_FADE_MS = 300
 
 export default function PosScreen() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const register = useCashStore((s) => s.register)
+  const [splashState, setSplashState] = useState<'visible' | 'fading' | 'gone'>('visible')
+
+  useEffect(() => {
+    const fadeTimer = setTimeout(() => setSplashState('fading'), SPLASH_MIN_MS)
+    const goneTimer = setTimeout(
+      () => setSplashState('gone'),
+      SPLASH_MIN_MS + SPLASH_FADE_MS
+    )
+    return () => {
+      clearTimeout(fadeTimer)
+      clearTimeout(goneTimer)
+    }
+  }, [])
 
   if (!user) {
     return (
@@ -25,16 +42,47 @@ export default function PosScreen() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-bg-secondary">
-      <PosHeader
-        userName={user.name}
-        cashOpen={register != null}
-        onClose={() => navigate('/dashboard')}
-        onCloseRegister={() => navigate('/caja/cierre')}
-      />
-      <div className="flex-1 min-h-0 p-4">
-        <VentasPage />
+    <div className="h-full relative bg-bg-secondary">
+      <div
+        className="h-full flex flex-col"
+        style={{ animation: 'fadeIn 260ms ease-out both' }}
+      >
+        <PosHeader
+          userName={user.name}
+          cashOpen={register != null}
+          onClose={() => navigate('/dashboard')}
+          onCloseRegister={() => navigate('/caja/cierre')}
+        />
+        <div className="flex-1 min-h-0 p-4">
+          <VentasPage />
+        </div>
       </div>
+      {splashState !== 'gone' && <PosSplash fading={splashState === 'fading'} />}
+    </div>
+  )
+}
+
+function PosSplash({ fading }: { fading: boolean }): React.ReactElement {
+  return (
+    <div
+      aria-hidden={fading}
+      className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-brand text-white"
+      style={{
+        animation: fading ? `fadeOut ${SPLASH_FADE_MS}ms ease-in forwards` : undefined,
+        pointerEvents: fading ? 'none' : 'auto'
+      }}
+    >
+      <img
+        src={logo}
+        alt="Multicarnes"
+        className="h-20 w-20 object-contain mb-4 drop-shadow"
+      />
+      <p className="text-lg font-semibold tracking-tight">Punto de Venta</p>
+      <p className="text-sm opacity-80 mt-1">Cargando…</p>
+      <span
+        className="mt-5 inline-block h-6 w-6 rounded-full border-2 border-white/30 border-t-white"
+        style={{ animation: 'spin 700ms linear infinite' }}
+      />
     </div>
   )
 }
