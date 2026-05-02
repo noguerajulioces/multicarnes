@@ -4,6 +4,7 @@ import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
 import { useHeldStore } from '../../store/held.store'
 import { useTourStore } from '../../store/tour.store'
+import { ventasTourSteps } from '../../lib/tour-steps'
 import { formatGs, formatDateTime } from '../../lib/utils'
 import { parseBalanceCode } from '../../lib/balance-code'
 import { toast } from '../../lib/toast'
@@ -29,9 +30,9 @@ import CobroModal from './CobroModal'
 
 export default function VentasPage() {
   const register = useCashStore((s) => s.register)
-  const { setIsOpen: setTourOpen, setCurrentStep } = useTour()
-  const ventasSeen = useTourStore((s) => s.ventasSeen)
-  const markVentasSeen = useTourStore((s) => s.markVentasSeen)
+  const { setIsOpen: setTourOpen, setCurrentStep, setSteps } = useTour()
+  const ventasSeen = useTourStore((s) => s.seen.ventas)
+  const markSeen = useTourStore((s) => s.markSeen)
   const {
     items, discount, addItem, updateQuantity, removeItem, setDiscount, clear, restore,
     subtotal, total
@@ -62,14 +63,16 @@ export default function VentasPage() {
   useEffect(() => {
     if (!register || ventasSeen) return
     const id = setTimeout(() => {
+      setSteps?.(ventasTourSteps)
       setCurrentStep(0)
       setTourOpen(true)
-      markVentasSeen()
+      markSeen('ventas')
     }, 600)
     return () => clearTimeout(id)
-  }, [register, ventasSeen, setCurrentStep, setTourOpen, markVentasSeen])
+  }, [register, ventasSeen, setSteps, setCurrentStep, setTourOpen, markSeen])
 
   const startTour = () => {
+    setSteps?.(ventasTourSteps)
     setCurrentStep(0)
     setTourOpen(true)
   }

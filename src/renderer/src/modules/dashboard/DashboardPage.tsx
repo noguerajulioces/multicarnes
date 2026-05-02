@@ -1,9 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ShoppingCart, Wallet, Receipt, AlertTriangle, Package } from 'lucide-react'
+import { useTour } from '@reactour/tour'
+import {
+  Plus,
+  ShoppingCart,
+  Wallet,
+  Receipt,
+  AlertTriangle,
+  Package,
+  HelpCircle
+} from 'lucide-react'
 import { formatGs } from '../../lib/utils'
 import { Card, CardBody, CardHeader, KpiCard } from '../../components/ui'
 import { useAuthStore } from '../../store/auth.store'
+import { useTourStore } from '../../store/tour.store'
+import { dashboardManagerTourSteps, dashboardCajeroTourSteps } from '../../lib/tour-steps'
 import type { Product, Sale } from '@shared/types'
 import { SalesBarChart, type SalesBarPoint } from './components/SalesBarChart'
 import { TopProductsDonut, type TopProductSlice } from './components/TopProductsDonut'
@@ -117,6 +128,9 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const isCajero = user?.role === 'cajero'
+  const { setIsOpen: setTourOpen, setCurrentStep, setSteps } = useTour()
+  const dashboardSeen = useTourStore((s) => s.seen.dashboard)
+  const markSeen = useTourStore((s) => s.markSeen)
 
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('6m')
   const [donutPeriod, setDonutPeriod] = useState<DonutPeriod>('30d')
@@ -185,6 +199,25 @@ export default function DashboardPage() {
       .finally(() => setDonutLoading(false))
   }, [donutPeriod, isCajero])
 
+  const tourSteps = isCajero ? dashboardCajeroTourSteps : dashboardManagerTourSteps
+
+  useEffect(() => {
+    if (headerLoading || dashboardSeen) return
+    const id = setTimeout(() => {
+      setSteps?.(tourSteps)
+      setCurrentStep(0)
+      setTourOpen(true)
+      markSeen('dashboard')
+    }, 600)
+    return () => clearTimeout(id)
+  }, [headerLoading, dashboardSeen, tourSteps, setSteps, setCurrentStep, setTourOpen, markSeen])
+
+  const startTour = () => {
+    setSteps?.(tourSteps)
+    setCurrentStep(0)
+    setTourOpen(true)
+  }
+
   const chartData = useMemo(() => buildChartData(byDay, chartPeriod), [byDay, chartPeriod])
 
   const donutData: TopProductSlice[] = useMemo(
@@ -213,16 +246,28 @@ export default function DashboardPage() {
             </h1>
             <p className="text-sm text-text-muted mt-0.5">Tu panel de trabajo de hoy</p>
           </div>
-          <button
-            onClick={() => navigate('/ventas')}
-            className="bg-brand text-white px-5 py-3 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-          >
-            <Plus size={20} />
-            Nueva Venta
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={startTour}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-text-muted hover:text-text-main hover:bg-surface-muted transition-colors"
+              title="Ver tutorial del dashboard"
+            >
+              <HelpCircle size={16} />
+              Tutorial
+            </button>
+            <button
+              data-tour="dash-new-sale"
+              onClick={() => navigate('/ventas')}
+              className="bg-brand text-white px-5 py-3 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+            >
+              <Plus size={20} />
+              Nueva Venta
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div data-tour="dash-kpis" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <KpiCard
             gradient="blue"
             icon={<Receipt size={20} />}
@@ -241,7 +286,11 @@ export default function DashboardPage() {
           />
         </div>
 
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          data-tour="dash-stock"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Package size={16} className="text-text-muted" />
@@ -263,16 +312,28 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-text-main">Dashboard</h1>
           <p className="text-sm text-text-muted mt-0.5">Resumen general de tu negocio</p>
         </div>
-        <button
-          onClick={() => navigate('/ventas')}
-          className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-        >
-          <Plus size={18} />
-          Nueva Venta
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={startTour}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-text-muted hover:text-text-main hover:bg-surface-muted transition-colors"
+            title="Ver tutorial del dashboard"
+          >
+            <HelpCircle size={16} />
+            Tutorial
+          </button>
+          <button
+            data-tour="dash-new-sale"
+            onClick={() => navigate('/ventas')}
+            className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+          >
+            <Plus size={18} />
+            Nueva Venta
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div data-tour="dash-kpis" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           gradient="green"
           icon={<Wallet size={20} />}
@@ -309,6 +370,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card
+          data-tour="dash-sales-chart"
           className="xl:col-span-2 rounded-2xl"
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
@@ -337,7 +399,11 @@ export default function DashboardPage() {
           </CardBody>
         </Card>
 
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          data-tour="dash-top-products"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold text-text-main">Top Productos</h2>
@@ -353,6 +419,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card
+          data-tour="dash-recent-sales"
           className="xl:col-span-2 rounded-2xl"
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
@@ -365,7 +432,11 @@ export default function DashboardPage() {
           </CardBody>
         </Card>
 
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          data-tour="dash-stock"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Package size={16} className="text-text-muted" />

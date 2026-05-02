@@ -36,3 +36,48 @@ export const ventasTourSteps: StepType[] = [
       'Atajos rápidos: F4 descuento, F8 cancelar, F9 suspender, F12 cobrar. F1 muestra la ayuda completa.'
   }
 ]
+
+export const dashboardManagerTourSteps: StepType[] = [
+  {
+    selector: '[data-tour="dash-new-sale"]',
+    content: 'Acceso rápido a una nueva venta. También podés entrar al POS desde el menú lateral.'
+  },
+  {
+    selector: '[data-tour="dash-kpis"]',
+    content:
+      'Indicadores del día: total vendido, tickets, cobros pendientes y alertas de stock — con comparativa contra ayer.'
+  },
+  {
+    selector: '[data-tour="dash-sales-chart"]',
+    content:
+      'Evolución de ventas. Cambiá el período (7 días, 30 días, 6 meses) desde el selector de la derecha.'
+  },
+  {
+    selector: '[data-tour="dash-top-products"]',
+    content: 'Tus productos más vendidos del período seleccionado.'
+  },
+  {
+    selector: '[data-tour="dash-recent-sales"]',
+    content: 'Las últimas 8 transacciones para que sepas qué está pasando en el momento.'
+  },
+  {
+    selector: '[data-tour="dash-stock"]',
+    content:
+      'Resumen de stock con productos críticos. Revisá acá antes de hacer compras o cierres.'
+  }
+]
+
+export const dashboardCajeroTourSteps: StepType[] = [
+  {
+    selector: '[data-tour="dash-new-sale"]',
+    content: 'Empezá una nueva venta desde acá. Es tu acceso principal al POS.'
+  },
+  {
+    selector: '[data-tour="dash-kpis"]',
+    content: 'Resumen de tu turno: tickets registrados hoy y alertas de stock.'
+  },
+  {
+    selector: '[data-tour="dash-stock"]',
+    content: 'Productos con stock bajo. Avisale al encargado si ves alertas críticas.'
+  }
+]

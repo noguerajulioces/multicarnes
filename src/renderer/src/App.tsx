@@ -3,12 +3,11 @@ import { TourProvider } from '@reactour/tour'
 import TitleBar from './components/TitleBar'
 import { Toaster, ConfirmHost, HotkeysHelp } from './components/ui'
 import AppRouter from './router'
-import { ventasTourSteps } from './lib/tour-steps'
 
 function App(): React.JSX.Element {
   return (
     <TourProvider
-      steps={ventasTourSteps}
+      steps={[]}
       padding={{ mask: 6, popover: 12 }}
       styles={{
         popover: (base) => ({
