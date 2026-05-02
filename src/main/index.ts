@@ -16,6 +16,13 @@ import { registerNotificationsIpc } from './ipc/notifications.ipc'
 import { pathToFileURL } from 'url'
 
 let splashWindow: BrowserWindow | null = null
+let splashShownAt = 0
+
+// Minimum time the splash stays visible after it actually appears, in ms.
+// If the renderer is ready sooner, we wait this long; if it takes longer,
+// no extra delay is added.
+const SPLASH_MIN_MS = 1500
+const SPLASH_FADE_MS = 250
 
 function createSplash(): BrowserWindow {
   const splash = new BrowserWindow({
@@ -31,8 +38,38 @@ function createSplash(): BrowserWindow {
     backgroundColor: '#CC1C1C'
   })
   splash.loadFile(join(__dirname, '../../resources/splash.html'))
-  splash.once('ready-to-show', () => splash.show())
+  splash.once('ready-to-show', () => {
+    splashShownAt = Date.now()
+    splash.show()
+  })
   return splash
+}
+
+function closeSplashWithFade(onClosed: () => void): void {
+  if (!splashWindow || splashWindow.isDestroyed()) {
+    onClosed()
+    return
+  }
+  const win = splashWindow
+  const steps = 10
+  const stepMs = SPLASH_FADE_MS / steps
+  let i = 0
+  const tick = (): void => {
+    if (!win || win.isDestroyed()) {
+      onClosed()
+      return
+    }
+    i += 1
+    win.setOpacity(Math.max(0, 1 - i / steps))
+    if (i >= steps) {
+      win.close()
+      splashWindow = null
+      onClosed()
+      return
+    }
+    setTimeout(tick, stepMs)
+  }
+  setTimeout(tick, stepMs)
 }
 
 function createWindow(): void {
@@ -61,12 +98,14 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.close()
-      splashWindow = null
-    }
-    mainWindow.maximize()
-    mainWindow.show()
+    const elapsed = splashShownAt > 0 ? Date.now() - splashShownAt : SPLASH_MIN_MS
+    const remaining = Math.max(0, SPLASH_MIN_MS - elapsed)
+    setTimeout(() => {
+      closeSplashWithFade(() => {
+        mainWindow.maximize()
+        mainWindow.show()
+      })
+    }, remaining)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
