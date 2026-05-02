@@ -49,7 +49,7 @@ interface ApiSales {
 }
 
 interface ApiCustomers {
-  getAll(opts?: { search?: string } & PageOpts): Promise<Paginated<Customer>>
+  getAll(opts?: { search?: string; isEmployee?: boolean } & PageOpts): Promise<Paginated<Customer>>
   getById(id: number): Promise<Customer | null>
   create(data: { name: string; phone?: string; address?: string; document?: string; document_type?: 'CI' | 'RUC' | null; is_employee?: boolean }): Promise<Customer>
   update(id: number, data: Partial<Customer>): Promise<Customer>

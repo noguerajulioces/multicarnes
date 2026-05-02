@@ -97,13 +97,7 @@ function buildChartData(byDay: SalesSummaryByDay[], period: ChartPeriod): SalesB
       const label = d.toLocaleDateString('es-PY', { month: 'short' })
       months.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1, 3) })
     }
-    const points = months.map((m) => ({
-      label: m.label,
-      ventas: buckets.get(m.key) ?? 0,
-      target: 0
-    }))
-    const maxVentas = Math.max(...points.map((p) => p.ventas), 0)
-    return points.map((p) => ({ ...p, target: Math.round(maxVentas * 1.15) }))
+    return months.map((m) => ({ label: m.label, ventas: buckets.get(m.key) ?? 0 }))
   }
 
   const days = period === '7d' ? 7 : 30
@@ -118,10 +112,9 @@ function buildChartData(byDay: SalesSummaryByDay[], period: ChartPeriod): SalesB
       period === '7d'
         ? d.toLocaleDateString('es-PY', { weekday: 'short' }).slice(0, 3)
         : `${d.getDate()}`
-    out.push({ label, ventas: map.get(key) ?? 0, target: 0 })
+    out.push({ label, ventas: map.get(key) ?? 0 })
   }
-  const maxVentas = Math.max(...out.map((p) => p.ventas), 0)
-  return out.map((p) => ({ ...p, target: Math.round(maxVentas * 1.15) }))
+  return out
 }
 
 export default function DashboardPage() {
@@ -377,25 +370,12 @@ export default function DashboardPage() {
           <CardHeader className="flex items-center justify-between">
             <div>
               <h2 className="font-semibold text-text-main">Ventas</h2>
-              <p className="text-xs text-text-muted">Comparativa por período</p>
+              <p className="text-xs text-text-muted">Total por período</p>
             </div>
             <PeriodSelector value={chartPeriod} options={chartPeriods} onChange={setChartPeriod} />
           </CardHeader>
           <CardBody>
             <SalesBarChart data={chartData} loading={chartLoading} />
-            <div className="flex items-center gap-4 text-xs text-text-muted pt-3">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-brand" />
-                Ventas
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ background: '#A78BFA', opacity: 0.6 }}
-                />
-                Meta
-              </span>
-            </div>
           </CardBody>
         </Card>
 

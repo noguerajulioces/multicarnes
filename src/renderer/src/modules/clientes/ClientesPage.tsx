@@ -32,30 +32,40 @@ export default function ClientesPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [filterType, setFilterType] = useState<'all' | 'customers' | 'employees'>('all')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [editId, setEditId] = useState<number | null>(null)
 
   useEffect(() => {
     setPage(1)
-  }, [search])
+  }, [search, filterType])
+
+  const buildOpts = (): {
+    search?: string
+    isEmployee?: boolean
+    page: number
+    perPage: number
+  } => ({
+    search: search || undefined,
+    isEmployee:
+      filterType === 'employees' ? true : filterType === 'customers' ? false : undefined,
+    page,
+    perPage: PER_PAGE
+  })
 
   useEffect(() => {
-    window.api.customers
-      .getAll({ search: search || undefined, page, perPage: PER_PAGE })
-      .then((res) => {
-        setCustomers(res.items)
-        setTotal(res.total)
-      })
-  }, [search, page])
+    window.api.customers.getAll(buildOpts()).then((res) => {
+      setCustomers(res.items)
+      setTotal(res.total)
+    })
+  }, [search, filterType, page])
 
   const reload = (): void => {
-    window.api.customers
-      .getAll({ search: search || undefined, page, perPage: PER_PAGE })
-      .then((res) => {
-        setCustomers(res.items)
-        setTotal(res.total)
-      })
+    window.api.customers.getAll(buildOpts()).then((res) => {
+      setCustomers(res.items)
+      setTotal(res.total)
+    })
   }
 
   const handleSave = async (): Promise<void> => {
@@ -110,17 +120,28 @@ export default function ClientesPage() {
         }
       />
 
-      <div className="relative max-w-md">
-        <Search
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
-          size={16}
-        />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 rounded-xl"
-          placeholder="Buscar por nombre, teléfono o documento..."
-        />
+      <div className="flex gap-3 flex-wrap items-center">
+        <div className="relative flex-1 min-w-[260px] max-w-md">
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
+            size={16}
+          />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 rounded-xl"
+            placeholder="Buscar por nombre, teléfono o documento..."
+          />
+        </div>
+        <Select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value as 'all' | 'customers' | 'employees')}
+          className="w-auto min-w-[160px] rounded-xl"
+        >
+          <option value="all">Todos</option>
+          <option value="customers">Solo clientes</option>
+          <option value="employees">Solo empleados</option>
+        </Select>
       </div>
 
       <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>

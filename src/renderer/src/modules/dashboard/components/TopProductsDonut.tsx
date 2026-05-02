@@ -65,7 +65,7 @@ export function TopProductsDonut({ data, loading }: TopProductsDonutProps) {
               stroke="var(--color-surface)"
               strokeWidth={2}
               label={({ percent }) =>
-                percent != null && percent > 0.08 ? `${Math.round(percent * 100)}%` : ''
+                percent != null && percent > 8 ? `${Math.round(percent)}%` : ''
               }
               labelLine={false}
             >

@@ -1,14 +1,19 @@
 import { getDb } from '../index'
 
-export function getAllCustomers(opts: { search?: string; page?: number; perPage?: number } = {}) {
+export function getAllCustomers(opts: { search?: string; isEmployee?: boolean; page?: number; perPage?: number } = {}) {
   const db = getDb()
   const params: unknown[] = []
-  let where = ''
+  const conditions: string[] = []
   if (opts.search) {
     const term = `%${opts.search}%`
-    where = 'WHERE name LIKE ? OR phone LIKE ? OR document LIKE ?'
+    conditions.push('(name LIKE ? OR phone LIKE ? OR document LIKE ?)')
     params.push(term, term, term)
   }
+  if (opts.isEmployee !== undefined) {
+    conditions.push('is_employee = ?')
+    params.push(opts.isEmployee ? 1 : 0)
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
   const total = (db.prepare(`SELECT COUNT(*) as c FROM customers ${where}`).get(...params) as { c: number }).c
   const isPaginated = opts.page !== undefined
   const page = Math.max(1, opts.page ?? 1)
