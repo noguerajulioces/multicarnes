@@ -20,38 +20,6 @@ function runMigrations(db: Database.Database): void {
     db.exec('ALTER TABLE products ADD COLUMN image TEXT')
   }
 
-  // Drop old CHECK(price_type IN ('unit','kg')) constraint to allow new types
-  const productsSql = db
-    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='products'")
-    .get() as { sql: string } | undefined
-  if (productsSql && productsSql.sql.includes("CHECK(price_type IN ('unit','kg'))")) {
-    db.exec(`
-      PRAGMA foreign_keys=off;
-      BEGIN TRANSACTION;
-      ALTER TABLE products RENAME TO _products_legacy;
-      CREATE TABLE products (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        category_id INTEGER REFERENCES categories(id),
-        name        TEXT NOT NULL,
-        barcode     TEXT UNIQUE,
-        price       INTEGER NOT NULL DEFAULT 0,
-        price_type  TEXT NOT NULL DEFAULT 'unit',
-        stock       REAL NOT NULL DEFAULT 0,
-        min_stock   REAL NOT NULL DEFAULT 0,
-        image       TEXT,
-        active      INTEGER NOT NULL DEFAULT 1,
-        created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-        updated_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-      );
-      INSERT INTO products (id, category_id, name, barcode, price, price_type, stock, min_stock, image, active, created_at, updated_at)
-        SELECT id, category_id, name, barcode, price, price_type, stock, min_stock, image, active, created_at, updated_at
-        FROM _products_legacy;
-      DROP TABLE _products_legacy;
-      COMMIT;
-      PRAGMA foreign_keys=on;
-    `)
-  }
-
   // Add document/document_type columns to customers if they don't exist
   const customersCols = db.prepare("PRAGMA table_info(customers)").all() as { name: string }[]
   const hasDocument = !!customersCols.find((c) => c.name === 'document')
