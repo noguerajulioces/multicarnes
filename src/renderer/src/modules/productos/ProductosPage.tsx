@@ -23,6 +23,7 @@ export default function ProductosPage() {
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState<number | ''>('')
   const [filterStock, setFilterStock] = useState(false)
+  const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('all')
   const [adjustModal, setAdjustModal] = useState<Product | null>(null)
   const [newStock, setNewStock] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
@@ -31,12 +32,18 @@ export default function ProductosPage() {
     window.api.products.categories().then(setCategories)
   }, [])
 
-  useEffect(() => {
-    const filters: Record<string, unknown> = { search: search || undefined, active: true }
+  const buildFilters = (): Record<string, unknown> => {
+    const filters: Record<string, unknown> = { search: search || undefined }
+    if (filterStatus === 'active') filters.active = true
+    else if (filterStatus === 'inactive') filters.active = false
     if (filterCat) filters.categoryId = filterCat
     if (filterStock) filters.lowStock = true
-    window.api.products.getAll(filters).then(setProducts)
-  }, [search, filterCat, filterStock])
+    return filters
+  }
+
+  useEffect(() => {
+    window.api.products.getAll(buildFilters()).then(setProducts)
+  }, [search, filterCat, filterStock, filterStatus])
 
   const handleAdjust = async (): Promise<void> => {
     if (!adjustModal || !newStock || !adjustReason || !user) return
@@ -47,7 +54,7 @@ export default function ProductosPage() {
       user.id
     )
     closeAdjustModal()
-    window.api.products.getAll({ search: search || undefined, active: true }).then(setProducts)
+    window.api.products.getAll(buildFilters()).then(setProducts)
   }
 
   const closeAdjustModal = (): void => {
@@ -75,8 +82,8 @@ export default function ProductosPage() {
         }
       />
 
-      <div className="flex gap-3 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[220px]">
+      <div className="space-y-3">
+        <div className="relative">
           <Search
             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
             size={16}
@@ -88,31 +95,42 @@ export default function ProductosPage() {
             placeholder="Buscar por nombre o código..."
           />
         </div>
-        <Select
-          value={filterCat}
-          onChange={(e) => setFilterCat(e.target.value ? Number(e.target.value) : '')}
-          className="min-w-[180px] rounded-xl"
-        >
-          <option value="">Todas las categorías</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
-        <button
-          type="button"
-          onClick={() => setFilterStock((v) => !v)}
-          className={cn(
-            'inline-flex items-center gap-2 h-10 px-3 rounded-xl text-sm font-medium border transition-colors',
-            filterStock
-              ? 'border-warning-500 bg-warning-50 text-warning-700'
-              : 'border-border bg-surface text-text-main hover:bg-surface-muted'
-          )}
-        >
-          <AlertTriangle size={14} />
-          Stock bajo
-        </button>
+        <div className="flex gap-3 flex-wrap items-center">
+          <Select
+            value={filterCat}
+            onChange={(e) => setFilterCat(e.target.value ? Number(e.target.value) : '')}
+            className="w-auto min-w-[200px] rounded-xl"
+          >
+            <option value="">Todas las categorías</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as 'active' | 'inactive' | 'all')}
+            className="w-auto min-w-[150px] rounded-xl"
+          >
+            <option value="all">Todos</option>
+            <option value="active">Activos</option>
+            <option value="inactive">Inactivos</option>
+          </Select>
+          <button
+            type="button"
+            onClick={() => setFilterStock((v) => !v)}
+            className={cn(
+              'inline-flex items-center gap-2 h-10 px-3 rounded-xl text-sm font-medium border transition-colors',
+              filterStock
+                ? 'border-warning-500 bg-warning-50 text-warning-700'
+                : 'border-border bg-surface text-text-main hover:bg-surface-muted'
+            )}
+          >
+            <AlertTriangle size={14} />
+            Stock bajo
+          </button>
+        </div>
       </div>
 
       <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
@@ -139,7 +157,7 @@ export default function ProductosPage() {
                     className="border-t border-border hover:bg-surface-muted/40 transition-colors"
                   >
                     <td className="px-4 py-3 font-medium text-text-main">
-                      <div className="flex items-center gap-3">
+                      <div className={cn('flex items-center gap-3', !p.active && 'opacity-60')}>
                         <div className="w-10 h-10 rounded-lg overflow-hidden border border-border bg-surface-muted shrink-0 flex items-center justify-center">
                           {p.image ? (
                             <img
@@ -152,6 +170,7 @@ export default function ProductosPage() {
                           )}
                         </div>
                         <span className="truncate">{p.name}</span>
+                        {!p.active && <Badge tone="neutral">Inactivo</Badge>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-text-muted">{p.category_name || '—'}</td>
