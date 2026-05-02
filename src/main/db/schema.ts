@@ -22,7 +22,7 @@ export function createTables(db: Database.Database): void {
       name        TEXT NOT NULL,
       barcode     TEXT UNIQUE,
       price       INTEGER NOT NULL DEFAULT 0,
-      price_type  TEXT NOT NULL DEFAULT 'unit' CHECK(price_type IN ('unit','kg')),
+      price_type  TEXT NOT NULL DEFAULT 'unit',
       stock       REAL NOT NULL DEFAULT 0,
       min_stock   REAL NOT NULL DEFAULT 0,
       image       TEXT,

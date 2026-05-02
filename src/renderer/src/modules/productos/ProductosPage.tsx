@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs, cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
+import { priceTypeInfo } from '../../lib/price-types'
 import type { Product, Category } from '@shared/types'
 import { Search, Plus, Eye, AlertTriangle, Package, TrendingUp, TrendingDown } from 'lucide-react'
 import {
@@ -170,6 +171,7 @@ export default function ProductosPage() {
               {products.map((p) => {
                 const low = p.stock <= p.min_stock
                 const out = p.stock <= 0
+                const pt = priceTypeInfo(p.price_type)
                 return (
                   <tr
                     key={p.id}
@@ -196,7 +198,7 @@ export default function ProductosPage() {
                     <td className="px-4 py-3 text-right tabular-nums">{formatGs(p.price)}</td>
                     <td className="px-4 py-3">
                       <Badge tone={p.price_type === 'kg' ? 'info' : 'neutral'}>
-                        {p.price_type === 'kg' ? 'Por kg' : 'Unidad'}
+                        {pt.label}
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -212,7 +214,7 @@ export default function ProductosPage() {
                             out ? 'text-danger-700' : low ? 'text-warning-700' : ''
                           )}
                         >
-                          {p.price_type === 'kg' ? p.stock.toFixed(2) : p.stock}
+                          {pt.decimals > 0 ? p.stock.toFixed(pt.decimals) : p.stock}
                         </span>
                       </div>
                     </td>
@@ -289,15 +291,15 @@ export default function ProductosPage() {
           </div>
         }
       >
-        {adjustModal && (
+        {adjustModal && (() => {
+          const adjPt = priceTypeInfo(adjustModal.price_type)
+          return (
           <div className="space-y-4">
             <div className="bg-surface-muted rounded-xl px-4 py-3">
               <p className="text-xs text-text-muted">Stock actual</p>
               <p className="text-lg font-semibold tabular-nums">
-                {adjustModal.price_type === 'kg'
-                  ? adjustModal.stock.toFixed(2)
-                  : adjustModal.stock}{' '}
-                {adjustModal.price_type === 'kg' ? 'kg' : 'u.'}
+                {adjPt.decimals > 0 ? adjustModal.stock.toFixed(adjPt.decimals) : adjustModal.stock}{' '}
+                {adjPt.unit}
               </p>
             </div>
 
@@ -307,7 +309,7 @@ export default function ProductosPage() {
                 type="number"
                 value={newStock}
                 onChange={(e) => setNewStock(e.target.value)}
-                step={adjustModal.price_type === 'kg' ? '0.01' : '1'}
+                step={adjPt.inputStep}
                 className="text-right tabular-nums"
                 autoFocus
               />
@@ -322,7 +324,7 @@ export default function ProductosPage() {
                 >
                   {stockDiff >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                   {stockDiff >= 0 ? '+' : ''}
-                  {stockDiff.toFixed(2)} {adjustModal.price_type === 'kg' ? 'kg' : 'u.'}
+                  {stockDiff.toFixed(Math.max(adjPt.decimals, 2))} {adjPt.unit}
                 </div>
               )}
             </div>

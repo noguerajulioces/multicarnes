@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { Category } from '@shared/types'
+import type { Category, PriceType } from '@shared/types'
 import { ImagePlus, Plus } from 'lucide-react'
 import {
   Button,
@@ -13,6 +13,7 @@ import {
   Select
 } from '../../components/ui'
 import { formatGs } from '../../lib/utils'
+import { PRICE_TYPE_LIST, priceTypeInfo } from '../../lib/price-types'
 
 export default function ProductoFormPage() {
   const navigate = useNavigate()
@@ -81,7 +82,7 @@ export default function ProductoFormPage() {
       category_id: form.category_id ? Number(form.category_id) : null,
       barcode: form.barcode || null,
       price: form.price,
-      price_type: form.price_type as 'unit' | 'kg',
+      price_type: form.price_type as PriceType,
       stock: parseFloat(form.stock) || 0,
       min_stock: parseFloat(form.min_stock) || 0,
       active: form.active
@@ -106,7 +107,8 @@ export default function ProductoFormPage() {
 
   const imageUrl = stagedImage?.dataUrl ?? (image ? `product-img://${image}` : null)
   const hasImage = !!imageUrl
-  const stockUnit = form.price_type === 'kg' ? 'kg' : 'u.'
+  const ptInfo = priceTypeInfo(form.price_type)
+  const stockUnit = ptInfo.unit
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
@@ -239,8 +241,11 @@ export default function ProductoFormPage() {
                 value={form.price_type}
                 onChange={(e) => setForm({ ...form, price_type: e.target.value })}
               >
-                <option value="unit">Por unidad</option>
-                <option value="kg">Por kg</option>
+                {PRICE_TYPE_LIST.map((pt) => (
+                  <option key={pt.code} value={pt.code}>
+                    {pt.label}
+                  </option>
+                ))}
               </Select>
             </div>
           </div>
@@ -254,7 +259,7 @@ export default function ProductoFormPage() {
                 type="number"
                 value={form.stock}
                 onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                step={form.price_type === 'kg' ? '0.01' : '1'}
+                step={ptInfo.inputStep}
                 min="0"
                 className="text-right tabular-nums"
               />
@@ -267,7 +272,7 @@ export default function ProductoFormPage() {
                 type="number"
                 value={form.min_stock}
                 onChange={(e) => setForm({ ...form, min_stock: e.target.value })}
-                step={form.price_type === 'kg' ? '0.01' : '1'}
+                step={ptInfo.inputStep}
                 min="0"
                 className="text-right tabular-nums"
               />

@@ -32,6 +32,7 @@ import {
 import { confirm } from '../../lib/confirm'
 import { toast } from '../../lib/toast'
 import { formatGs, formatDateTime } from '../../lib/utils'
+import { priceTypeInfo } from '../../lib/price-types'
 import { useAuthStore } from '../../store/auth.store'
 import type {
   Product,
@@ -159,7 +160,8 @@ export default function ProductoDetallePage() {
     )
   }
 
-  const stockUnit = product.price_type === 'kg' ? 'kg' : 'u.'
+  const ptInfo = priceTypeInfo(product.price_type)
+  const stockUnit = ptInfo.unit
   const imageUrl = product.image ? `product-img://${product.image}` : null
   const lowStock = product.stock <= product.min_stock
   const margin =
@@ -202,7 +204,7 @@ export default function ProductoDetallePage() {
                     <Badge tone="danger">Stock bajo</Badge>
                   )}
                   <Badge tone="neutral">
-                    {product.price_type === 'kg' ? 'Por kg' : 'Por unidad'}
+                    {ptInfo.label}
                   </Badge>
                 </div>
                 {product.barcode && (
@@ -249,7 +251,7 @@ export default function ProductoDetallePage() {
           icon={<DollarSign size={20} />}
           label="Precio actual"
           value={formatGs(product.price)}
-          hint={product.price_type === 'kg' ? 'Por kg' : 'Por unidad'}
+          hint={ptInfo.label}
         />
         <KpiCard
           gradient="purple"
@@ -413,7 +415,7 @@ export default function ProductoDetallePage() {
               type="number"
               value={adjustValue}
               onChange={(e) => setAdjustValue(e.target.value)}
-              step={product.price_type === 'kg' ? '0.01' : '1'}
+              step={ptInfo.inputStep}
               min="0"
               className="text-right tabular-nums"
               autoFocus

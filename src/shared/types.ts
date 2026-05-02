@@ -1,5 +1,5 @@
 export type Role = 'admin' | 'supervisor' | 'cajero'
-export type PriceType = 'unit' | 'kg'
+export type PriceType = 'unit' | 'kg' | 'g' | 'l' | 'ml' | 'm' | 'docena' | 'paquete'
 export type PaymentMethod = 'cash' | 'credit' | 'transfer' | 'mixed'
 export type SaleStatus = 'completed' | 'cancelled'
 export type OrderStatus = 'pending' | 'received' | 'cancelled'
