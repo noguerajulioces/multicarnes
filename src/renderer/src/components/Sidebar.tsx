@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
 import {
   LayoutDashboard,
@@ -76,6 +76,9 @@ const STORAGE_KEY = 'sidebar-collapsed'
 
 export default function Sidebar() {
   const { user, logout } = useAuthStore()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const profileActive = location.pathname === '/perfil'
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(STORAGE_KEY) === '1')
 
   useEffect(() => {
@@ -161,13 +164,35 @@ export default function Sidebar() {
       <div className={`border-t border-white/15 ${collapsed ? 'p-2' : 'px-3 py-3'}`}>
         {!collapsed ? (
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-xs font-semibold shrink-0">
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0 leading-tight">
-              <p className="text-sm font-medium truncate">{user?.name}</p>
-              <p className="text-[11px] opacity-75 capitalize">{user?.role}</p>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/perfil')}
+              title="Mi perfil"
+              aria-label="Abrir mi perfil"
+              aria-current={profileActive ? 'page' : undefined}
+              className={`relative flex-1 min-w-0 flex items-center gap-2.5 rounded-lg p-1 -m-1 transition-colors text-left ${
+                profileActive ? 'bg-white/25' : 'hover:bg-white/10'
+              }`}
+            >
+              {profileActive && (
+                <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-white" />
+              )}
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${
+                  profileActive ? 'bg-white/30' : 'bg-white/20'
+                }`}
+              >
+                {initials}
+              </div>
+              <div className="flex-1 min-w-0 leading-tight">
+                <p
+                  className={`text-sm truncate ${profileActive ? 'font-semibold' : 'font-medium'}`}
+                >
+                  {user?.name}
+                </p>
+                <p className="text-[11px] opacity-75 capitalize">{user?.role}</p>
+              </div>
+            </button>
             <button
               onClick={() => {
                 logout()
@@ -182,12 +207,20 @@ export default function Sidebar() {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1">
-            <div
-              className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-xs font-semibold"
-              title={user?.name}
+            <button
+              type="button"
+              onClick={() => navigate('/perfil')}
+              title={`Mi perfil (${user?.name ?? ''})`}
+              aria-label="Abrir mi perfil"
+              aria-current={profileActive ? 'page' : undefined}
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                profileActive
+                  ? 'bg-white/35 ring-2 ring-white/40'
+                  : 'bg-white/20 hover:bg-white/30'
+              }`}
             >
               {initials}
-            </div>
+            </button>
             <button
               onClick={() => {
                 logout()
