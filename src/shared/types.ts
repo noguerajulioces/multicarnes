@@ -119,6 +119,7 @@ export interface SaleItem {
   sale_id: number
   product_id: number
   product_name?: string
+  price_type?: PriceType
   quantity: number
   unit_price: number
   subtotal: number

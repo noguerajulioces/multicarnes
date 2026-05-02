@@ -338,7 +338,8 @@ export default function ProductosPage() {
               />
             </div>
           </div>
-        )}
+          )
+        })()}
       </Modal>
     </div>
   )

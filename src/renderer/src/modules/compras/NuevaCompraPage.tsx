@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
 import { formatGs } from '../../lib/utils'
+import { priceTypeInfo } from '../../lib/price-types'
 import type { Supplier, Product } from '@shared/types'
 import { Plus, Trash2, Package } from 'lucide-react'
 import {
@@ -298,7 +299,7 @@ export default function NuevaCompraPage() {
                       <p className="font-medium truncate text-text-main">{p.name}</p>
                       <p className="text-xs text-text-muted">
                         {p.category_name ?? 'Sin categoría'} · Stock: {p.stock}{' '}
-                        {p.price_type === 'kg' ? 'kg' : 'u.'}
+                        {priceTypeInfo(p.price_type).unit}
                       </p>
                     </div>
                     {alreadyAdded && (

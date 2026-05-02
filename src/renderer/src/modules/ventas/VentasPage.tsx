@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { Badge, Button, EmptyState, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
+import { priceTypeInfo } from '../../lib/price-types'
 import CobroModal from './CobroModal'
 
 export default function VentasPage() {
@@ -373,12 +374,14 @@ export default function VentasPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
+                  {items.map((item) => {
+                    const itemPt = priceTypeInfo(item.product.price_type)
+                    return (
                     <tr key={item.product.id} className="border-b border-border">
                       <td className="py-2">
                         <p className="font-medium">{item.product.name}</p>
                         <p className="text-xs text-text-muted">
-                          {formatGs(item.product.price)} / {item.product.price_type === 'kg' ? 'kg' : 'u.'}
+                          {formatGs(item.product.price)} / {itemPt.unit}
                         </p>
                       </td>
                       <td className="py-2">
@@ -387,23 +390,20 @@ export default function VentasPage() {
                             type="button"
                             onClick={() => updateQuantity(
                               item.product.id,
-                              Math.max(
-                                item.product.price_type === 'kg' ? 0.1 : 1,
-                                item.quantity - (item.product.price_type === 'kg' ? 0.25 : 1)
-                              )
+                              Math.max(itemPt.cartStep, item.quantity - itemPt.cartStep)
                             )}
                             className="p-1 hover:bg-surface-muted rounded"
                           >
                             <Minus size={14} />
                           </button>
                           <span className="w-12 text-center font-medium">
-                            {item.product.price_type === 'kg' ? item.quantity.toFixed(3) : item.quantity}
+                            {itemPt.decimals > 0 ? item.quantity.toFixed(itemPt.decimals) : item.quantity}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateQuantity(
                               item.product.id,
-                              item.quantity + (item.product.price_type === 'kg' ? 0.25 : 1)
+                              item.quantity + itemPt.cartStep
                             )}
                             className="p-1 hover:bg-surface-muted rounded"
                           >
@@ -423,7 +423,8 @@ export default function VentasPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             )}
@@ -584,7 +585,7 @@ export default function VentasPage() {
                         </p>
                         <div className="flex items-center justify-between mt-1.5 gap-2">
                           <span className="text-xs text-text-muted">
-                            Stock: {p.stock} {p.price_type === 'kg' ? 'kg' : 'u.'}
+                            Stock: {p.stock} {priceTypeInfo(p.price_type).unit}
                           </span>
                           {p.stock <= 0 ? (
                             <Badge tone="danger">Sin stock</Badge>
@@ -636,22 +637,24 @@ export default function VentasPage() {
         title={quantityModal?.name}
         size="sm"
       >
-        {quantityModal && (
+        {quantityModal && (() => {
+          const qmPt = priceTypeInfo(quantityModal.price_type)
+          return (
           <>
             <p className="text-sm text-text-muted mb-4">
-              {formatGs(quantityModal.price)} / {quantityModal.price_type === 'kg' ? 'kg' : 'unidad'}
+              {formatGs(quantityModal.price)} / {qmPt.unit}
             </p>
             <div className="mb-4">
               <label className="block text-sm text-text-muted mb-1">
-                Cantidad ({quantityModal.price_type === 'kg' ? 'kg' : 'unidades'})
+                Cantidad ({qmPt.unit})
               </label>
               <Input
                 type="number"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddToCart()}
-                step={quantityModal.price_type === 'kg' ? '0.001' : '1'}
-                min={quantityModal.price_type === 'kg' ? '0.001' : '1'}
+                step={qmPt.inputStep}
+                min={qmPt.inputStep}
                 className="text-center text-xl h-14"
                 autoFocus
               />
@@ -676,7 +679,8 @@ export default function VentasPage() {
               </Button>
             </div>
           </>
-        )}
+          )
+        })()}
       </Modal>
 
       {/* Cobro Modal */}

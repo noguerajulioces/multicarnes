@@ -96,11 +96,25 @@ export function getCustomerPayments(customerId: number) {
 }
 
 export function getCustomerSales(customerId: number) {
-  return getDb().prepare(`
+  const db = getDb()
+  const sales = db.prepare(`
     SELECT s.*, u.name as user_name
     FROM sales s
     LEFT JOIN users u ON s.user_id = u.id
     WHERE s.customer_id = ?
     ORDER BY s.created_at DESC
-  `).all(customerId)
+  `).all(customerId) as Record<string, unknown>[]
+
+  const itemsStmt = db.prepare(`
+    SELECT si.*, p.name as product_name, p.price_type
+    FROM sale_items si
+    LEFT JOIN products p ON si.product_id = p.id
+    WHERE si.sale_id = ?
+  `)
+
+  for (const sale of sales) {
+    sale.items = itemsStmt.all(sale.id)
+  }
+
+  return sales
 }
