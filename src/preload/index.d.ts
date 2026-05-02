@@ -23,6 +23,8 @@ interface ApiProducts {
   createCategory(name: string): Promise<Category>
   lowStock(): Promise<Product[]>
   uploadImage(productId: number): Promise<string | null>
+  pickImage(): Promise<{ srcPath: string; dataUrl: string } | null>
+  saveImageFromPath(productId: number, srcPath: string): Promise<string>
   getImagePath(): Promise<string>
 }
 

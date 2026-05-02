@@ -23,6 +23,9 @@ const api = {
     createCategory: (name: string) => ipcRenderer.invoke('products:createCategory', name),
     lowStock: () => ipcRenderer.invoke('products:lowStock'),
     uploadImage: (productId: number) => ipcRenderer.invoke('products:uploadImage', productId),
+    pickImage: () => ipcRenderer.invoke('products:pickImage'),
+    saveImageFromPath: (productId: number, srcPath: string) =>
+      ipcRenderer.invoke('products:saveImageFromPath', productId, srcPath),
     getImagePath: () => ipcRenderer.invoke('products:getImagePath')
   },
   // Sales

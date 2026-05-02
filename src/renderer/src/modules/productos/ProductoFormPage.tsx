@@ -32,6 +32,7 @@ export default function ProductoFormPage() {
     active: true
   })
   const [image, setImage] = useState<string | null>(null)
+  const [stagedImage, setStagedImage] = useState<{ srcPath: string; dataUrl: string } | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -64,9 +65,13 @@ export default function ProductoFormPage() {
   }
 
   const handleUploadImage = async (): Promise<void> => {
-    if (!isEdit) return
-    const filename = await window.api.products.uploadImage(Number(id))
-    if (filename) setImage(filename)
+    if (isEdit) {
+      const filename = await window.api.products.uploadImage(Number(id))
+      if (filename) setImage(filename)
+      return
+    }
+    const picked = await window.api.products.pickImage()
+    if (picked) setStagedImage(picked)
   }
 
   const handleSave = async (): Promise<void> => {
@@ -87,11 +92,10 @@ export default function ProductoFormPage() {
         navigate('/productos')
       } else {
         const created = await window.api.products.create(data)
-        if (created) {
-          navigate(`/productos/${created.id}`)
-        } else {
-          navigate('/productos')
+        if (created && stagedImage) {
+          await window.api.products.saveImageFromPath(created.id, stagedImage.srcPath)
         }
+        navigate('/productos')
       }
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Error al guardar')
@@ -100,7 +104,8 @@ export default function ProductoFormPage() {
     }
   }
 
-  const imageUrl = image ? `product-img://${image}` : null
+  const imageUrl = stagedImage?.dataUrl ?? (image ? `product-img://${image}` : null)
+  const hasImage = !!imageUrl
   const stockUnit = form.price_type === 'kg' ? 'kg' : 'u.'
 
   return (
@@ -110,7 +115,7 @@ export default function ProductoFormPage() {
         subtitle={
           isEdit
             ? 'Actualizá los datos del producto y guardá los cambios.'
-            : 'Cargá los datos básicos. La imagen se sube después de crear el producto.'
+            : 'Cargá los datos del producto y, si querés, una imagen.'
         }
       />
 
@@ -120,31 +125,29 @@ export default function ProductoFormPage() {
           <p className="text-xs text-text-muted">Nombre, categoría, código e imagen</p>
         </CardHeader>
         <CardBody className="space-y-4">
-          {isEdit && (
-            <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={handleUploadImage}
+              className="w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-brand hover:bg-brand-light transition-colors overflow-hidden"
+            >
+              {imageUrl ? (
+                <img src={imageUrl} alt={form.name} className="w-full h-full object-cover" />
+              ) : (
+                <ImagePlus size={28} className="text-text-muted" />
+              )}
+            </button>
+            <div>
               <button
                 type="button"
                 onClick={handleUploadImage}
-                className="w-24 h-24 rounded-2xl border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:border-brand hover:bg-brand-light transition-colors overflow-hidden"
+                className="text-sm font-medium text-brand hover:text-brand-hover"
               >
-                {imageUrl ? (
-                  <img src={imageUrl} alt={form.name} className="w-full h-full object-cover" />
-                ) : (
-                  <ImagePlus size={28} className="text-text-muted" />
-                )}
+                {hasImage ? 'Cambiar imagen' : 'Subir imagen'}
               </button>
-              <div>
-                <button
-                  type="button"
-                  onClick={handleUploadImage}
-                  className="text-sm font-medium text-brand hover:text-brand-hover"
-                >
-                  {image ? 'Cambiar imagen' : 'Subir imagen'}
-                </button>
-                <p className="text-xs text-text-muted mt-1">PNG, JPG o WebP</p>
-              </div>
+              <p className="text-xs text-text-muted mt-1">PNG, JPG o WebP</p>
             </div>
-          )}
+          </div>
 
           <div>
             <label className="block text-sm text-text-muted mb-1.5">
