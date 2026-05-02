@@ -111,6 +111,10 @@ const api = {
   },
   notify: {
     show: (title: string, body: string) => ipcRenderer.invoke('notify:show', title, body)
+  },
+  print: {
+    ticket: (payload: unknown) => ipcRenderer.invoke('print:ticket', payload),
+    hasConfig: () => ipcRenderer.invoke('print:hasConfig')
   }
 }
 

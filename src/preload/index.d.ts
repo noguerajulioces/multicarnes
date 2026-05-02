@@ -137,6 +137,17 @@ interface ApiNotify {
   show(title: string, body: string): Promise<boolean>
 }
 
+interface PrintTicketLine {
+  text: string
+  bold?: boolean
+  emphasized?: boolean
+}
+
+interface ApiPrint {
+  ticket(payload: { lines: PrintTicketLine[]; cut?: boolean }): Promise<{ ok: true }>
+  hasConfig(): Promise<boolean>
+}
+
 declare global {
   interface Window {
     api: {
@@ -151,6 +162,7 @@ declare global {
       backup: ApiBackup
       settings: ApiSettings
       notify: ApiNotify
+      print: ApiPrint
     }
   }
 }

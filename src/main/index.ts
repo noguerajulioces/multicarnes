@@ -13,6 +13,7 @@ import { registerPurchasesIpc } from './ipc/purchases.ipc'
 import { registerReportsIpc } from './ipc/reports.ipc'
 import { registerBackupIpc } from './ipc/backup.ipc'
 import { registerNotificationsIpc } from './ipc/notifications.ipc'
+import { registerPrintIpc } from './ipc/print.ipc'
 import { pathToFileURL } from 'url'
 
 let splashWindow: BrowserWindow | null = null
@@ -161,6 +162,7 @@ app.whenReady().then(() => {
   registerReportsIpc()
   registerBackupIpc()
   registerNotificationsIpc()
+  registerPrintIpc()
 
   createWindow()
 
