@@ -50,7 +50,7 @@ export function exportToPDF(
   filename: string,
   title: string
 ): void {
-  const doc = new jsPDF({ orientation: columns.length > 5 ? 'landscape' : 'portrait' })
+  const doc = new jsPDF({ orientation: 'portrait' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 14
   const usableWidth = pageWidth - margin * 2
