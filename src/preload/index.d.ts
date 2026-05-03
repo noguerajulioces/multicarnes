@@ -1,8 +1,23 @@
 import type {
-  User, Product, Category, Customer, Supplier, CashRegister, CashMovement,
-  Sale, PurchaseOrder, StockAdjustment, CustomerPayment, AppSetting, BackupFile,
-  ProductStockMovement, ProductRecentSale, ProductSalesStats, ProductLastPurchase,
-  Paginated, PageOpts
+  User,
+  Product,
+  Category,
+  Customer,
+  Supplier,
+  CashRegister,
+  CashMovement,
+  Sale,
+  PurchaseOrder,
+  StockAdjustment,
+  CustomerPayment,
+  AppSetting,
+  BackupFile,
+  ProductStockMovement,
+  ProductRecentSale,
+  ProductSalesStats,
+  ProductLastPurchase,
+  Paginated,
+  PageOpts
 } from '../shared/types'
 
 interface ApiUsers {
@@ -11,11 +26,21 @@ interface ApiUsers {
   getById(id: number): Promise<User | null>
   login(userId: number, pin: string): Promise<User | null>
   create(data: { name: string; role: string; pin: string }): Promise<User>
-  update(id: number, data: { name?: string; role?: string; pin?: string; active?: boolean }): Promise<User>
+  update(
+    id: number,
+    data: { name?: string; role?: string; pin?: string; active?: boolean }
+  ): Promise<User>
 }
 
 interface ApiProducts {
-  getAll(filters?: { categoryId?: number; active?: boolean; lowStock?: boolean; search?: string } & PageOpts): Promise<Paginated<Product>>
+  getAll(
+    filters?: {
+      categoryId?: number
+      active?: boolean
+      lowStock?: boolean
+      search?: string
+    } & PageOpts
+  ): Promise<Paginated<Product>>
   getById(id: number): Promise<Product | null>
   getByBarcode(barcode: string): Promise<Product | null>
   create(data: Partial<Product>): Promise<Product>
@@ -36,10 +61,16 @@ interface ApiProducts {
 
 interface ApiSales {
   create(data: {
-    registerId: number; userId: number; customerId?: number | null;
-    items: { productId: number; quantity: number; unitPrice: number; subtotal: number }[];
-    subtotal: number; discount: number; total: number; paymentMethod: string;
-    payments?: { method: string; amount: number }[]; notes?: string
+    registerId: number
+    userId: number
+    customerId?: number | null
+    items: { productId: number; quantity: number; unitPrice: number; subtotal: number }[]
+    subtotal: number
+    discount: number
+    total: number
+    paymentMethod: string
+    payments?: { method: string; amount: number }[]
+    notes?: string
   }): Promise<Sale>
   getById(id: number): Promise<Sale | null>
   getRecent(limit?: number): Promise<Sale[]>
@@ -51,7 +82,14 @@ interface ApiSales {
 interface ApiCustomers {
   getAll(opts?: { search?: string; isEmployee?: boolean } & PageOpts): Promise<Paginated<Customer>>
   getById(id: number): Promise<Customer | null>
-  create(data: { name: string; phone?: string; address?: string; document?: string; document_type?: 'CI' | 'RUC' | null; is_employee?: boolean }): Promise<Customer>
+  create(data: {
+    name: string
+    phone?: string
+    address?: string
+    document?: string
+    document_type?: 'CI' | 'RUC' | null
+    is_employee?: boolean
+  }): Promise<Customer>
   update(id: number, data: Partial<Customer>): Promise<Customer>
   addPayment(customerId: number, userId: number, amount: number, note?: string): Promise<Customer>
   getPayments(customerId: number): Promise<CustomerPayment[]>
@@ -62,7 +100,13 @@ interface ApiCash {
   open(userId: number, openingAmount: number): Promise<CashRegister>
   getCurrent(): Promise<CashRegister | null>
   close(id: number, closingAmount: number, notes?: string): Promise<CashRegister>
-  addMovement(registerId: number, userId: number, type: string, amount: number, description: string): Promise<CashMovement>
+  addMovement(
+    registerId: number,
+    userId: number,
+    type: string,
+    amount: number,
+    description: string
+  ): Promise<CashMovement>
   getMovements(registerId: number): Promise<CashMovement[]>
   getSummary(registerId: number): Promise<unknown>
   getAll(): Promise<CashRegister[]>
@@ -101,11 +145,25 @@ interface SalesSummaryResult {
 }
 
 interface SalesComparisonResult {
-  current: { sales_count: number; total: number; discount: number; units: number; avg_ticket: number }
-  previous: { sales_count: number; total: number; discount: number; units: number; avg_ticket: number }
+  current: {
+    sales_count: number
+    total: number
+    discount: number
+    units: number
+    avg_ticket: number
+  }
+  previous: {
+    sales_count: number
+    total: number
+    discount: number
+    units: number
+    avg_ticket: number
+  }
   period: {
-    current_from: string; current_to: string
-    previous_from: string; previous_to: string
+    current_from: string
+    current_to: string
+    previous_from: string
+    previous_to: string
     length_days: number
   }
 }
@@ -144,9 +202,10 @@ interface PrintTicketLine {
 }
 
 interface ApiPrint {
-  ticket(payload: { lines: PrintTicketLine[]; cut?: boolean }): Promise<
-    { ok: true } | { ok: false; error: string }
-  >
+  ticket(payload: {
+    lines: PrintTicketLine[]
+    cut?: boolean
+  }): Promise<{ ok: true } | { ok: false; error: string }>
   hasConfig(): Promise<boolean>
 }
 

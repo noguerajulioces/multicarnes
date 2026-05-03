@@ -6,9 +6,11 @@ export function seedDatabase(db: Database.Database): void {
   if (userCount.count > 0) return
 
   const pinHash = bcrypt.hashSync('123456', 10)
-  db.prepare(
-    `INSERT INTO users (name, role, pin_hash) VALUES (?, ?, ?)`
-  ).run('Administrador', 'admin', pinHash)
+  db.prepare(`INSERT INTO users (name, role, pin_hash) VALUES (?, ?, ?)`).run(
+    'Administrador',
+    'admin',
+    pinHash
+  )
 
   const categories = ['Vacuno', 'Cerdo', 'Pollo', 'Embutidos', 'Otros']
   const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)')

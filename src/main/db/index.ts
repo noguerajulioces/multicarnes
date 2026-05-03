@@ -15,13 +15,13 @@ export function getImagesDir(): string {
 
 function runMigrations(db: Database.Database): void {
   // Add image column if it doesn't exist
-  const productsCols = db.prepare("PRAGMA table_info(products)").all() as { name: string }[]
+  const productsCols = db.prepare('PRAGMA table_info(products)').all() as { name: string }[]
   if (!productsCols.find((c) => c.name === 'image')) {
     db.exec('ALTER TABLE products ADD COLUMN image TEXT')
   }
 
   // Add document/document_type columns to customers if they don't exist
-  const customersCols = db.prepare("PRAGMA table_info(customers)").all() as { name: string }[]
+  const customersCols = db.prepare('PRAGMA table_info(customers)').all() as { name: string }[]
   const hasDocument = !!customersCols.find((c) => c.name === 'document')
   const hasDocumentType = !!customersCols.find((c) => c.name === 'document_type')
   const hasCi = !!customersCols.find((c) => c.name === 'ci')

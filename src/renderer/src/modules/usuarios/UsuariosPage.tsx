@@ -68,7 +68,11 @@ export default function UsuariosPage() {
     }
 
     if (editId) {
-      const data: Record<string, unknown> = { name: form.name, role: form.role, active: form.active }
+      const data: Record<string, unknown> = {
+        name: form.name,
+        role: form.role,
+        active: form.active
+      }
       if (form.pin) data.pin = form.pin
       await window.api.users.update(editId, data)
     } else {
@@ -122,7 +126,10 @@ export default function UsuariosPage() {
         }
       />
 
-      <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        className="rounded-2xl overflow-hidden"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -273,9 +280,7 @@ export default function UsuariosPage() {
           )}
 
           {error && (
-            <div className="px-3 py-2 bg-danger-50 text-danger-700 rounded-lg text-sm">
-              {error}
-            </div>
+            <div className="px-3 py-2 bg-danger-50 text-danger-700 rounded-lg text-sm">{error}</div>
           )}
         </div>
       </Modal>

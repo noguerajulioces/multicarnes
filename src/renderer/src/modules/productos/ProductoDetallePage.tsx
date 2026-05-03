@@ -194,18 +194,12 @@ export default function ProductoDetallePage() {
               <div className="min-w-0">
                 <h1 className="text-2xl font-bold text-text-main truncate">{product.name}</h1>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  {product.category_name && (
-                    <Badge tone="info">{product.category_name}</Badge>
-                  )}
+                  {product.category_name && <Badge tone="info">{product.category_name}</Badge>}
                   <Badge tone={product.active ? 'success' : 'neutral'}>
                     {product.active ? 'Activo' : 'Inactivo'}
                   </Badge>
-                  {lowStock && product.active && (
-                    <Badge tone="danger">Stock bajo</Badge>
-                  )}
-                  <Badge tone="neutral">
-                    {ptInfo.label}
-                  </Badge>
+                  {lowStock && product.active && <Badge tone="danger">Stock bajo</Badge>}
+                  <Badge tone="neutral">{ptInfo.label}</Badge>
                 </div>
                 {product.barcode && (
                   <p className="text-xs text-text-muted mt-2 tabular-nums">
@@ -225,10 +219,7 @@ export default function ProductoDetallePage() {
                   <Pencil size={16} />
                   Editar
                 </Button>
-                <Button
-                  variant={product.active ? 'secondary' : 'primary'}
-                  onClick={toggleActive}
-                >
+                <Button variant={product.active ? 'secondary' : 'primary'} onClick={toggleActive}>
                   <Power size={16} />
                   {product.active ? 'Desactivar' : 'Activar'}
                 </Button>
@@ -278,7 +269,9 @@ export default function ProductoDetallePage() {
       <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
         <CardHeader>
           <h2 className="font-semibold text-text-main">Movimientos de stock</h2>
-          <p className="text-xs text-text-muted">Ajustes manuales registrados ({movements.length})</p>
+          <p className="text-xs text-text-muted">
+            Ajustes manuales registrados ({movements.length})
+          </p>
         </CardHeader>
         <CardBody className="p-0">
           {movements.length === 0 ? (

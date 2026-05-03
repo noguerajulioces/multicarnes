@@ -18,8 +18,11 @@ export function Pagination({ page, perPage, total, onPageChange }: PaginationPro
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-border">
       <span className="text-xs text-text-muted tabular-nums">
-        Mostrando <span className="font-medium text-text-main">{from}-{to}</span> de{' '}
-        <span className="font-medium text-text-main">{total}</span>
+        Mostrando{' '}
+        <span className="font-medium text-text-main">
+          {from}-{to}
+        </span>{' '}
+        de <span className="font-medium text-text-main">{total}</span>
       </span>
       <div className="flex items-center gap-1">
         <button

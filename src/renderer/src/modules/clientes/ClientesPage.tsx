@@ -48,8 +48,7 @@ export default function ClientesPage() {
     perPage: number
   } => ({
     search: search || undefined,
-    isEmployee:
-      filterType === 'employees' ? true : filterType === 'customers' ? false : undefined,
+    isEmployee: filterType === 'employees' ? true : filterType === 'customers' ? false : undefined,
     page,
     perPage: PER_PAGE
   })
@@ -144,7 +143,10 @@ export default function ClientesPage() {
         </Select>
       </div>
 
-      <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        className="rounded-2xl overflow-hidden"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

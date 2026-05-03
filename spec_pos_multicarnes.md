@@ -1,43 +1,45 @@
 # Especificación Técnica — Sistema POS Multicarnes
+
 **Versión:** 1.0  
 **Fecha:** Abril 2026  
 **Cliente:** Multicarnes S.R.L., Encarnación, Paraguay  
-**Desarrollador:** Julio Noguera  
+**Desarrollador:** Julio Noguera
 
 ---
 
 ## 1. Stack tecnológico
 
-| Capa | Tecnología | Versión |
-|---|---|---|
-| Framework desktop | Electron | 33.x |
-| Frontend | React | 18.x |
-| Lenguaje | TypeScript | 5.x |
-| Bundler | Vite (via electron-vite) | latest |
-| Base de datos | SQLite (better-sqlite3) | latest |
-| Estado global | Zustand | 4.x |
-| Estilos | Tailwind CSS + shadcn/ui | latest |
-| Routing | React Router DOM | 6.x |
-| Impresión térmica | node-thermal-printer | latest |
-| Exportación | xlsx + jsPDF | latest |
-| Seguridad (PIN) | bcryptjs | latest |
-| Fechas | date-fns | latest |
-| Empaquetado | electron-builder | latest |
-| Moneda | Guaraníes (Gs.) — sin decimales |
+| Capa              | Tecnología                      | Versión |
+| ----------------- | ------------------------------- | ------- |
+| Framework desktop | Electron                        | 33.x    |
+| Frontend          | React                           | 18.x    |
+| Lenguaje          | TypeScript                      | 5.x     |
+| Bundler           | Vite (via electron-vite)        | latest  |
+| Base de datos     | SQLite (better-sqlite3)         | latest  |
+| Estado global     | Zustand                         | 4.x     |
+| Estilos           | Tailwind CSS + shadcn/ui        | latest  |
+| Routing           | React Router DOM                | 6.x     |
+| Impresión térmica | node-thermal-printer            | latest  |
+| Exportación       | xlsx + jsPDF                    | latest  |
+| Seguridad (PIN)   | bcryptjs                        | latest  |
+| Fechas            | date-fns                        | latest  |
+| Empaquetado       | electron-builder                | latest  |
+| Moneda            | Guaraníes (Gs.) — sin decimales |
 
 ### Paleta de colores (identidad visual de Multicarnes S.R.L.)
 
-| Token | Hex | Uso |
-|---|---|---|
-| `--color-brand` | `#CC1C1C` | Sidebar, header, botones primarios (Cobrar, Guardar) |
-| `--color-brand-hover` | `#AA1515` | Estado hover de botones primarios |
-| `--color-brand-light` | `#F9E8E8` | Fondos de alertas, badges de estado |
-| `--color-bg-primary` | `#FFFFFF` | Fondo principal de pantallas |
-| `--color-bg-secondary` | `#F5F0F0` | Cards, filas alternas, inputs |
-| `--color-text-main` | `#1A1A1A` | Texto principal, íconos |
-| `--color-text-muted` | `#6B6B6B` | Labels, placeholders, subtítulos |
+| Token                  | Hex       | Uso                                                  |
+| ---------------------- | --------- | ---------------------------------------------------- |
+| `--color-brand`        | `#CC1C1C` | Sidebar, header, botones primarios (Cobrar, Guardar) |
+| `--color-brand-hover`  | `#AA1515` | Estado hover de botones primarios                    |
+| `--color-brand-light`  | `#F9E8E8` | Fondos de alertas, badges de estado                  |
+| `--color-bg-primary`   | `#FFFFFF` | Fondo principal de pantallas                         |
+| `--color-bg-secondary` | `#F5F0F0` | Cards, filas alternas, inputs                        |
+| `--color-text-main`    | `#1A1A1A` | Texto principal, íconos                              |
+| `--color-text-muted`   | `#6B6B6B` | Labels, placeholders, subtítulos                     |
 
 En `tailwind.config.ts` extender así:
+
 ```ts
 theme: {
   extend: {
@@ -53,6 +55,7 @@ theme: {
 ```
 
 ### Inicialización del proyecto
+
 ```bash
 npm create @quick-start/electron pos-multicarnes -- --template react-ts
 cd pos-multicarnes
@@ -60,6 +63,7 @@ npm install
 ```
 
 ### Estructura de carpetas
+
 ```
 pos-multicarnes/
 ├── src/
@@ -130,6 +134,7 @@ pos-multicarnes/
 > Moneda: enteros en guaraníes (sin centavos).
 
 ### 2.1 Tabla: `users`
+
 ```sql
 CREATE TABLE IF NOT EXISTS users (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -142,6 +147,7 @@ CREATE TABLE IF NOT EXISTS users (
 ```
 
 ### 2.2 Tabla: `categories`
+
 ```sql
 CREATE TABLE IF NOT EXISTS categories (
   id   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -150,6 +156,7 @@ CREATE TABLE IF NOT EXISTS categories (
 ```
 
 ### 2.3 Tabla: `products`
+
 ```sql
 CREATE TABLE IF NOT EXISTS products (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,6 +174,7 @@ CREATE TABLE IF NOT EXISTS products (
 ```
 
 ### 2.4 Tabla: `customers`
+
 ```sql
 CREATE TABLE IF NOT EXISTS customers (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -180,6 +188,7 @@ CREATE TABLE IF NOT EXISTS customers (
 ```
 
 ### 2.5 Tabla: `suppliers`
+
 ```sql
 CREATE TABLE IF NOT EXISTS suppliers (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -193,6 +202,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
 ```
 
 ### 2.6 Tabla: `cash_registers` (sesiones de caja)
+
 ```sql
 CREATE TABLE IF NOT EXISTS cash_registers (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -209,6 +219,7 @@ CREATE TABLE IF NOT EXISTS cash_registers (
 ```
 
 ### 2.7 Tabla: `cash_movements` (ingresos/egresos manuales)
+
 ```sql
 CREATE TABLE IF NOT EXISTS cash_movements (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -222,6 +233,7 @@ CREATE TABLE IF NOT EXISTS cash_movements (
 ```
 
 ### 2.8 Tabla: `sales`
+
 ```sql
 CREATE TABLE IF NOT EXISTS sales (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -239,6 +251,7 @@ CREATE TABLE IF NOT EXISTS sales (
 ```
 
 ### 2.9 Tabla: `sale_items`
+
 ```sql
 CREATE TABLE IF NOT EXISTS sale_items (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -251,6 +264,7 @@ CREATE TABLE IF NOT EXISTS sale_items (
 ```
 
 ### 2.10 Tabla: `sale_payments` (para pagos mixtos)
+
 ```sql
 CREATE TABLE IF NOT EXISTS sale_payments (
   id      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -261,6 +275,7 @@ CREATE TABLE IF NOT EXISTS sale_payments (
 ```
 
 ### 2.11 Tabla: `purchase_orders`
+
 ```sql
 CREATE TABLE IF NOT EXISTS purchase_orders (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -275,6 +290,7 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
 ```
 
 ### 2.12 Tabla: `purchase_items`
+
 ```sql
 CREATE TABLE IF NOT EXISTS purchase_items (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -287,6 +303,7 @@ CREATE TABLE IF NOT EXISTS purchase_items (
 ```
 
 ### 2.13 Tabla: `stock_adjustments`
+
 ```sql
 CREATE TABLE IF NOT EXISTS stock_adjustments (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -300,6 +317,7 @@ CREATE TABLE IF NOT EXISTS stock_adjustments (
 ```
 
 ### 2.14 Tabla: `customer_payments` (pagos de fiado)
+
 ```sql
 CREATE TABLE IF NOT EXISTS customer_payments (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -312,6 +330,7 @@ CREATE TABLE IF NOT EXISTS customer_payments (
 ```
 
 ### 2.15 Tabla: `action_logs`
+
 ```sql
 CREATE TABLE IF NOT EXISTS action_logs (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -323,6 +342,7 @@ CREATE TABLE IF NOT EXISTS action_logs (
 ```
 
 ### 2.16 Tabla: `app_settings`
+
 ```sql
 CREATE TABLE IF NOT EXISTS app_settings (
   key   TEXT PRIMARY KEY,
@@ -492,9 +512,10 @@ erDiagram
 ### 3.1 Login
 
 **Ruta:** `/login`  
-**Acceso:** Todos los roles  
+**Acceso:** Todos los roles
 
 **Vista:**
+
 - Logo del negocio centrado
 - Lista de usuarios activos como botones/cards con nombre e ícono de avatar
 - Al seleccionar un usuario → input numérico de PIN (4-6 dígitos)
@@ -502,6 +523,7 @@ erDiagram
 - Mensaje de error si PIN incorrecto
 
 **Reglas:**
+
 - PIN se valida con bcryptjs contra `pin_hash` en la DB
 - Al autenticarse se guarda `{ id, name, role }` en Zustand `auth.store`
 - Si no hay caja abierta y el rol es cajero/supervisor → redirigir a apertura de caja
@@ -512,9 +534,10 @@ erDiagram
 ### 3.2 Dashboard
 
 **Ruta:** `/dashboard`  
-**Acceso:** Todos los roles  
+**Acceso:** Todos los roles
 
 **Vista:**
+
 - Barra lateral (Sidebar) con navegación a todos los módulos
 - Cards de resumen del día:
   - Total vendido (suma de `sales.total` del día)
@@ -528,9 +551,10 @@ erDiagram
 ### 3.3 Módulo: Caja
 
 **Ruta base:** `/caja`  
-**Acceso:** Admin, Supervisor, Cajero  
+**Acceso:** Admin, Supervisor, Cajero
 
 #### 3.3.1 Vista: Apertura de caja (`/caja/apertura`)
+
 - Input: monto de apertura en Gs.
 - Botón "Abrir caja"
 - Crea registro en `cash_registers` con `status = 'open'`
@@ -538,6 +562,7 @@ erDiagram
 - Solo puede haber una caja abierta a la vez
 
 #### 3.3.2 Vista: Caja actual (`/caja`)
+
 - Muestra estado actual:
   - Monto de apertura
   - Total ventas en efectivo del turno
@@ -550,6 +575,7 @@ erDiagram
 - Botón "Cerrar caja" (solo Admin/Supervisor)
 
 #### 3.3.3 Vista: Cierre de caja / Arqueo (`/caja/cierre`)
+
 - Input: monto contado físicamente
 - Muestra diferencia (contado - esperado)
 - Campo de notas
@@ -558,6 +584,7 @@ erDiagram
 - Genera resumen imprimible del turno
 
 #### 3.3.4 Resumen del día
+
 - Disponible desde el Dashboard
 - Total por método de pago (efectivo, transferencia, fiado)
 - Detalle de movimientos manuales
@@ -568,11 +595,12 @@ erDiagram
 
 **Ruta:** `/ventas`  
 **Acceso:** Admin, Supervisor, Cajero  
-**Requiere:** Caja abierta  
+**Requiere:** Caja abierta
 
 **Vista principal (pantalla dividida):**
 
 **Panel izquierdo — Carrito:**
+
 - Lista de items agregados (nombre, cantidad, precio unitario, subtotal)
 - Input de cantidad editable inline
 - Botón para eliminar item
@@ -582,12 +610,14 @@ erDiagram
 - Botón "Cobrar" (CTA principal)
 
 **Panel derecho — Búsqueda de productos:**
+
 - Input de búsqueda (por nombre o código de barras)
 - Grid de productos encontrados con: nombre, precio, stock
 - Click en producto → abre modal de cantidad
 - Soporte de lector de código de barras (captura keydown en el input)
 
 **Modal: Ingresar cantidad**
+
 - Nombre del producto
 - Input numérico de cantidad
 - Si `price_type = 'kg'`: label "kg", permite decimales (ej: 0.750)
@@ -596,6 +626,7 @@ erDiagram
 - Botón "Agregar al carrito"
 
 **Modal: Cobro**
+
 - Total a cobrar en grande
 - Selección de cliente (opcional, búsqueda por nombre)
 - Método de pago:
@@ -608,6 +639,7 @@ erDiagram
 - Muestra modal de éxito con opción de imprimir ticket
 
 **Reglas de negocio:**
+
 - No se puede vender si stock = 0 (salvo que Admin lo permita en settings)
 - Fiado solo disponible si hay cliente seleccionado
 - Descuento no puede superar el subtotal
@@ -618,9 +650,10 @@ erDiagram
 ### 3.5 Módulo: Productos & Stock
 
 **Ruta base:** `/productos`  
-**Acceso:** Admin, Supervisor  
+**Acceso:** Admin, Supervisor
 
 #### 3.5.1 Lista de productos (`/productos`)
+
 - Tabla con columnas: Nombre, Categoría, Precio, Tipo, Stock, Stock mín., Estado
 - Filtros: por categoría, por estado (activo/inactivo), por stock bajo
 - Buscador por nombre
@@ -630,7 +663,9 @@ erDiagram
 - Indicador visual (ícono rojo) si `stock <= min_stock`
 
 #### 3.5.2 Crear/Editar producto (`/productos/nuevo` y `/productos/:id`)
+
 **Campos:**
+
 - Nombre (requerido)
 - Categoría (selector con opción de crear nueva)
 - Código de barras (opcional, único)
@@ -641,6 +676,7 @@ erDiagram
 - Estado: activo / inactivo
 
 #### 3.5.3 Modal: Ajuste de stock
+
 - Nombre del producto
 - Stock actual (solo lectura)
 - Input: nuevo stock
@@ -653,22 +689,26 @@ erDiagram
 ### 3.6 Módulo: Compras & Proveedores
 
 **Ruta base:** `/compras`  
-**Acceso:** Admin, Supervisor  
+**Acceso:** Admin, Supervisor
 
 #### 3.6.1 Lista de proveedores (`/compras/proveedores`)
+
 - Tabla: Nombre, Teléfono, Email
 - Botón "Nuevo proveedor"
 - Botón "Ver historial" por fila
 
 #### 3.6.2 Crear/Editar proveedor
+
 **Campos:** Nombre, Teléfono, Email, Dirección, Activo
 
 #### 3.6.3 Lista de órdenes de compra (`/compras`)
+
 - Tabla: Fecha, Proveedor, Total, Estado, Acciones
 - Filtro por estado (pendiente / recibido / cancelado)
 - Botón "Nueva orden"
 
 #### 3.6.4 Nueva orden de compra (`/compras/nueva`)
+
 - Selector de proveedor
 - Tabla de items:
   - Búsqueda de producto
@@ -683,6 +723,7 @@ erDiagram
   - Si se recibe: suma cantidades a `products.stock`, crea registro en `purchase_orders` con `status = 'received'`
 
 #### 3.6.5 Ver orden existente (`/compras/:id`)
+
 - Detalle de la orden
 - Si está pendiente: botón "Marcar como recibida"
 - Si está pendiente: botón "Cancelar orden"
@@ -693,9 +734,10 @@ erDiagram
 ### 3.7 Módulo: Clientes
 
 **Ruta base:** `/clientes`  
-**Acceso:** Admin, Supervisor  
+**Acceso:** Admin, Supervisor
 
 #### 3.7.1 Lista de clientes (`/clientes`)
+
 - Tabla: Nombre, Teléfono, Saldo (balance), Empleado
 - Buscador por nombre
 - Color rojo en saldo si negativo (cliente debe)
@@ -703,9 +745,11 @@ erDiagram
 - Botón "Ver ficha" por fila
 
 #### 3.7.2 Crear/Editar cliente
+
 **Campos:** Nombre (requerido), Teléfono, Dirección, Es empleado (checkbox)
 
 #### 3.7.3 Ficha de cliente (`/clientes/:id`)
+
 - Datos del cliente
 - Saldo actual (balance)
 - Botón "Registrar pago" (abona deuda)
@@ -719,9 +763,10 @@ erDiagram
 ### 3.8 Módulo: Reportes
 
 **Ruta base:** `/reportes`  
-**Acceso:** Admin, Supervisor  
+**Acceso:** Admin, Supervisor
 
 #### 3.8.1 Ventas por período (`/reportes/ventas`)
+
 - Filtros: fecha desde, fecha hasta, método de pago, usuario
 - Tabla: Fecha, N° venta, Cliente, Total, Método, Usuario
 - Totales al pie: suma total, cantidad de ventas
@@ -729,19 +774,23 @@ erDiagram
 - Botón "Exportar a PDF"
 
 #### 3.8.2 Productos más vendidos (`/reportes/productos`)
+
 - Filtros: fecha desde, fecha hasta, categoría
 - Tabla: Producto, Categoría, Cantidad vendida, Total recaudado
 - Ordenable por columna
 
 #### 3.8.3 Margen de ganancia (`/reportes/margen`)
+
 - Cruza precio de venta vs último costo de compra
 - Tabla: Producto, Precio venta, Último costo, Margen (Gs.), Margen (%)
 
 #### 3.8.4 Movimientos de stock (`/reportes/stock`)
+
 - Filtros: fecha, producto
 - Tabla: Fecha, Producto, Tipo (venta/compra/ajuste), Cantidad antes, Cantidad después, Motivo, Usuario
 
 #### 3.8.5 Resumen de caja por turno (`/reportes/caja`)
+
 - Lista de cierres de caja anteriores
 - Al hacer click: detalle completo del turno (ventas, movimientos, diferencia de arqueo)
 
@@ -750,15 +799,18 @@ erDiagram
 ### 3.9 Módulo: Usuarios & Seguridad
 
 **Ruta base:** `/usuarios`  
-**Acceso:** Solo Admin  
+**Acceso:** Solo Admin
 
 #### 3.9.1 Lista de usuarios (`/usuarios`)
+
 - Tabla: Nombre, Rol, Estado
 - Botón "Nuevo usuario"
 - Botón "Editar" por fila
 
 #### 3.9.2 Crear/Editar usuario
+
 **Campos:**
+
 - Nombre completo (requerido)
 - Rol: Admin / Supervisor / Cajero
 - PIN (4-6 dígitos, requerido al crear, opcional al editar = no cambia)
@@ -768,29 +820,30 @@ erDiagram
 
 #### 3.9.3 Roles y permisos
 
-| Módulo | Admin | Supervisor | Cajero |
-|---|---|---|---|
-| Login | ✓ | ✓ | ✓ |
-| Dashboard | ✓ | ✓ | ✓ |
-| Caja | ✓ | ✓ | ✓ (abrir/ver) |
-| Cierre de caja | ✓ | ✓ | ✗ |
-| Ventas | ✓ | ✓ | ✓ |
-| Productos (ver) | ✓ | ✓ | ✓ |
-| Productos (editar) | ✓ | ✓ | ✗ |
-| Compras | ✓ | ✓ | ✗ |
-| Clientes | ✓ | ✓ | ✗ |
-| Reportes | ✓ | ✓ | ✗ |
-| Usuarios | ✓ | ✗ | ✗ |
-| Configuración | ✓ | ✗ | ✗ |
+| Módulo             | Admin | Supervisor | Cajero        |
+| ------------------ | ----- | ---------- | ------------- |
+| Login              | ✓     | ✓          | ✓             |
+| Dashboard          | ✓     | ✓          | ✓             |
+| Caja               | ✓     | ✓          | ✓ (abrir/ver) |
+| Cierre de caja     | ✓     | ✓          | ✗             |
+| Ventas             | ✓     | ✓          | ✓             |
+| Productos (ver)    | ✓     | ✓          | ✓             |
+| Productos (editar) | ✓     | ✓          | ✗             |
+| Compras            | ✓     | ✓          | ✗             |
+| Clientes           | ✓     | ✓          | ✗             |
+| Reportes           | ✓     | ✓          | ✗             |
+| Usuarios           | ✓     | ✗          | ✗             |
+| Configuración      | ✓     | ✗          | ✗             |
 
 ---
 
 ### 3.10 Módulo: Configuración & Backup
 
 **Ruta base:** `/configuracion`  
-**Acceso:** Solo Admin  
+**Acceso:** Solo Admin
 
 **Vista:**
+
 - Datos del negocio: nombre, dirección, teléfono (usado en tickets)
 - Impresora térmica: nombre del puerto o impresora, ancho (58mm / 80mm), botón "Imprimir prueba"
 - Backup automático: toggle ON/OFF, selector de carpeta destino
@@ -806,6 +859,7 @@ erDiagram
 **Se ejecuta desde el proceso main via IPC**
 
 ### Estructura del ticket:
+
 ```
 ==============================
      MULTICARNES S.R.L.
@@ -849,6 +903,7 @@ VUELTO:            Gs. 10.000
 Todos los canales siguen el patrón `modulo:accion`.
 
 ### Ejemplos de canales:
+
 ```typescript
 // Productos
 'products:getAll'         → { filters? } → Product[]
@@ -899,86 +954,86 @@ Todos los canales siguen el patrón `modulo:accion`.
 ## 7. Tipos TypeScript compartidos (shared/types.ts)
 
 ```typescript
-type Role = 'admin' | 'supervisor' | 'cajero';
-type PriceType = 'unit' | 'kg';
-type PaymentMethod = 'cash' | 'credit' | 'transfer' | 'mixed';
-type SaleStatus = 'completed' | 'cancelled';
-type OrderStatus = 'pending' | 'received' | 'cancelled';
-type MovementType = 'income' | 'expense';
+type Role = 'admin' | 'supervisor' | 'cajero'
+type PriceType = 'unit' | 'kg'
+type PaymentMethod = 'cash' | 'credit' | 'transfer' | 'mixed'
+type SaleStatus = 'completed' | 'cancelled'
+type OrderStatus = 'pending' | 'received' | 'cancelled'
+type MovementType = 'income' | 'expense'
 
 interface User {
-  id: number;
-  name: string;
-  role: Role;
-  active: boolean;
-  created_at: string;
+  id: number
+  name: string
+  role: Role
+  active: boolean
+  created_at: string
 }
 
 interface Product {
-  id: number;
-  category_id: number | null;
-  category_name?: string;
-  name: string;
-  barcode: string | null;
-  price: number;
-  price_type: PriceType;
-  stock: number;
-  min_stock: number;
-  active: boolean;
-  low_stock?: boolean; // calculado: stock <= min_stock
+  id: number
+  category_id: number | null
+  category_name?: string
+  name: string
+  barcode: string | null
+  price: number
+  price_type: PriceType
+  stock: number
+  min_stock: number
+  active: boolean
+  low_stock?: boolean // calculado: stock <= min_stock
 }
 
 interface Customer {
-  id: number;
-  name: string;
-  phone: string | null;
-  address: string | null;
-  is_employee: boolean;
-  balance: number;
+  id: number
+  name: string
+  phone: string | null
+  address: string | null
+  is_employee: boolean
+  balance: number
 }
 
 interface Sale {
-  id: number;
-  register_id: number;
-  customer_id: number | null;
-  customer_name?: string;
-  user_id: number;
-  user_name?: string;
-  subtotal: number;
-  discount: number;
-  total: number;
-  payment_method: PaymentMethod;
-  status: SaleStatus;
-  items?: SaleItem[];
-  created_at: string;
+  id: number
+  register_id: number
+  customer_id: number | null
+  customer_name?: string
+  user_id: number
+  user_name?: string
+  subtotal: number
+  discount: number
+  total: number
+  payment_method: PaymentMethod
+  status: SaleStatus
+  items?: SaleItem[]
+  created_at: string
 }
 
 interface SaleItem {
-  id: number;
-  sale_id: number;
-  product_id: number;
-  product_name?: string;
-  quantity: number;
-  unit_price: number;
-  subtotal: number;
+  id: number
+  sale_id: number
+  product_id: number
+  product_name?: string
+  quantity: number
+  unit_price: number
+  subtotal: number
 }
 
 interface CartItem {
-  product: Product;
-  quantity: number;
-  subtotal: number;
+  product: Product
+  quantity: number
+  subtotal: number
 }
 
 interface CashRegister {
-  id: number;
-  user_id: number;
-  opened_at: string;
-  closed_at: string | null;
-  opening_amount: number;
-  closing_amount: number | null;
-  expected_amount: number | null;
-  difference: number | null;
-  status: 'open' | 'closed';
+  id: number
+  user_id: number
+  opened_at: string
+  closed_at: string | null
+  opening_amount: number
+  closing_amount: number | null
+  expected_amount: number | null
+  difference: number | null
+  status: 'open' | 'closed'
 }
 ```
 
@@ -989,9 +1044,10 @@ interface CashRegister {
 - Guaraníes no tienen centavos → todos los valores son **enteros**
 - Formato de visualización: `Gs. 1.250.000` (separador de miles con punto)
 - Función helper:
+
 ```typescript
 export function formatGs(amount: number): string {
-  return `Gs. ${amount.toLocaleString('es-PY')}`;
+  return `Gs. ${amount.toLocaleString('es-PY')}`
 }
 ```
 
@@ -1000,6 +1056,7 @@ export function formatGs(amount: number): string {
 ## 9. Datos iniciales (seed)
 
 Al primer inicio se insertan automáticamente:
+
 - Usuario admin: nombre "Administrador", PIN: 1234 (el cliente debe cambiarlo)
 - Categorías: "Vacuno", "Cerdo", "Pollo", "Embutidos", "Otros"
 - Settings: nombre del negocio, etc.

@@ -18,10 +18,7 @@ export default function PosScreen() {
 
   useEffect(() => {
     const fadeTimer = setTimeout(() => setSplashState('fading'), SPLASH_MIN_MS)
-    const goneTimer = setTimeout(
-      () => setSplashState('gone'),
-      SPLASH_MIN_MS + SPLASH_FADE_MS
-    )
+    const goneTimer = setTimeout(() => setSplashState('gone'), SPLASH_MIN_MS + SPLASH_FADE_MS)
     return () => {
       clearTimeout(fadeTimer)
       clearTimeout(goneTimer)
@@ -43,10 +40,7 @@ export default function PosScreen() {
 
   return (
     <div className="h-full relative bg-bg-secondary">
-      <div
-        className="h-full flex flex-col"
-        style={{ animation: 'fadeIn 260ms ease-out both' }}
-      >
+      <div className="h-full flex flex-col" style={{ animation: 'fadeIn 260ms ease-out both' }}>
         <PosHeader
           userName={user.name}
           cashOpen={register != null}
@@ -72,11 +66,7 @@ function PosSplash({ fading }: { fading: boolean }): React.ReactElement {
         pointerEvents: fading ? 'none' : 'auto'
       }}
     >
-      <img
-        src={logo}
-        alt="Multicarnes"
-        className="h-20 w-20 object-contain mb-4 drop-shadow"
-      />
+      <img src={logo} alt="Multicarnes" className="h-20 w-20 object-contain mb-4 drop-shadow" />
       <p className="text-lg font-semibold tracking-tight">Punto de Venta</p>
       <p className="text-sm opacity-80 mt-1">Cargando…</p>
       <span

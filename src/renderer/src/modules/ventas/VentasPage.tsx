@@ -38,8 +38,16 @@ export default function VentasPage() {
   const ventasSeen = useTourStore((s) => s.seen.ventas)
   const markSeen = useTourStore((s) => s.markSeen)
   const {
-    items, discount, addItem, updateQuantity, removeItem, setDiscount, clear, restore,
-    subtotal, total
+    items,
+    discount,
+    addItem,
+    updateQuantity,
+    removeItem,
+    setDiscount,
+    clear,
+    restore,
+    subtotal,
+    total
   } = useCartStore()
   const heldTickets = useHeldStore((s) => s.tickets)
   const addHeld = useHeldStore((s) => s.add)
@@ -186,7 +194,9 @@ export default function VentasPage() {
         barcodeBuffer.current += e.key
         setScannerActive(true)
         clearTimeout(barcodeTimer.current)
-        barcodeTimer.current = setTimeout(() => { barcodeBuffer.current = '' }, 100)
+        barcodeTimer.current = setTimeout(() => {
+          barcodeBuffer.current = ''
+        }, 100)
         clearTimeout(scannerTimer.current)
         scannerTimer.current = setTimeout(() => setScannerActive(false), 300)
       }
@@ -397,52 +407,55 @@ export default function VentasPage() {
                   {items.map((item) => {
                     const itemPt = priceTypeInfo(item.product.price_type)
                     return (
-                    <tr key={item.product.id} className="border-b border-border">
-                      <td className="py-2">
-                        <p className="font-medium">{item.product.name}</p>
-                        <p className="text-xs text-text-muted">
-                          {formatGs(item.product.price)} / {itemPt.unit}
-                        </p>
-                      </td>
-                      <td className="py-2">
-                        <div className="flex items-center justify-center gap-1">
+                      <tr key={item.product.id} className="border-b border-border">
+                        <td className="py-2">
+                          <p className="font-medium">{item.product.name}</p>
+                          <p className="text-xs text-text-muted">
+                            {formatGs(item.product.price)} / {itemPt.unit}
+                          </p>
+                        </td>
+                        <td className="py-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateQuantity(
+                                  item.product.id,
+                                  Math.max(itemPt.cartStep, item.quantity - itemPt.cartStep)
+                                )
+                              }
+                              className="p-1 hover:bg-surface-muted rounded"
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className="w-12 text-center font-medium">
+                              {itemPt.decimals > 0
+                                ? item.quantity.toFixed(itemPt.decimals)
+                                : item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateQuantity(item.product.id, item.quantity + itemPt.cartStep)
+                              }
+                              className="p-1 hover:bg-surface-muted rounded"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-2 text-right font-medium">{formatGs(item.subtotal)}</td>
+                        <td className="py-2">
                           <button
                             type="button"
-                            onClick={() => updateQuantity(
-                              item.product.id,
-                              Math.max(itemPt.cartStep, item.quantity - itemPt.cartStep)
-                            )}
-                            className="p-1 hover:bg-surface-muted rounded"
+                            onClick={() => removeItem(item.product.id)}
+                            className="p-1 text-danger-500 hover:bg-danger-50 rounded"
+                            aria-label="Quitar"
                           >
-                            <Minus size={14} />
+                            <Trash2 size={14} />
                           </button>
-                          <span className="w-12 text-center font-medium">
-                            {itemPt.decimals > 0 ? item.quantity.toFixed(itemPt.decimals) : item.quantity}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(
-                              item.product.id,
-                              item.quantity + itemPt.cartStep
-                            )}
-                            className="p-1 hover:bg-surface-muted rounded"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-2 text-right font-medium">{formatGs(item.subtotal)}</td>
-                      <td className="py-2">
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.product.id)}
-                          className="p-1 text-danger-500 hover:bg-danger-50 rounded"
-                          aria-label="Quitar"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
                     )
                   })}
                 </tbody>
@@ -573,56 +586,56 @@ export default function VentasPage() {
               />
             ) : (
               <>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                {products.map((p) => {
-                  const lowStock = p.stock > 0 && p.stock <= p.min_stock
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleProductClick(p)}
-                      disabled={p.stock <= 0}
-                      style={{ boxShadow: 'var(--shadow-card-soft)' }}
-                      className="bg-surface rounded-xl border border-border text-left hover:border-brand hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    >
-                      {p.image ? (
-                        <div className="w-full h-24 bg-surface-muted">
-                          <img
-                            src={`product-img://${p.image}`}
-                            alt={p.name}
-                            className="w-full h-full object-cover"
-                          />
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  {products.map((p) => {
+                    const lowStock = p.stock > 0 && p.stock <= p.min_stock
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleProductClick(p)}
+                        disabled={p.stock <= 0}
+                        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+                        className="bg-surface rounded-xl border border-border text-left hover:border-brand hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      >
+                        {p.image ? (
+                          <div className="w-full h-24 bg-surface-muted">
+                            <img
+                              src={`product-img://${p.image}`}
+                              alt={p.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-full h-24 bg-surface-muted flex items-center justify-center">
+                            <Package size={32} className="text-text-disabled" />
+                          </div>
+                        )}
+                        <div className="p-3">
+                          <p className="font-medium text-sm truncate text-text-main">{p.name}</p>
+                          <p className="text-brand font-bold mt-1 tabular-nums">
+                            {formatGs(p.price)}
+                          </p>
+                          <div className="flex items-center justify-between mt-1.5 gap-2">
+                            <span className="text-xs text-text-muted">
+                              Stock: {p.stock} {priceTypeInfo(p.price_type).unit}
+                            </span>
+                            {p.stock <= 0 ? (
+                              <Badge tone="danger">Sin stock</Badge>
+                            ) : lowStock ? (
+                              <Badge tone="warning">Stock bajo</Badge>
+                            ) : null}
+                          </div>
                         </div>
-                      ) : (
-                        <div className="w-full h-24 bg-surface-muted flex items-center justify-center">
-                          <Package size={32} className="text-text-disabled" />
-                        </div>
-                      )}
-                      <div className="p-3">
-                        <p className="font-medium text-sm truncate text-text-main">{p.name}</p>
-                        <p className="text-brand font-bold mt-1 tabular-nums">
-                          {formatGs(p.price)}
-                        </p>
-                        <div className="flex items-center justify-between mt-1.5 gap-2">
-                          <span className="text-xs text-text-muted">
-                            Stock: {p.stock} {priceTypeInfo(p.price_type).unit}
-                          </span>
-                          {p.stock <= 0 ? (
-                            <Badge tone="danger">Sin stock</Badge>
-                          ) : lowStock ? (
-                            <Badge tone="warning">Stock bajo</Badge>
-                          ) : null}
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-              {products.length < productsTotal && (
-                <div ref={loadMoreRef} className="py-4 text-center text-xs text-text-muted">
-                  {loadingMore ? 'Cargando más productos...' : ' '}
+                      </button>
+                    )
+                  })}
                 </div>
-              )}
+                {products.length < productsTotal && (
+                  <div ref={loadMoreRef} className="py-4 text-center text-xs text-text-muted">
+                    {loadingMore ? 'Cargando más productos...' : ' '}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -657,212 +670,205 @@ export default function VentasPage() {
         title={quantityModal?.name}
         size="sm"
       >
-        {quantityModal && (() => {
-          const product = quantityModal
-          const qmPt = priceTypeInfo(product.price_type)
-          const allowAmountMode = qmPt.decimals > 0
-          const presets = qmPt.decimals > 0 ? [0.25, 0.5, 1, 2] : [1, 2, 5, 10]
-          const stock = product.stock
-          const stockLabel = qmPt.decimals > 0 ? stock.toFixed(qmPt.decimals) : String(stock)
+        {quantityModal &&
+          (() => {
+            const product = quantityModal
+            const qmPt = priceTypeInfo(product.price_type)
+            const allowAmountMode = qmPt.decimals > 0
+            const presets = qmPt.decimals > 0 ? [0.25, 0.5, 1, 2] : [1, 2, 5, 10]
+            const stock = product.stock
+            const stockLabel = qmPt.decimals > 0 ? stock.toFixed(qmPt.decimals) : String(stock)
 
-          const setQty = (n: number): void => {
-            if (n <= 0) {
-              setQuantity('')
-              return
+            const setQty = (n: number): void => {
+              if (n <= 0) {
+                setQuantity('')
+                return
+              }
+              const factor = Math.pow(10, qmPt.decimals)
+              const rounded = Math.round(n * factor) / factor
+              setQuantity(String(rounded))
             }
-            const factor = Math.pow(10, qmPt.decimals)
-            const rounded = Math.round(n * factor) / factor
-            setQuantity(String(rounded))
-          }
 
-          const currentQty = parseFloat(quantity) || 0
-          const finalQty = computeQty(product)
-          const finalTotal = Math.round(finalQty * product.price)
-          const exceedsStock = finalQty > stock && stock > 0
+            const currentQty = parseFloat(quantity) || 0
+            const finalQty = computeQty(product)
+            const finalTotal = Math.round(finalQty * product.price)
+            const exceedsStock = finalQty > stock && stock > 0
 
-          return (
-            <>
-              {/* Header con imagen, precio y stock */}
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-14 h-14 rounded-xl border border-border bg-surface-muted overflow-hidden flex items-center justify-center shrink-0">
-                  {product.image ? (
-                    <img
-                      src={`product-img://${product.image}`}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Package size={20} className="text-text-disabled" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-text-muted">
-                    {formatGs(product.price)} / {qmPt.unit}
-                  </p>
-                  <p
-                    className={cn(
-                      'text-xs mt-0.5',
-                      stock <= 0
-                        ? 'text-danger-700'
-                        : stock <= product.min_stock
-                          ? 'text-warning-700'
-                          : 'text-text-muted'
+            return (
+              <>
+                {/* Header con imagen, precio y stock */}
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-14 h-14 rounded-xl border border-border bg-surface-muted overflow-hidden flex items-center justify-center shrink-0">
+                    {product.image ? (
+                      <img
+                        src={`product-img://${product.image}`}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Package size={20} className="text-text-disabled" />
                     )}
-                  >
-                    Disponible: {stockLabel} {qmPt.unit}
-                  </p>
-                </div>
-              </div>
-
-              {/* Toggle Cantidad / Monto */}
-              {allowAmountMode && (
-                <div className="flex gap-1 p-1 bg-surface-muted rounded-xl mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setInputMode('qty')}
-                    className={cn(
-                      'flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors',
-                      inputMode === 'qty'
-                        ? 'bg-surface text-text-main shadow-sm'
-                        : 'text-text-muted hover:text-text-main'
-                    )}
-                  >
-                    Por cantidad
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setInputMode('amount')}
-                    className={cn(
-                      'flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors',
-                      inputMode === 'amount'
-                        ? 'bg-surface text-text-main shadow-sm'
-                        : 'text-text-muted hover:text-text-main'
-                    )}
-                  >
-                    Por monto
-                  </button>
-                </div>
-              )}
-
-              {/* Input principal */}
-              <div className="mb-3">
-                <label className="block text-sm text-text-muted mb-1">
-                  {inputMode === 'amount' ? 'Monto (Gs.)' : `Cantidad (${qmPt.unit})`}
-                </label>
-                {inputMode === 'amount' ? (
-                  <MoneyInput
-                    value={amountInput}
-                    onValueChange={setAmountInput}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddToCart()}
-                    onFocus={(e) => e.target.select()}
-                    className="text-center text-xl h-14"
-                    placeholder="0"
-                    autoFocus
-                  />
-                ) : (
-                  <div className="flex items-stretch gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setQty(currentQty - qmPt.cartStep)}
-                      disabled={currentQty <= 0}
-                      className="w-12 rounded-xl border border-border hover:bg-surface-muted text-text-main flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
-                      aria-label="Disminuir"
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <Input
-                      type="number"
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddToCart()}
-                      onFocus={(e) => e.target.select()}
-                      step={qmPt.inputStep}
-                      min={qmPt.inputStep}
-                      className="text-center text-xl h-14 flex-1"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setQty(currentQty + qmPt.cartStep)}
-                      className="w-12 rounded-xl border border-border hover:bg-surface-muted text-text-main flex items-center justify-center"
-                      aria-label="Aumentar"
-                    >
-                      <Plus size={16} />
-                    </button>
                   </div>
-                )}
-              </div>
-
-              {/* Presets rápidos */}
-              {inputMode === 'qty' && (
-                <div className="mb-3">
-                  <p className="text-xs text-text-muted mb-1.5">Cantidad rápida</p>
-                  <div className="flex gap-2">
-                    {presets.map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setQty(p)}
-                        className="flex-1 py-1.5 text-sm rounded-lg border border-border hover:bg-surface-muted text-text-main transition-colors"
-                      >
-                        {p}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setQty(stock)}
-                      disabled={stock <= 0}
-                      className="flex-1 py-1.5 text-sm rounded-lg border border-border hover:bg-surface-muted text-text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      title={`Establecer al stock disponible (${stockLabel} ${qmPt.unit})`}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-text-muted">
+                      {formatGs(product.price)} / {qmPt.unit}
+                    </p>
+                    <p
+                      className={cn(
+                        'text-xs mt-0.5',
+                        stock <= 0
+                          ? 'text-danger-700'
+                          : stock <= product.min_stock
+                            ? 'text-warning-700'
+                            : 'text-text-muted'
+                      )}
                     >
-                      máx
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Indicadores secundarios */}
-              {finalQty > 0 && inputMode === 'amount' && (
-                <p className="text-center text-sm text-text-muted mb-3">
-                  ≈ {qmPt.decimals > 0 ? finalQty.toFixed(qmPt.decimals) : finalQty}{' '}
-                  {qmPt.unit}
-                </p>
-              )}
-
-              {finalQty > 0 && exceedsStock && (
-                <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-warning-500/50 bg-warning-50 px-3 py-2.5">
-                  <AlertTriangle
-                    size={18}
-                    className="text-warning-700 shrink-0 mt-0.5"
-                  />
-                  <div className="text-sm leading-tight">
-                    <p className="font-semibold text-warning-700">Excede el stock disponible</p>
-                    <p className="text-xs text-warning-700/80 mt-0.5">
-                      Solo quedan {stockLabel} {qmPt.unit} en inventario.
+                      Disponible: {stockLabel} {qmPt.unit}
                     </p>
                   </div>
                 </div>
-              )}
 
-              <p className="text-center text-xs text-text-disabled mb-3">
-                Enter para agregar · Esc para cancelar
-              </p>
+                {/* Toggle Cantidad / Monto */}
+                {allowAmountMode && (
+                  <div className="flex gap-1 p-1 bg-surface-muted rounded-xl mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setInputMode('qty')}
+                      className={cn(
+                        'flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors',
+                        inputMode === 'qty'
+                          ? 'bg-surface text-text-main shadow-sm'
+                          : 'text-text-muted hover:text-text-main'
+                      )}
+                    >
+                      Por cantidad
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInputMode('amount')}
+                      className={cn(
+                        'flex-1 py-1.5 text-sm font-medium rounded-lg transition-colors',
+                        inputMode === 'amount'
+                          ? 'bg-surface text-text-main shadow-sm'
+                          : 'text-text-muted hover:text-text-main'
+                      )}
+                    >
+                      Por monto
+                    </button>
+                  </div>
+                )}
 
-              <div className="flex gap-3">
-                <Button variant="secondary" className="flex-1" onClick={closeQuantityModal}>
-                  Cancelar
-                </Button>
-                <Button
-                  className="flex-[2]"
-                  onClick={handleAddToCart}
-                  disabled={finalQty <= 0}
-                >
-                  Agregar{finalQty > 0 ? ` · ${formatGs(finalTotal)}` : ''}
-                </Button>
-              </div>
-            </>
-          )
-        })()}
+                {/* Input principal */}
+                <div className="mb-3">
+                  <label className="block text-sm text-text-muted mb-1">
+                    {inputMode === 'amount' ? 'Monto (Gs.)' : `Cantidad (${qmPt.unit})`}
+                  </label>
+                  {inputMode === 'amount' ? (
+                    <MoneyInput
+                      value={amountInput}
+                      onValueChange={setAmountInput}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddToCart()}
+                      onFocus={(e) => e.target.select()}
+                      className="text-center text-xl h-14"
+                      placeholder="0"
+                      autoFocus
+                    />
+                  ) : (
+                    <div className="flex items-stretch gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQty(currentQty - qmPt.cartStep)}
+                        disabled={currentQty <= 0}
+                        className="w-12 rounded-xl border border-border hover:bg-surface-muted text-text-main flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-label="Disminuir"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <Input
+                        type="number"
+                        value={quantity}
+                        onChange={(e) => setQuantity(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddToCart()}
+                        onFocus={(e) => e.target.select()}
+                        step={qmPt.inputStep}
+                        min={qmPt.inputStep}
+                        className="text-center text-xl h-14 flex-1"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setQty(currentQty + qmPt.cartStep)}
+                        className="w-12 rounded-xl border border-border hover:bg-surface-muted text-text-main flex items-center justify-center"
+                        aria-label="Aumentar"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Presets rápidos */}
+                {inputMode === 'qty' && (
+                  <div className="mb-3">
+                    <p className="text-xs text-text-muted mb-1.5">Cantidad rápida</p>
+                    <div className="flex gap-2">
+                      {presets.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setQty(p)}
+                          className="flex-1 py-1.5 text-sm rounded-lg border border-border hover:bg-surface-muted text-text-main transition-colors"
+                        >
+                          {p}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setQty(stock)}
+                        disabled={stock <= 0}
+                        className="flex-1 py-1.5 text-sm rounded-lg border border-border hover:bg-surface-muted text-text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={`Establecer al stock disponible (${stockLabel} ${qmPt.unit})`}
+                      >
+                        máx
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Indicadores secundarios */}
+                {finalQty > 0 && inputMode === 'amount' && (
+                  <p className="text-center text-sm text-text-muted mb-3">
+                    ≈ {qmPt.decimals > 0 ? finalQty.toFixed(qmPt.decimals) : finalQty} {qmPt.unit}
+                  </p>
+                )}
+
+                {finalQty > 0 && exceedsStock && (
+                  <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-warning-500/50 bg-warning-50 px-3 py-2.5">
+                    <AlertTriangle size={18} className="text-warning-700 shrink-0 mt-0.5" />
+                    <div className="text-sm leading-tight">
+                      <p className="font-semibold text-warning-700">Excede el stock disponible</p>
+                      <p className="text-xs text-warning-700/80 mt-0.5">
+                        Solo quedan {stockLabel} {qmPt.unit} en inventario.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-center text-xs text-text-disabled mb-3">
+                  Enter para agregar · Esc para cancelar
+                </p>
+
+                <div className="flex gap-3">
+                  <Button variant="secondary" className="flex-1" onClick={closeQuantityModal}>
+                    Cancelar
+                  </Button>
+                  <Button className="flex-[2]" onClick={handleAddToCart} disabled={finalQty <= 0}>
+                    Agregar{finalQty > 0 ? ` · ${formatGs(finalTotal)}` : ''}
+                  </Button>
+                </div>
+              </>
+            )
+          })()}
       </Modal>
 
       {/* Cobro Modal */}
@@ -918,11 +924,7 @@ export default function VentasPage() {
                   >
                     <Trash2 size={14} />
                   </button>
-                  <Button
-                    size="sm"
-                    onClick={() => resumeHeld(t.id)}
-                    className="rounded-lg"
-                  >
+                  <Button size="sm" onClick={() => resumeHeld(t.id)} className="rounded-lg">
                     <Play size={12} />
                     Reanudar
                   </Button>

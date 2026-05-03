@@ -83,8 +83,7 @@ export default function ProductosPage() {
     setAdjustReason('')
   }
 
-  const stockDiff =
-    adjustModal && newStock !== '' ? parseFloat(newStock) - adjustModal.stock : null
+  const stockDiff = adjustModal && newStock !== '' ? parseFloat(newStock) - adjustModal.stock : null
 
   return (
     <div className="space-y-5">
@@ -153,7 +152,10 @@ export default function ProductosPage() {
         </div>
       </div>
 
-      <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        className="rounded-2xl overflow-hidden"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -197,9 +199,7 @@ export default function ProductosPage() {
                     <td className="px-4 py-3 text-text-muted">{p.category_name || '—'}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{formatGs(p.price)}</td>
                     <td className="px-4 py-3">
-                      <Badge tone={p.price_type === 'kg' ? 'info' : 'neutral'}>
-                        {pt.label}
-                      </Badge>
+                      <Badge tone={p.price_type === 'kg' ? 'info' : 'neutral'}>{pt.label}</Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -291,55 +291,58 @@ export default function ProductosPage() {
           </div>
         }
       >
-        {adjustModal && (() => {
-          const adjPt = priceTypeInfo(adjustModal.price_type)
-          return (
-          <div className="space-y-4">
-            <div className="bg-surface-muted rounded-xl px-4 py-3">
-              <p className="text-xs text-text-muted">Stock actual</p>
-              <p className="text-lg font-semibold tabular-nums">
-                {adjPt.decimals > 0 ? adjustModal.stock.toFixed(adjPt.decimals) : adjustModal.stock}{' '}
-                {adjPt.unit}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">Nuevo stock</label>
-              <Input
-                type="number"
-                value={newStock}
-                onChange={(e) => setNewStock(e.target.value)}
-                step={adjPt.inputStep}
-                className="text-right tabular-nums"
-                autoFocus
-              />
-              {stockDiff !== null && !Number.isNaN(stockDiff) && (
-                <div
-                  className={cn(
-                    'mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium',
-                    stockDiff >= 0
-                      ? 'bg-success-50 text-success-700'
-                      : 'bg-danger-50 text-danger-700'
-                  )}
-                >
-                  {stockDiff >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                  {stockDiff >= 0 ? '+' : ''}
-                  {stockDiff.toFixed(Math.max(adjPt.decimals, 2))} {adjPt.unit}
+        {adjustModal &&
+          (() => {
+            const adjPt = priceTypeInfo(adjustModal.price_type)
+            return (
+              <div className="space-y-4">
+                <div className="bg-surface-muted rounded-xl px-4 py-3">
+                  <p className="text-xs text-text-muted">Stock actual</p>
+                  <p className="text-lg font-semibold tabular-nums">
+                    {adjPt.decimals > 0
+                      ? adjustModal.stock.toFixed(adjPt.decimals)
+                      : adjustModal.stock}{' '}
+                    {adjPt.unit}
+                  </p>
                 </div>
-              )}
-            </div>
 
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">Motivo (requerido)</label>
-              <Input
-                value={adjustReason}
-                onChange={(e) => setAdjustReason(e.target.value)}
-                placeholder="Compra, merma, conteo, etc."
-              />
-            </div>
-          </div>
-          )
-        })()}
+                <div>
+                  <label className="block text-sm text-text-muted mb-1.5">Nuevo stock</label>
+                  <Input
+                    type="number"
+                    value={newStock}
+                    onChange={(e) => setNewStock(e.target.value)}
+                    step={adjPt.inputStep}
+                    className="text-right tabular-nums"
+                    autoFocus
+                  />
+                  {stockDiff !== null && !Number.isNaN(stockDiff) && (
+                    <div
+                      className={cn(
+                        'mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium',
+                        stockDiff >= 0
+                          ? 'bg-success-50 text-success-700'
+                          : 'bg-danger-50 text-danger-700'
+                      )}
+                    >
+                      {stockDiff >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                      {stockDiff >= 0 ? '+' : ''}
+                      {stockDiff.toFixed(Math.max(adjPt.decimals, 2))} {adjPt.unit}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm text-text-muted mb-1.5">Motivo (requerido)</label>
+                  <Input
+                    value={adjustReason}
+                    onChange={(e) => setAdjustReason(e.target.value)}
+                    placeholder="Compra, merma, conteo, etc."
+                  />
+                </div>
+              </div>
+            )
+          })()}
       </Modal>
     </div>
   )

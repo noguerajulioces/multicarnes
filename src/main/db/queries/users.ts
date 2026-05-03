@@ -10,9 +10,7 @@ function assertValidPin(pin: string): void {
 }
 
 export function getAllUsers() {
-  return getDb()
-    .prepare('SELECT id, name, role, active, created_at FROM users ORDER BY name')
-    .all()
+  return getDb().prepare('SELECT id, name, role, active, created_at FROM users ORDER BY name').all()
 }
 
 export function getActiveUsers() {
@@ -30,7 +28,9 @@ export function getUserById(id: number) {
 export function loginUser(userId: number, pin: string) {
   const user = getDb()
     .prepare('SELECT id, name, role, pin_hash, active FROM users WHERE id = ? AND active = 1')
-    .get(userId) as { id: number; name: string; role: string; pin_hash: string; active: number } | undefined
+    .get(userId) as
+    | { id: number; name: string; role: string; pin_hash: string; active: number }
+    | undefined
   if (!user) return null
   const valid = bcrypt.compareSync(pin, user.pin_hash)
   if (!valid) return null
@@ -46,7 +46,10 @@ export function createUser(data: { name: string; role: string; pin: string }) {
   return getUserById(result.lastInsertRowid as number)
 }
 
-export function updateUser(id: number, data: { name?: string; role?: string; pin?: string; active?: boolean }) {
+export function updateUser(
+  id: number,
+  data: { name?: string; role?: string; pin?: string; active?: boolean }
+) {
   const db = getDb()
   if (data.name !== undefined) {
     db.prepare('UPDATE users SET name = ? WHERE id = ?').run(data.name, id)

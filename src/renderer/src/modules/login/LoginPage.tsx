@@ -70,11 +70,7 @@ export default function LoginPage() {
         style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
         <div className="text-center mb-7">
-          <img
-            src={logo}
-            alt="Multicarnes"
-            className="w-20 h-20 object-contain mx-auto mb-3"
-          />
+          <img src={logo} alt="Multicarnes" className="w-20 h-20 object-contain mx-auto mb-3" />
           <h1 className="text-2xl font-bold text-text-main tracking-tight">Multicarnes S.R.L.</h1>
           <p className="text-text-muted text-sm mt-0.5">Sistema de Punto de Venta</p>
         </div>
@@ -82,12 +78,7 @@ export default function LoginPage() {
         {!selectedUser ? (
           <div>
             <p className="text-sm text-text-muted mb-4 text-center">Seleccione su usuario</p>
-            <div
-              className={cn(
-                'grid gap-3',
-                users.length === 3 ? 'grid-cols-3' : 'grid-cols-2'
-              )}
-            >
+            <div className={cn('grid gap-3', users.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
               {users.map((u) => (
                 <button
                   key={u.id}
@@ -132,9 +123,7 @@ export default function LoginPage() {
               >
                 <span className="font-bold text-2xl">{initialsOf(selectedUser.name)}</span>
               </div>
-              <p className="font-semibold text-lg text-text-main capitalize">
-                {selectedUser.name}
-              </p>
+              <p className="font-semibold text-lg text-text-main capitalize">{selectedUser.name}</p>
               <p className="text-xs text-text-muted capitalize">{selectedUser.role}</p>
             </div>
 
@@ -180,12 +169,7 @@ export default function LoginPage() {
               )}
 
               {keypadEnabled ? (
-                <NumericKeypad
-                  value={pin}
-                  onChange={setPin}
-                  onSubmit={handleLogin}
-                  maxLength={6}
-                />
+                <NumericKeypad value={pin} onChange={setPin} onSubmit={handleLogin} maxLength={6} />
               ) : (
                 <Button
                   className="w-full rounded-xl"

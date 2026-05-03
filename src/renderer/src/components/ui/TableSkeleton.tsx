@@ -6,11 +6,7 @@ interface TableSkeletonProps {
   showHeader?: boolean
 }
 
-export function TableSkeleton({
-  rows = 6,
-  columns = 4,
-  showHeader = true
-}: TableSkeletonProps) {
+export function TableSkeleton({ rows = 6, columns = 4, showHeader = true }: TableSkeletonProps) {
   return (
     <div className="w-full">
       {showHeader && (

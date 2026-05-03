@@ -27,17 +27,17 @@ Desktop Point of Sale (POS) system for **Multicarnes S.R.L.** (Encarnación, Par
 
 ## Tech stack
 
-| Layer | Technology |
-|---|---|
-| Desktop framework | Electron + electron-vite |
-| UI | React 19 + TypeScript + Tailwind CSS 4 |
-| Global state | Zustand |
-| Routing | React Router DOM |
-| Database | SQLite (`better-sqlite3`) |
-| Security | bcryptjs (PIN hash) |
-| Printing | node-thermal-printer |
-| Reports | xlsx + jsPDF |
-| Packaging | electron-builder |
+| Layer             | Technology                             |
+| ----------------- | -------------------------------------- |
+| Desktop framework | Electron + electron-vite               |
+| UI                | React 19 + TypeScript + Tailwind CSS 4 |
+| Global state      | Zustand                                |
+| Routing           | React Router DOM                       |
+| Database          | SQLite (`better-sqlite3`)              |
+| Security          | bcryptjs (PIN hash)                    |
+| Printing          | node-thermal-printer                   |
+| Reports           | xlsx + jsPDF                           |
+| Packaging         | electron-builder                       |
 
 Currency: **Guaraníes (Gs.)** — integers, no decimals.
 
@@ -105,20 +105,21 @@ Artifacts are generated under `dist/`.
 - Sale operations are wrapped in transactions to guarantee stock and cash consistency.
 
 Initial data (seed):
+
 - Default categories: Vacuno, Cerdo, Pollo, Embutidos, Otros.
 
 ## Roles and permissions
 
-| Module | Admin | Supervisor | Cashier |
-|---|:---:|:---:|:---:|
-| Login / Dashboard | ✓ | ✓ | ✓ |
-| Cash register (open / view) | ✓ | ✓ | ✓ |
-| Cash closure | ✓ | ✓ | ✗ |
-| Sales | ✓ | ✓ | ✓ |
-| Profile / change own PIN | ✓ | ✓ | ✓ |
-| Products (edit) | ✓ | ✓ | ✗ |
-| Purchases / Customers / Reports | ✓ | ✓ | ✗ |
-| Users / Settings | ✓ | ✗ | ✗ |
+| Module                          | Admin | Supervisor | Cashier |
+| ------------------------------- | :---: | :--------: | :-----: |
+| Login / Dashboard               |   ✓   |     ✓      |    ✓    |
+| Cash register (open / view)     |   ✓   |     ✓      |    ✓    |
+| Cash closure                    |   ✓   |     ✓      |    ✗    |
+| Sales                           |   ✓   |     ✓      |    ✓    |
+| Profile / change own PIN        |   ✓   |     ✓      |    ✓    |
+| Products (edit)                 |   ✓   |     ✓      |    ✗    |
+| Purchases / Customers / Reports |   ✓   |     ✓      |    ✗    |
+| Users / Settings                |   ✓   |     ✗      |    ✗    |
 
 ## Receipt printing
 
@@ -145,7 +146,9 @@ All project documentation lives in [`docs/`](docs/README.md). Start at the [docs
 All notable changes to this project are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### [Unreleased]
+
 #### Added
+
 - Onboarding tour for first-time users (`@reactour/tour`).
 - Self-service profile page at `/perfil` with PIN change protected by current-PIN verification; reachable from the avatar dropdown in the header and from the user block in the sidebar (which now reflects the active route).
 - Receipt rendering pipeline: shared text generator + on-screen preview + PDF export + thermal print, all driven by the same source. Preview modal opens automatically after a successful sale.
@@ -153,12 +156,15 @@ All notable changes to this project are documented here. The format is based on 
 - Configurable minimum display time and fade-out for the boot splash window so the brand introduction is not cut short on fast renders.
 
 #### Changed
+
 - Cash register opening now allows a zero starting balance with an explicit confirmation dialog; pressing Enter submits the form.
 - Print IPC contract returns `{ ok, error? }` instead of throwing, eliminating noisy stack traces in the dev console for expected failures.
 - Windows / macOS icon configuration cleaned up and made explicit in `electron-builder.yml`; runtime icon for `BrowserWindow` selected per platform.
 
 ### [1.0.0] — 2026-04
+
 #### Added
+
 - Sales module (POS) with barcode reader, kg/unit pricing, discounts, and split payments (cash, transfer, credit, mixed).
 - Cash register module with opening, manual movements, closure, and reconciliation.
 - Product, category, and stock management with low-stock alerts and audited adjustments.
@@ -170,6 +176,7 @@ All notable changes to this project are documented here. The format is based on 
 - Automatic database backup on cash closure and manual restore from settings.
 
 #### Fixed
+
 - PDF export forced to portrait orientation regardless of column count.
 
 ## Author

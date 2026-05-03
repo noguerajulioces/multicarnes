@@ -1,14 +1,7 @@
 import { useEffect, useState } from 'react'
 import { KeyRound, ShieldCheck, UserCircle2 } from 'lucide-react'
 import type { Role, User } from '@shared/types'
-import {
-  Badge,
-  Button,
-  Card,
-  Input,
-  Modal,
-  PageHeader
-} from '../../components/ui'
+import { Badge, Button, Card, Input, Modal, PageHeader } from '../../components/ui'
 import { useAuthStore } from '../../store/auth.store'
 import { useToastStore } from '../../store/toast.store'
 
@@ -111,11 +104,7 @@ export default function PerfilPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pt-6 border-t border-border">
           <InfoRow icon={<UserCircle2 size={16} />} label="ID de usuario" value={`#${user.id}`} />
-          <InfoRow
-            icon={<ShieldCheck size={16} />}
-            label="Rol"
-            value={roleLabel[user.role]}
-          />
+          <InfoRow icon={<ShieldCheck size={16} />} label="Rol" value={roleLabel[user.role]} />
           <InfoRow
             icon={<UserCircle2 size={16} />}
             label="Miembro desde"
@@ -184,9 +173,7 @@ export default function PerfilPage() {
               inputMode="numeric"
               maxLength={6}
               value={pinForm.next}
-              onChange={(e) =>
-                setPinForm({ ...pinForm, next: e.target.value.replace(/\D/g, '') })
-              }
+              onChange={(e) => setPinForm({ ...pinForm, next: e.target.value.replace(/\D/g, '') })}
               placeholder="••••••"
             />
           </div>
@@ -208,9 +195,7 @@ export default function PerfilPage() {
           </div>
 
           {error && (
-            <div className="px-3 py-2 bg-danger-50 text-danger-700 rounded-lg text-sm">
-              {error}
-            </div>
+            <div className="px-3 py-2 bg-danger-50 text-danger-700 rounded-lg text-sm">{error}</div>
           )}
         </div>
       </Modal>

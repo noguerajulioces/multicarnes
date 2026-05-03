@@ -43,13 +43,13 @@ export default function CierreCajaPage() {
         if (autoBackup) {
           const path = await window.api.backup.create()
           toast.success('Backup automático creado')
-          window.api.notify
-            .show('Backup al cerrar caja', `Se guardó en ${path}`)
-            .catch(() => {})
+          window.api.notify.show('Backup al cerrar caja', `Se guardó en ${path}`).catch(() => {})
         }
       } catch (err) {
         toast.error(
-          err instanceof Error ? `Error en backup automático: ${err.message}` : 'Error en backup automático'
+          err instanceof Error
+            ? `Error en backup automático: ${err.message}`
+            : 'Error en backup automático'
         )
       }
 
@@ -116,11 +116,7 @@ export default function CierreCajaPage() {
         </div>
 
         {touched && (
-          <div
-            className={`rounded-xl p-4 mb-5 ${
-              positiveDiff ? 'bg-success-50' : 'bg-danger-50'
-            }`}
-          >
+          <div className={`rounded-xl p-4 mb-5 ${positiveDiff ? 'bg-success-50' : 'bg-danger-50'}`}>
             <div className="flex items-center gap-2 mb-1">
               {positiveDiff ? (
                 <TrendingUp size={14} className="text-success-700" />

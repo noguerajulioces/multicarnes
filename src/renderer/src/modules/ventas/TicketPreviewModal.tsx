@@ -87,7 +87,9 @@ export default function TicketPreviewModal({
           >
             <Check size={16} />
           </span>
-          <span>Venta #{sale.id} — {formatGs(sale.total)}</span>
+          <span>
+            Venta #{sale.id} — {formatGs(sale.total)}
+          </span>
         </div>
       }
       footer={

@@ -71,7 +71,11 @@ export function HotkeysHelp() {
           </div>
         ))}
         <p className="text-xs text-text-muted pt-2 border-t border-border">
-          Tocá <kbd className="px-1.5 py-0.5 bg-surface-muted rounded border border-border font-mono text-[10px]">F1</kbd> en cualquier momento para volver a abrir esta ayuda.
+          Tocá{' '}
+          <kbd className="px-1.5 py-0.5 bg-surface-muted rounded border border-border font-mono text-[10px]">
+            F1
+          </kbd>{' '}
+          en cualquier momento para volver a abrir esta ayuda.
         </p>
       </div>
     </Modal>

@@ -92,12 +92,13 @@ export default function Sidebar() {
     }))
     .filter((section) => section.items.length > 0)
 
-  const initials = (user?.name ?? '?')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p.charAt(0).toUpperCase())
-    .join('') || (user?.name ?? '?').charAt(0).toUpperCase()
+  const initials =
+    (user?.name ?? '?')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p.charAt(0).toUpperCase())
+      .join('') || (user?.name ?? '?').charAt(0).toUpperCase()
 
   return (
     <aside
@@ -214,9 +215,7 @@ export default function Sidebar() {
               aria-label="Abrir mi perfil"
               aria-current={profileActive ? 'page' : undefined}
               className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
-                profileActive
-                  ? 'bg-white/35 ring-2 ring-white/40'
-                  : 'bg-white/20 hover:bg-white/30'
+                profileActive ? 'bg-white/35 ring-2 ring-white/40' : 'bg-white/20 hover:bg-white/30'
               }`}
             >
               {initials}

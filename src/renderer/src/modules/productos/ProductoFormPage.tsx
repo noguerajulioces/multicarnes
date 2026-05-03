@@ -122,7 +122,10 @@ export default function ProductoFormPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card className="rounded-2xl lg:col-span-1 self-start" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          className="rounded-2xl lg:col-span-1 self-start"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader>
             <h2 className="font-semibold text-text-main">Imagen</h2>
             <p className="text-xs text-text-muted">PNG, JPG o WebP</p>
@@ -153,147 +156,149 @@ export default function ProductoFormPage() {
         </Card>
 
         <div className="lg:col-span-2 space-y-5">
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
-        <CardHeader>
-          <h2 className="font-semibold text-text-main">Información básica</h2>
-          <p className="text-xs text-text-muted">Nombre, categoría y código</p>
-        </CardHeader>
-        <CardBody className="space-y-4">
-          <div>
-            <label className="block text-sm text-text-muted mb-1.5">
-              Nombre <span className="text-danger-500">*</span>
-            </label>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Ej: Costilla vacuna"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">Categoría</label>
-              <Select
-                value={form.category_id}
-                onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              >
-                <option value="">Sin categoría</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-              <div className="flex gap-2 mt-2">
+          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+            <CardHeader>
+              <h2 className="font-semibold text-text-main">Información básica</h2>
+              <p className="text-xs text-text-muted">Nombre, categoría y código</p>
+            </CardHeader>
+            <CardBody className="space-y-4">
+              <div>
+                <label className="block text-sm text-text-muted mb-1.5">
+                  Nombre <span className="text-danger-500">*</span>
+                </label>
                 <Input
-                  value={newCat}
-                  onChange={(e) => setNewCat(e.target.value)}
-                  placeholder="Nueva categoría"
-                  className="h-9 text-sm"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Ej: Costilla vacuna"
                 />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleCreateCategory}
-                  disabled={!newCat.trim()}
-                >
-                  <Plus size={14} />
-                  Crear
-                </Button>
               </div>
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">Código de barras</label>
-              <Input
-                value={form.barcode}
-                onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-                placeholder="Opcional"
-              />
-            </div>
-          </div>
-        </CardBody>
-      </Card>
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
-        <CardHeader>
-          <h2 className="font-semibold text-text-main">Precio y stock</h2>
-          <p className="text-xs text-text-muted">Cómo se cobra y la cantidad disponible</p>
-        </CardHeader>
-        <CardBody className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">
-                Precio (Gs.) <span className="text-danger-500">*</span>
-              </label>
-              <MoneyInput
-                value={form.price}
-                onValueChange={(v) => setForm({ ...form, price: v })}
-                className="text-right tabular-nums"
-                placeholder="0"
-              />
-              {form.price > 0 && (
-                <p className="text-xs text-text-muted mt-1 text-right">{formatGs(form.price)}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">Tipo de precio</label>
-              <Select
-                value={form.price_type}
-                onChange={(e) => setForm({ ...form, price_type: e.target.value })}
-              >
-                {PRICE_TYPE_LIST.map((pt) => (
-                  <option key={pt.code} value={pt.code}>
-                    {pt.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-text-muted mb-1.5">Categoría</label>
+                  <Select
+                    value={form.category_id}
+                    onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                  >
+                    <option value="">Sin categoría</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      value={newCat}
+                      onChange={(e) => setNewCat(e.target.value)}
+                      placeholder="Nueva categoría"
+                      className="h-9 text-sm"
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleCreateCategory}
+                      disabled={!newCat.trim()}
+                    >
+                      <Plus size={14} />
+                      Crear
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-text-muted mb-1.5">Código de barras</label>
+                  <Input
+                    value={form.barcode}
+                    onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                    placeholder="Opcional"
+                  />
+                </div>
+              </div>
+            </CardBody>
+          </Card>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">
-                Stock {isEdit ? 'actual' : 'inicial'} ({stockUnit})
-              </label>
-              <Input
-                type="number"
-                value={form.stock}
-                onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                step={ptInfo.inputStep}
-                min="0"
-                className="text-right tabular-nums"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">
-                Stock mínimo ({stockUnit})
-              </label>
-              <Input
-                type="number"
-                value={form.min_stock}
-                onChange={(e) => setForm({ ...form, min_stock: e.target.value })}
-                step={ptInfo.inputStep}
-                min="0"
-                className="text-right tabular-nums"
-              />
-              <p className="text-xs text-text-muted mt-1">
-                Recibís alertas cuando el stock baja de este nivel
-              </p>
-            </div>
-          </div>
+          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+            <CardHeader>
+              <h2 className="font-semibold text-text-main">Precio y stock</h2>
+              <p className="text-xs text-text-muted">Cómo se cobra y la cantidad disponible</p>
+            </CardHeader>
+            <CardBody className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-text-muted mb-1.5">
+                    Precio (Gs.) <span className="text-danger-500">*</span>
+                  </label>
+                  <MoneyInput
+                    value={form.price}
+                    onValueChange={(v) => setForm({ ...form, price: v })}
+                    className="text-right tabular-nums"
+                    placeholder="0"
+                  />
+                  {form.price > 0 && (
+                    <p className="text-xs text-text-muted mt-1 text-right">
+                      {formatGs(form.price)}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm text-text-muted mb-1.5">Tipo de precio</label>
+                  <Select
+                    value={form.price_type}
+                    onChange={(e) => setForm({ ...form, price_type: e.target.value })}
+                  >
+                    {PRICE_TYPE_LIST.map((pt) => (
+                      <option key={pt.code} value={pt.code}>
+                        {pt.label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
 
-          <label className="flex items-center gap-2 text-sm pt-2 border-t border-border cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(e) => setForm({ ...form, active: e.target.checked })}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-text-main">Producto activo</span>
-            <span className="text-xs text-text-muted">— se muestra en el punto de venta</span>
-          </label>
-        </CardBody>
-      </Card>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-text-muted mb-1.5">
+                    Stock {isEdit ? 'actual' : 'inicial'} ({stockUnit})
+                  </label>
+                  <Input
+                    type="number"
+                    value={form.stock}
+                    onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                    step={ptInfo.inputStep}
+                    min="0"
+                    className="text-right tabular-nums"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-text-muted mb-1.5">
+                    Stock mínimo ({stockUnit})
+                  </label>
+                  <Input
+                    type="number"
+                    value={form.min_stock}
+                    onChange={(e) => setForm({ ...form, min_stock: e.target.value })}
+                    step={ptInfo.inputStep}
+                    min="0"
+                    className="text-right tabular-nums"
+                  />
+                  <p className="text-xs text-text-muted mt-1">
+                    Recibís alertas cuando el stock baja de este nivel
+                  </p>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm pt-2 border-t border-border cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.active}
+                  onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                  className="w-4 h-4 rounded accent-brand"
+                />
+                <span className="text-text-main">Producto activo</span>
+                <span className="text-xs text-text-muted">— se muestra en el punto de venta</span>
+              </label>
+            </CardBody>
+          </Card>
         </div>
       </div>
 

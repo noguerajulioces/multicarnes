@@ -3,14 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatGs, formatDateTime, cn } from '../../lib/utils'
 import type { PurchaseOrder, OrderStatus } from '@shared/types'
 import { Plus, Truck, Users, ChevronRight } from 'lucide-react'
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  PageHeader,
-  Pagination
-} from '../../components/ui'
+import { Badge, Button, Card, EmptyState, PageHeader, Pagination } from '../../components/ui'
 
 type StatusFilter = '' | OrderStatus
 
@@ -99,7 +92,10 @@ export default function ComprasPage() {
         ))}
       </div>
 
-      <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        className="rounded-2xl overflow-hidden"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -140,7 +136,9 @@ export default function ComprasPage() {
                   <td colSpan={5}>
                     <EmptyState
                       icon={<Truck size={40} />}
-                      title={filterStatus ? 'Sin órdenes con ese estado' : 'Aún no hay órdenes de compra'}
+                      title={
+                        filterStatus ? 'Sin órdenes con ese estado' : 'Aún no hay órdenes de compra'
+                      }
                       description={
                         filterStatus
                           ? 'Cambiá el filtro o creá una nueva orden.'

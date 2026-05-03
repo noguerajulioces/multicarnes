@@ -6,10 +6,10 @@ This is the entry point for **all project documentation** — start here.
 
 ## Index
 
-| Document | Contents |
-|---|---|
-| [database.md](database.md) | Database schema, ER diagram (Mermaid), table-by-table reference, transactional flows, and migrations. |
-| [../spec_pos_multicarnes.md](../spec_pos_multicarnes.md) | Full technical specification: modules, business rules, IPC surface, and shared types. |
+| Document                                                 | Contents                                                                                              |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [database.md](database.md)                               | Database schema, ER diagram (Mermaid), table-by-table reference, transactional flows, and migrations. |
+| [../spec_pos_multicarnes.md](../spec_pos_multicarnes.md) | Full technical specification: modules, business rules, IPC surface, and shared types.                 |
 
 ## Conventions
 

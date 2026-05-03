@@ -17,8 +17,7 @@ export const ventasTourSteps: StepType[] = [
   },
   {
     selector: '[data-tour="ventas-cart"]',
-    content:
-      'Acá ves los productos del ticket actual. Podés ajustar cantidades o eliminar líneas.'
+    content: 'Acá ves los productos del ticket actual. Podés ajustar cantidades o eliminar líneas.'
   },
   {
     selector: '[data-tour="ventas-totals"]',
@@ -62,8 +61,7 @@ export const dashboardManagerTourSteps: StepType[] = [
   },
   {
     selector: '[data-tour="dash-stock"]',
-    content:
-      'Resumen de stock con productos críticos. Revisá acá antes de hacer compras o cierres.'
+    content: 'Resumen de stock con productos críticos. Revisá acá antes de hacer compras o cierres.'
   }
 ]
 

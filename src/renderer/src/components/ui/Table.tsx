@@ -12,10 +12,7 @@ export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElem
 export function THead({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
     <thead
-      className={cn(
-        'bg-surface-muted text-text-muted text-xs uppercase tracking-wide',
-        className
-      )}
+      className={cn('bg-surface-muted text-text-muted text-xs uppercase tracking-wide', className)}
       {...props}
     />
   )
@@ -26,12 +23,7 @@ export function TBody({ className, ...props }: HTMLAttributes<HTMLTableSectionEl
 }
 
 export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return (
-    <tr
-      className={cn('hover:bg-brand-light/40 transition-colors', className)}
-      {...props}
-    />
-  )
+  return <tr className={cn('hover:bg-brand-light/40 transition-colors', className)} {...props} />
 }
 
 export function Th({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {

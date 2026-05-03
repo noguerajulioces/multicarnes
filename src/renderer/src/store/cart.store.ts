@@ -25,7 +25,11 @@ export const useCartStore = create<CartState>((set, get) => ({
         return {
           items: state.items.map((i) =>
             i.product.id === product.id
-              ? { ...i, quantity: i.quantity + quantity, subtotal: (i.quantity + quantity) * product.price }
+              ? {
+                  ...i,
+                  quantity: i.quantity + quantity,
+                  subtotal: (i.quantity + quantity) * product.price
+                }
               : i
           )
         }
@@ -39,9 +43,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   updateQuantity: (productId, quantity) => {
     set((state) => ({
       items: state.items.map((i) =>
-        i.product.id === productId
-          ? { ...i, quantity, subtotal: quantity * i.product.price }
-          : i
+        i.product.id === productId ? { ...i, quantity, subtotal: quantity * i.product.price } : i
       )
     }))
   },

@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { formatGs, formatDate, formatDateTime, todayStr, firstDayOfMonthStr, cn } from '../../lib/utils'
+import {
+  formatGs,
+  formatDate,
+  formatDateTime,
+  todayStr,
+  firstDayOfMonthStr,
+  cn
+} from '../../lib/utils'
 import { exportToExcel, exportToPDF } from '../../lib/export'
 import {
   Badge,
@@ -61,8 +68,20 @@ interface SalesSummaryResult {
 }
 
 interface SalesComparisonResult {
-  current: { sales_count: number; total: number; discount: number; units: number; avg_ticket: number }
-  previous: { sales_count: number; total: number; discount: number; units: number; avg_ticket: number }
+  current: {
+    sales_count: number
+    total: number
+    discount: number
+    units: number
+    avg_ticket: number
+  }
+  previous: {
+    sales_count: number
+    total: number
+    discount: number
+    units: number
+    avg_ticket: number
+  }
   period: {
     current_from: string
     current_to: string
@@ -192,19 +211,19 @@ function prepareExportData(tab: Tab, data: unknown[]): Record<string, unknown>[]
         _revenue: formatGs(r.total_revenue)
       }))
     case 'margen':
-      return (
-        data as { product_name: string; sale_price: number; last_cost: number | null }[]
-      ).map((r) => {
-        const margin = r.last_cost ? r.sale_price - r.last_cost : null
-        const pct = margin && r.last_cost ? ((margin / r.last_cost) * 100).toFixed(1) + '%' : '-'
-        return {
-          ...r,
-          _sale_price: formatGs(r.sale_price),
-          _last_cost: r.last_cost ? formatGs(r.last_cost) : '-',
-          _margin: margin ? formatGs(margin) : '-',
-          _pct: pct
+      return (data as { product_name: string; sale_price: number; last_cost: number | null }[]).map(
+        (r) => {
+          const margin = r.last_cost ? r.sale_price - r.last_cost : null
+          const pct = margin && r.last_cost ? ((margin / r.last_cost) * 100).toFixed(1) + '%' : '-'
+          return {
+            ...r,
+            _sale_price: formatGs(r.sale_price),
+            _last_cost: r.last_cost ? formatGs(r.last_cost) : '-',
+            _margin: margin ? formatGs(margin) : '-',
+            _pct: pct
+          }
         }
-      })
+      )
     case 'stock':
       return (
         data as {

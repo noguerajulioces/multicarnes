@@ -19,7 +19,9 @@ export function salesByPeriod(from: string, to: string, method?: string, userId?
     params.push(userId)
   }
   sql += ' ORDER BY s.created_at DESC'
-  return getDb().prepare(sql).all(...params)
+  return getDb()
+    .prepare(sql)
+    .all(...params)
 }
 
 export function topProducts(from: string, to: string, categoryId?: number) {
@@ -38,11 +40,15 @@ export function topProducts(from: string, to: string, categoryId?: number) {
     params.push(categoryId)
   }
   sql += ' GROUP BY si.product_id ORDER BY total_quantity DESC'
-  return getDb().prepare(sql).all(...params)
+  return getDb()
+    .prepare(sql)
+    .all(...params)
 }
 
 export function profitMargin() {
-  return getDb().prepare(`
+  return getDb()
+    .prepare(
+      `
     SELECT p.id, p.name as product_name, p.price as sale_price,
       (SELECT pi.unit_cost FROM purchase_items pi
        JOIN purchase_orders po ON pi.order_id = po.id
@@ -51,7 +57,9 @@ export function profitMargin() {
     FROM products p
     WHERE p.active = 1
     ORDER BY p.name
-  `).all()
+  `
+    )
+    .all()
 }
 
 export function stockMovements(from: string, to: string, productId?: number) {
@@ -68,21 +76,29 @@ export function stockMovements(from: string, to: string, productId?: number) {
     params.push(productId)
   }
   sql += ' ORDER BY sa.created_at DESC'
-  return getDb().prepare(sql).all(...params)
+  return getDb()
+    .prepare(sql)
+    .all(...params)
 }
 
 export function cashRegisterReport() {
-  return getDb().prepare(`
+  return getDb()
+    .prepare(
+      `
     SELECT cr.*, u.name as user_name
     FROM cash_registers cr
     LEFT JOIN users u ON cr.user_id = u.id
     WHERE cr.status = 'closed'
     ORDER BY cr.closed_at DESC
-  `).all()
+  `
+    )
+    .all()
 }
 
 export function pendingCredits() {
-  return getDb().prepare(`
+  return getDb()
+    .prepare(
+      `
     SELECT
       c.id,
       c.name,
@@ -100,13 +116,17 @@ export function pendingCredits() {
     FROM customers c
     WHERE c.balance < 0
     ORDER BY c.balance ASC
-  `).all()
+  `
+    )
+    .all()
 }
 
 export function salesSummary(from: string, to: string) {
   const db = getDb()
 
-  const totals = db.prepare(`
+  const totals = db
+    .prepare(
+      `
     SELECT
       COUNT(*) AS sales_count,
       COALESCE(SUM(total), 0) AS total,
@@ -114,9 +134,13 @@ export function salesSummary(from: string, to: string) {
       COALESCE(SUM(subtotal), 0) AS subtotal
     FROM sales
     WHERE date(created_at) >= ? AND date(created_at) <= ? AND status = 'completed'
-  `).get(from, to)
+  `
+    )
+    .get(from, to)
 
-  const byDay = db.prepare(`
+  const byDay = db
+    .prepare(
+      `
     SELECT
       date(created_at) AS day,
       COUNT(*) AS sales_count,
@@ -125,9 +149,13 @@ export function salesSummary(from: string, to: string) {
     WHERE date(created_at) >= ? AND date(created_at) <= ? AND status = 'completed'
     GROUP BY date(created_at)
     ORDER BY day ASC
-  `).all(from, to)
+  `
+    )
+    .all(from, to)
 
-  const byMethod = db.prepare(`
+  const byMethod = db
+    .prepare(
+      `
     SELECT
       payment_method AS method,
       COUNT(*) AS sales_count,
@@ -136,9 +164,13 @@ export function salesSummary(from: string, to: string) {
     WHERE date(created_at) >= ? AND date(created_at) <= ? AND status = 'completed'
     GROUP BY payment_method
     ORDER BY total DESC
-  `).all(from, to)
+  `
+    )
+    .all(from, to)
 
-  const byUser = db.prepare(`
+  const byUser = db
+    .prepare(
+      `
     SELECT
       u.id AS user_id,
       u.name AS user_name,
@@ -149,28 +181,38 @@ export function salesSummary(from: string, to: string) {
     WHERE date(s.created_at) >= ? AND date(s.created_at) <= ? AND s.status = 'completed'
     GROUP BY s.user_id
     ORDER BY total DESC
-  `).all(from, to)
+  `
+    )
+    .all(from, to)
 
   return { totals, byDay, byMethod, byUser }
 }
 
 function periodStats(from: string, to: string) {
   const db = getDb()
-  const sales = db.prepare(`
+  const sales = db
+    .prepare(
+      `
     SELECT
       COUNT(*) AS sales_count,
       COALESCE(SUM(total), 0) AS total,
       COALESCE(SUM(discount), 0) AS discount
     FROM sales
     WHERE date(created_at) >= ? AND date(created_at) <= ? AND status = 'completed'
-  `).get(from, to) as { sales_count: number; total: number; discount: number }
+  `
+    )
+    .get(from, to) as { sales_count: number; total: number; discount: number }
 
-  const units = db.prepare(`
+  const units = db
+    .prepare(
+      `
     SELECT COALESCE(SUM(si.quantity), 0) AS units
     FROM sale_items si
     JOIN sales s ON si.sale_id = s.id
     WHERE date(s.created_at) >= ? AND date(s.created_at) <= ? AND s.status = 'completed'
-  `).get(from, to) as { units: number }
+  `
+    )
+    .get(from, to) as { units: number }
 
   const avgTicket = sales.sales_count > 0 ? Math.round(sales.total / sales.sales_count) : 0
   return {

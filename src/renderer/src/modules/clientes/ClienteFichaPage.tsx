@@ -148,15 +148,11 @@ export default function ClienteFichaPage() {
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
                 <span className="inline-flex items-center gap-1.5">
                   <Phone size={14} />
-                  {customer.phone || (
-                    <span className="text-text-disabled">Sin teléfono</span>
-                  )}
+                  {customer.phone || <span className="text-text-disabled">Sin teléfono</span>}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <MapPin size={14} />
-                  {customer.address || (
-                    <span className="text-text-disabled">Sin dirección</span>
-                  )}
+                  {customer.address || <span className="text-text-disabled">Sin dirección</span>}
                 </span>
                 {customer.document && (
                   <span className="inline-flex items-center gap-1.5 tabular-nums">
@@ -169,10 +165,7 @@ export default function ClienteFichaPage() {
         </Card>
 
         <Card
-          className={cn(
-            'rounded-2xl border',
-            owes ? 'border-danger-500/40' : 'border-border'
-          )}
+          className={cn('rounded-2xl border', owes ? 'border-danger-500/40' : 'border-border')}
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardBody>
@@ -180,9 +173,7 @@ export default function ClienteFichaPage() {
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0"
                 style={{
-                  background: owes
-                    ? 'var(--gradient-kpi-purple)'
-                    : 'var(--gradient-kpi-green)'
+                  background: owes ? 'var(--gradient-kpi-purple)' : 'var(--gradient-kpi-green)'
                 }}
               >
                 {owes ? <CreditCard size={18} /> : <CheckCircle2 size={18} />}
@@ -278,7 +269,9 @@ export default function ClienteFichaPage() {
                           <tr className="border-b border-border last:border-0 bg-surface-muted/30">
                             <td colSpan={4} className="px-3 py-2">
                               {items.length === 0 ? (
-                                <p className="text-xs text-text-muted py-2">Sin ítems registrados</p>
+                                <p className="text-xs text-text-muted py-2">
+                                  Sin ítems registrados
+                                </p>
                               ) : (
                                 <ul className="divide-y divide-border">
                                   {items.map((it) => (

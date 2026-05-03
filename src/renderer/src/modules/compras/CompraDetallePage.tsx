@@ -119,9 +119,7 @@ export default function CompraDetallePage() {
               <p className="text-sm text-text-main mt-1">
                 Proveedor:{' '}
                 <span className="font-medium">
-                  {order.supplier_name || (
-                    <span className="text-text-disabled">Sin proveedor</span>
-                  )}
+                  {order.supplier_name || <span className="text-text-disabled">Sin proveedor</span>}
                 </span>
               </p>
             </div>

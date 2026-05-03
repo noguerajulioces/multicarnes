@@ -3,15 +3,7 @@ import type { AppSetting, BackupFile } from '@shared/types'
 import { formatDateTime } from '../../lib/utils'
 import { toast } from '../../lib/toast'
 import { confirm } from '../../lib/confirm'
-import {
-  Clock,
-  HardDrive,
-  FolderOpen,
-  Database,
-  RotateCcw,
-  Save,
-  FileArchive
-} from 'lucide-react'
+import { Clock, HardDrive, FolderOpen, Database, RotateCcw, Save, FileArchive } from 'lucide-react'
 import {
   Button,
   Card,
@@ -112,9 +104,7 @@ export default function BackupPage() {
                 </div>
                 <div>
                   <h2 className="font-semibold text-text-main">Acciones</h2>
-                  <p className="text-xs text-text-muted">
-                    Crear o restaurar un backup manualmente
-                  </p>
+                  <p className="text-xs text-text-muted">Crear o restaurar un backup manualmente</p>
                 </div>
               </div>
             </CardHeader>

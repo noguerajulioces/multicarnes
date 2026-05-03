@@ -5,7 +5,9 @@ import { getDb } from '../db'
 
 function getBackupDir(): string {
   const db = getDb()
-  const setting = db.prepare("SELECT value FROM app_settings WHERE key = 'backup_path'").get() as { value: string } | undefined
+  const setting = db.prepare("SELECT value FROM app_settings WHERE key = 'backup_path'").get() as
+    | { value: string }
+    | undefined
   const backupPath = setting?.value || join(app.getPath('userData'), 'backups')
   if (!existsSync(backupPath)) mkdirSync(backupPath, { recursive: true })
   return backupPath
@@ -24,7 +26,9 @@ let schedulerInterval: ReturnType<typeof setInterval> | null = null
 let lastBackupDate: string | null = null
 
 function getSetting(key: string): string | null {
-  const row = getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined
+  const row = getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as
+    | { value: string }
+    | undefined
   return row?.value || null
 }
 
@@ -79,8 +83,8 @@ export function registerBackupIpc(): void {
     const dir = getBackupDir()
     if (!existsSync(dir)) return []
     return readdirSync(dir)
-      .filter(f => f.endsWith('.db'))
-      .map(f => {
+      .filter((f) => f.endsWith('.db'))
+      .map((f) => {
         const fullPath = join(dir, f)
         const stat = statSync(fullPath)
         return { name: f, path: fullPath, size: stat.size, date: stat.mtime.toISOString() }
@@ -115,7 +119,9 @@ export function registerBackupIpc(): void {
   })
 
   ipcMain.handle('settings:set', (_, key: string, value: string) => {
-    getDb().prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)').run(key, value)
+    getDb()
+      .prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)')
+      .run(key, value)
     return true
   })
 }

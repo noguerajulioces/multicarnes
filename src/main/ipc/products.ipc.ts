@@ -7,22 +7,31 @@ import { getImagesDir } from '../db'
 export function registerProductsIpc(): void {
   ipcMain.handle('products:getAll', (_, filters?) => productsQuery.getAllProducts(filters))
   ipcMain.handle('products:getById', (_, id: number) => productsQuery.getProductById(id))
-  ipcMain.handle('products:getByBarcode', (_, barcode: string) => productsQuery.getProductByBarcode(barcode))
+  ipcMain.handle('products:getByBarcode', (_, barcode: string) =>
+    productsQuery.getProductByBarcode(barcode)
+  )
   ipcMain.handle('products:create', (_, data) => productsQuery.createProduct(data))
   ipcMain.handle('products:update', (_, id: number, data) => productsQuery.updateProduct(id, data))
-  ipcMain.handle('products:adjustStock', (_, id: number, newStock: number, reason: string, userId: number) =>
-    productsQuery.adjustStock(id, newStock, reason, userId))
+  ipcMain.handle(
+    'products:adjustStock',
+    (_, id: number, newStock: number, reason: string, userId: number) =>
+      productsQuery.adjustStock(id, newStock, reason, userId)
+  )
   ipcMain.handle('products:categories', () => productsQuery.getAllCategories())
   ipcMain.handle('products:createCategory', (_, name: string) => productsQuery.createCategory(name))
   ipcMain.handle('products:lowStock', () => productsQuery.getLowStockProducts())
   ipcMain.handle('products:movements', (_, productId: number, limit?: number) =>
-    productsQuery.getStockMovements(productId, limit))
+    productsQuery.getStockMovements(productId, limit)
+  )
   ipcMain.handle('products:recentSales', (_, productId: number, limit?: number) =>
-    productsQuery.getRecentSalesForProduct(productId, limit))
+    productsQuery.getRecentSalesForProduct(productId, limit)
+  )
   ipcMain.handle('products:salesStats', (_, productId: number) =>
-    productsQuery.getProductSalesStats(productId))
+    productsQuery.getProductSalesStats(productId)
+  )
   ipcMain.handle('products:lastPurchase', (_, productId: number) =>
-    productsQuery.getLastPurchaseForProduct(productId))
+    productsQuery.getLastPurchaseForProduct(productId)
+  )
 
   ipcMain.handle('products:uploadImage', async (_, productId: number) => {
     const result = await dialog.showOpenDialog({

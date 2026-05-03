@@ -12,10 +12,7 @@ const PAPER_PX: Record<number, number> = {
   80: 320
 }
 
-export const Ticket = forwardRef<HTMLDivElement, TicketProps>(function Ticket(
-  { ticket },
-  ref
-) {
+export const Ticket = forwardRef<HTMLDivElement, TicketProps>(function Ticket({ ticket }, ref) {
   const widthPx = PAPER_PX[ticket.width] ?? 320
 
   return (

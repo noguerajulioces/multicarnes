@@ -2,15 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Supplier } from '@shared/types'
 import { ArrowLeft, Edit2, Plus, Users } from 'lucide-react'
-import {
-  Button,
-  Card,
-  EmptyState,
-  Input,
-  Modal,
-  PageHeader,
-  Pagination
-} from '../../components/ui'
+import { Button, Card, EmptyState, Input, Modal, PageHeader, Pagination } from '../../components/ui'
 
 const emptyForm = { name: '', phone: '', email: '', address: '' }
 const PER_PAGE = 50
@@ -93,7 +85,10 @@ export default function ProveedoresPage() {
         }
       />
 
-      <Card className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        className="rounded-2xl overflow-hidden"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
