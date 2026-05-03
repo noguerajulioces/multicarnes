@@ -44,9 +44,9 @@ export default function NuevaCompraPage() {
 
   useEffect(() => {
     if (searchProduct.length >= 2) {
-      window.api.products.getAll({ search: searchProduct, active: true }).then((res) =>
-        setProducts(res.items)
-      )
+      window.api.products
+        .getAll({ search: searchProduct, active: true })
+        .then((res) => setProducts(res.items))
     } else {
       setProducts([])
     }
@@ -282,7 +282,7 @@ export default function NuevaCompraPage() {
               </p>
             ) : products.length === 0 ? (
               <p className="text-center text-sm text-text-muted py-8 px-4">
-                Sin resultados para "{searchProduct}"
+                Sin resultados para &quot;{searchProduct}&quot;
               </p>
             ) : (
               products.map((p) => {

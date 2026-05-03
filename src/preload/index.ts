@@ -26,10 +26,8 @@ const api = {
       ipcRenderer.invoke('products:movements', productId, limit),
     recentSales: (productId: number, limit?: number) =>
       ipcRenderer.invoke('products:recentSales', productId, limit),
-    salesStats: (productId: number) =>
-      ipcRenderer.invoke('products:salesStats', productId),
-    lastPurchase: (productId: number) =>
-      ipcRenderer.invoke('products:lastPurchase', productId),
+    salesStats: (productId: number) => ipcRenderer.invoke('products:salesStats', productId),
+    lastPurchase: (productId: number) => ipcRenderer.invoke('products:lastPurchase', productId),
     uploadImage: (productId: number) => ipcRenderer.invoke('products:uploadImage', productId),
     pickImage: () => ipcRenderer.invoke('products:pickImage'),
     saveImageFromPath: (productId: number, srcPath: string) =>
@@ -58,12 +56,18 @@ const api = {
   },
   // Cash
   cash: {
-    open: (userId: number, openingAmount: number) => ipcRenderer.invoke('cash:open', userId, openingAmount),
+    open: (userId: number, openingAmount: number) =>
+      ipcRenderer.invoke('cash:open', userId, openingAmount),
     getCurrent: () => ipcRenderer.invoke('cash:getCurrent'),
     close: (id: number, closingAmount: number, notes?: string) =>
       ipcRenderer.invoke('cash:close', id, closingAmount, notes),
-    addMovement: (registerId: number, userId: number, type: string, amount: number, description: string) =>
-      ipcRenderer.invoke('cash:addMovement', registerId, userId, type, amount, description),
+    addMovement: (
+      registerId: number,
+      userId: number,
+      type: string,
+      amount: number,
+      description: string
+    ) => ipcRenderer.invoke('cash:addMovement', registerId, userId, type, amount, description),
     getMovements: (registerId: number) => ipcRenderer.invoke('cash:getMovements', registerId),
     getSummary: (registerId: number) => ipcRenderer.invoke('cash:getSummary', registerId),
     getAll: () => ipcRenderer.invoke('cash:getAll')
@@ -125,6 +129,6 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore
+  // @ts-ignore — fallback path when contextIsolation is disabled
   window.api = api
 }
