@@ -1,24 +1,16 @@
 import { create } from 'zustand'
 
-type TourKey = 'ventas' | 'dashboard'
-
 const STORAGE_PREFIX = 'tour:seen:'
 
-function readSeen(key: TourKey): boolean {
-  return localStorage.getItem(STORAGE_PREFIX + key) === '1'
-}
-
 interface TourState {
-  seen: Record<TourKey, boolean>
-  markSeen: (key: TourKey) => void
-  resetSeen: (key: TourKey) => void
+  seen: Record<string, boolean>
+  markSeen: (key: string) => void
+  resetSeen: (key: string) => void
+  resetAll: () => void
 }
 
 export const useTourStore = create<TourState>((set) => ({
-  seen: {
-    ventas: readSeen('ventas'),
-    dashboard: readSeen('dashboard')
-  },
+  seen: {},
   markSeen: (key) => {
     localStorage.setItem(STORAGE_PREFIX + key, '1')
     set((s) => ({ seen: { ...s.seen, [key]: true } }))
@@ -26,5 +18,16 @@ export const useTourStore = create<TourState>((set) => ({
   resetSeen: (key) => {
     localStorage.removeItem(STORAGE_PREFIX + key)
     set((s) => ({ seen: { ...s.seen, [key]: false } }))
+  },
+  resetAll: () => {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith(STORAGE_PREFIX)) localStorage.removeItem(k)
+    }
+    set({ seen: {} })
   }
 }))
+
+export function hasTourBeenSeen(key: string): boolean {
+  return localStorage.getItem(STORAGE_PREFIX + key) === '1'
+}
