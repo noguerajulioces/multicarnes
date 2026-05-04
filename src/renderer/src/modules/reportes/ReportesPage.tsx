@@ -18,8 +18,11 @@ import {
   Input,
   KpiCard,
   PageHeader,
-  TableSkeleton
+  TableSkeleton,
+  TourButton
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { reportesTourSteps } from '../../lib/tour-steps'
 import type { PaymentMethod, Sale } from '@shared/types'
 import {
   FileSpreadsheet,
@@ -385,14 +388,17 @@ export default function ReportesPage() {
   const objectTabHasData = (tab === 'resumen' && summary) || (tab === 'comparativo' && comparison)
   const showEmpty = !loading && !isObjectTab && data.length === 0
 
+  const { startTour } = usePageTour({ key: 'reportes', steps: reportesTourSteps })
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Reportes"
         subtitle="Analizá ventas, créditos, márgenes y movimientos del negocio"
+        actions={<TourButton onClick={startTour} />}
       />
 
-      <div className="flex gap-2 flex-wrap">
+      <div data-tour="reportes-tabs" className="flex gap-2 flex-wrap">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -415,7 +421,11 @@ export default function ReportesPage() {
         ))}
       </div>
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="reportes-filters"
+        className="rounded-2xl"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <CardBody className="space-y-4">
           <div className="flex gap-3 items-end flex-wrap">
             {needsDateRange && (

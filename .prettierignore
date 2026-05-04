@@ -2,6 +2,7 @@ out
 dist
 pnpm-lock.yaml
 LICENSE.md
+CHANGELOG.md
 tsconfig.json
 tsconfig.*.json
 electron.vite.config.*.mjs

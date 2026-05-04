@@ -9,8 +9,11 @@ import {
   Input,
   Modal,
   PageHeader,
-  Select
+  Select,
+  TourButton
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { usuariosTourSteps } from '../../lib/tour-steps'
 
 const emptyForm = { name: '', role: 'cajero' as Role, pin: '', confirmPin: '', active: true }
 
@@ -110,23 +113,30 @@ export default function UsuariosPage() {
       .map((p) => p.charAt(0).toUpperCase())
       .join('') || name.charAt(0).toUpperCase()
 
+  const { startTour } = usePageTour({ key: 'usuarios', steps: usuariosTourSteps })
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Usuarios"
         subtitle={`${users.length} usuario${users.length === 1 ? '' : 's'} registrado${users.length === 1 ? '' : 's'}`}
         actions={
-          <button
-            onClick={handleNew}
-            className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-          >
-            <Plus size={18} />
-            Nuevo Usuario
-          </button>
+          <>
+            <TourButton onClick={startTour} />
+            <button
+              data-tour="usuarios-new"
+              onClick={handleNew}
+              className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+            >
+              <Plus size={18} />
+              Nuevo Usuario
+            </button>
+          </>
         }
       />
 
       <Card
+        data-tour="usuarios-table"
         className="rounded-2xl overflow-hidden"
         style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >

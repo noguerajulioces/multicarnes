@@ -5,7 +5,9 @@ import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
 import { confirm } from '../../lib/confirm'
-import { MoneyInput } from '../../components/ui'
+import { MoneyInput, TourButton } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { cajaAperturaTourSteps } from '../../lib/tour-steps'
 
 export default function AperturaCajaPage() {
   const [amount, setAmount] = useState(0)
@@ -39,8 +41,13 @@ export default function AperturaCajaPage() {
     setLoading(false)
   }
 
+  const { startTour } = usePageTour({ key: 'caja-apertura', steps: cajaAperturaTourSteps })
+
   return (
     <div className="max-w-md mx-auto mt-12">
+      <div className="flex justify-end mb-2">
+        <TourButton onClick={startTour} size="sm" />
+      </div>
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -62,7 +69,7 @@ export default function AperturaCajaPage() {
           </p>
         </div>
 
-        <div className="mb-6">
+        <div data-tour="caja-apertura-amount" className="mb-6">
           <label className="block text-sm text-text-muted mb-2">Monto de apertura (Gs.)</label>
           <MoneyInput
             value={amount}
@@ -77,6 +84,7 @@ export default function AperturaCajaPage() {
         </div>
 
         <button
+          data-tour="caja-apertura-submit"
           type="submit"
           disabled={loading}
           className="w-full bg-brand text-white py-3 rounded-xl font-medium hover:bg-brand-hover disabled:opacity-50 transition-colors shadow-sm"

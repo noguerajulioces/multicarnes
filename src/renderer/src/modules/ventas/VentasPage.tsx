@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useTour } from '@reactour/tour'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
 import { useHeldStore } from '../../store/held.store'
-import { useTourStore } from '../../store/tour.store'
+import { usePageTour } from '../../lib/use-page-tour'
 import { ventasTourSteps } from '../../lib/tour-steps'
 import { formatGs, formatDateTime } from '../../lib/utils'
 import { parseBalanceCode } from '../../lib/balance-code'
@@ -22,11 +21,18 @@ import {
   Pause,
   Play,
   Clock,
-  HelpCircle,
   Wallet,
   AlertTriangle
 } from 'lucide-react'
-import { Badge, Button, EmptyState, Input, Modal, MoneyInput } from '../../components/ui'
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Input,
+  Modal,
+  MoneyInput,
+  TourButton
+} from '../../components/ui'
 import { cn } from '../../lib/utils'
 import { priceTypeInfo } from '../../lib/price-types'
 import CobroModal from './CobroModal'
@@ -34,9 +40,6 @@ import CobroModal from './CobroModal'
 export default function VentasPage() {
   const navigate = useNavigate()
   const register = useCashStore((s) => s.register)
-  const { setIsOpen: setTourOpen, setCurrentStep, setSteps } = useTour()
-  const ventasSeen = useTourStore((s) => s.seen.ventas)
-  const markSeen = useTourStore((s) => s.markSeen)
   const {
     items,
     discount,
@@ -79,22 +82,11 @@ export default function VentasPage() {
     window.api.products.categories().then(setCategories)
   }, [])
 
-  useEffect(() => {
-    if (!register || ventasSeen) return
-    const id = setTimeout(() => {
-      setSteps?.(ventasTourSteps)
-      setCurrentStep(0)
-      setTourOpen(true)
-      markSeen('ventas')
-    }, 600)
-    return () => clearTimeout(id)
-  }, [register, ventasSeen, setSteps, setCurrentStep, setTourOpen, markSeen])
-
-  const startTour = () => {
-    setSteps?.(ventasTourSteps)
-    setCurrentStep(0)
-    setTourOpen(true)
-  }
+  const { startTour } = usePageTour({
+    key: 'ventas',
+    steps: ventasTourSteps,
+    ready: !!register
+  })
 
   const loadProducts = async (
     page: number,
@@ -652,15 +644,7 @@ export default function VentasPage() {
         <ShortcutHint k="F9" label="Suspender" />
         <ShortcutHint k="F12" label="Cobrar" />
         <ShortcutHint k="F1" label="Ayuda" />
-        <button
-          type="button"
-          onClick={startTour}
-          className="ml-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-surface-muted text-text-muted hover:text-text-main transition-colors"
-          title="Ver tutorial de la pantalla de ventas"
-        >
-          <HelpCircle size={12} />
-          Ver tutorial
-        </button>
+        <TourButton onClick={startTour} label="Ver tutorial" size="sm" className="ml-auto" />
       </div>
 
       {/* Quantity Modal */}

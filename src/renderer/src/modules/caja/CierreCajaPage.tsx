@@ -4,7 +4,9 @@ import { Coins, TrendingUp, TrendingDown } from 'lucide-react'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
 import { toast } from '../../lib/toast'
-import { MoneyInput } from '../../components/ui'
+import { MoneyInput, TourButton } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { cajaCierreTourSteps } from '../../lib/tour-steps'
 
 export default function CierreCajaPage() {
   const { register, setRegister } = useCashStore()
@@ -72,8 +74,13 @@ export default function CierreCajaPage() {
     setLoading(false)
   }
 
+  const { startTour } = usePageTour({ key: 'caja-cierre', steps: cajaCierreTourSteps })
+
   return (
     <div className="max-w-lg mx-auto mt-8">
+      <div className="flex justify-end mb-2">
+        <TourButton onClick={startTour} size="sm" />
+      </div>
       <div
         className="bg-surface rounded-2xl border border-border p-8"
         style={{ boxShadow: 'var(--shadow-card-soft)' }}
@@ -92,6 +99,7 @@ export default function CierreCajaPage() {
         </div>
 
         <div
+          data-tour="caja-cierre-expected"
           className="rounded-xl p-4 mb-5 border border-border"
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
@@ -99,7 +107,7 @@ export default function CierreCajaPage() {
           <p className="text-2xl font-bold text-text-main tabular-nums">{formatGs(expected)}</p>
         </div>
 
-        <div className="mb-4">
+        <div data-tour="caja-cierre-counted" className="mb-4">
           <label className="block text-sm text-text-muted mb-1.5">
             Monto contado físicamente (Gs.)
           </label>
@@ -147,7 +155,7 @@ export default function CierreCajaPage() {
           />
         </div>
 
-        <div className="flex gap-3">
+        <div data-tour="caja-cierre-confirm" className="flex gap-3">
           <button
             onClick={() => navigate('/caja')}
             className="flex-1 border border-border rounded-xl py-3 font-medium text-text-main hover:bg-surface-muted transition-colors"

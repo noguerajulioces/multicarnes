@@ -3,7 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { formatGs, formatDateTime, cn } from '../../lib/utils'
 import type { PurchaseOrder, OrderStatus } from '@shared/types'
 import { Plus, Truck, Users, ChevronRight } from 'lucide-react'
-import { Badge, Button, Card, EmptyState, PageHeader, Pagination } from '../../components/ui'
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  Pagination,
+  TourButton
+} from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { comprasTourSteps } from '../../lib/tour-steps'
 
 type StatusFilter = '' | OrderStatus
 
@@ -48,13 +58,16 @@ export default function ComprasPage() {
       })
   }, [filterStatus, page])
 
+  const { startTour } = usePageTour({ key: 'compras', steps: comprasTourSteps })
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Compras"
         subtitle={`${total} orden${total === 1 ? '' : 'es'} en el listado`}
         actions={
-          <>
+          <div data-tour="compras-actions" className="flex items-center gap-2">
+            <TourButton onClick={startTour} />
             <Button
               variant="secondary"
               className="rounded-xl"
@@ -70,11 +83,11 @@ export default function ComprasPage() {
               <Plus size={18} />
               Nueva Orden
             </button>
-          </>
+          </div>
         }
       />
 
-      <div className="flex gap-2 flex-wrap">
+      <div data-tour="compras-filters" className="flex gap-2 flex-wrap">
         {filterOptions.map((opt) => (
           <button
             key={opt.value}
@@ -93,6 +106,7 @@ export default function ComprasPage() {
       </div>
 
       <Card
+        data-tour="compras-table"
         className="rounded-2xl overflow-hidden"
         style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >

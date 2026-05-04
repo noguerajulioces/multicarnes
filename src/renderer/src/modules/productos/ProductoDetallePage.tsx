@@ -27,8 +27,11 @@ import {
   Td,
   Th,
   THead,
+  TourButton,
   Tr
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { productoDetalleTourSteps } from '../../lib/tour-steps'
 import { confirm } from '../../lib/confirm'
 import { toast } from '../../lib/toast'
 import { formatGs, formatDateTime } from '../../lib/utils'
@@ -133,6 +136,12 @@ export default function ProductoDetallePage() {
     }
   }
 
+  const { startTour } = usePageTour({
+    key: 'producto-detalle',
+    steps: productoDetalleTourSteps,
+    ready: !!product
+  })
+
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto space-y-5">
@@ -171,16 +180,23 @@ export default function ProductoDetallePage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
-      <button
-        type="button"
-        onClick={() => navigate('/productos')}
-        className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-main transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Volver a productos
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/productos')}
+          className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-main transition-colors"
+        >
+          <ArrowLeft size={14} />
+          Volver a productos
+        </button>
+        <TourButton onClick={startTour} size="sm" />
+      </div>
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="producto-detalle-header"
+        className="rounded-2xl"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <CardBody className="flex flex-col sm:flex-row gap-5">
           <div className="w-32 h-32 rounded-2xl overflow-hidden border border-border bg-surface-muted shrink-0 flex items-center justify-center">
             {imageUrl ? (
@@ -229,7 +245,7 @@ export default function ProductoDetallePage() {
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour="producto-detalle-kpis" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           gradient="blue"
           icon={<Wallet size={20} />}
@@ -266,7 +282,11 @@ export default function ProductoDetallePage() {
         />
       </div>
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="producto-detalle-movements"
+        className="rounded-2xl"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <CardHeader>
           <h2 className="font-semibold text-text-main">Movimientos de stock</h2>
           <p className="text-xs text-text-muted">
@@ -324,7 +344,11 @@ export default function ProductoDetallePage() {
         </CardBody>
       </Card>
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="producto-detalle-sales"
+        className="rounded-2xl"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <CardHeader>
           <h2 className="font-semibold text-text-main">Últimas ventas</h2>
           <p className="text-xs text-text-muted">
