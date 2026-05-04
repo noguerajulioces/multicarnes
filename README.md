@@ -135,7 +135,11 @@ To configure a printer, go to **Configuración → Impresora térmica** and fill
 
 ## Documentation
 
-All project documentation lives in [`docs/`](docs/README.md). Start at the [docs index](docs/README.md) — it links to the database schema, the technical specification, and any future docs.
+All project documentation lives in [`docs/`](docs/README.md). Start at the [docs index](docs/README.md) — it links to the database schema, the technical specification, and the QA guide.
+
+## Quality assurance
+
+Manual QA artifacts live in [`docs/qa/`](docs/qa/README.md): release smoke checklist, per-module test cases (login, sales, cash, products, customers, purchases, users, reports, backup, configuration), and the bug report template.
 
 ## Recommended IDE
 

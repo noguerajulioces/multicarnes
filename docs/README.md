@@ -10,6 +10,7 @@ This is the entry point for **all project documentation** — start here.
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | [database.md](database.md)                               | Database schema, ER diagram (Mermaid), table-by-table reference, transactional flows, and migrations. |
 | [../spec_pos_multicarnes.md](../spec_pos_multicarnes.md) | Full technical specification: modules, business rules, IPC surface, and shared types.                 |
+| [qa/README.md](qa/README.md)                             | Manual QA guide: environment setup, release smoke checklist, per-module test cases, bug template.     |
 
 ## Conventions
 
