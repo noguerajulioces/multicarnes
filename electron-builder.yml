@@ -1,7 +1,12 @@
+# appId: reverse-DNS identifier used by the OS to recognize the app.
+# productName: human-readable name shown to users (installer, shortcut, taskbar).
+# Change both if the project is forked or rebranded.
 appId: com.multicarnes.pos
 productName: Multicarnes POS
 directories:
   buildResources: build
+  # All packaged installers land here; the release workflow uploads from this folder.
+  output: dist
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -35,9 +40,10 @@ dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
   icon: build/icon.png
+  # AppImage = portable single-file binary; deb = installable on Debian/Ubuntu.
+  # Snap was removed: it requires snapcraft + LXD on the runner and slows builds significantly.
   target:
     - AppImage
-    - snap
     - deb
   maintainer: electronjs.org
   category: Utility
