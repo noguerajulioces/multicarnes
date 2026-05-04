@@ -31,6 +31,9 @@ jobs:
           - os: ubuntu-latest
             script: build:linux
             artifact_name: installers-linux
+          - os: macos-latest
+            script: build:mac
+            artifact_name: installers-macos
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -64,6 +67,8 @@ jobs:
             dist/*.exe
             dist/*.AppImage
             dist/*.deb
+            dist/*.dmg
+            dist/*.zip
           if-no-files-found: error
           retention-days: 7
 
@@ -97,6 +102,8 @@ jobs:
             artifacts/*.exe
             artifacts/*.AppImage
             artifacts/*.deb
+            artifacts/*.dmg
+            artifacts/*.zip
           generate_release_notes: true
           draft: false
           prerelease: false
