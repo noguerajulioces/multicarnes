@@ -1,14 +1,28 @@
 import { useState, useEffect } from 'react'
 import type { AppSetting } from '@shared/types'
 import { useThemeStore } from '../../store/theme.store'
-import { Sun, Moon, Store, Palette, KeyRound, Printer } from 'lucide-react'
+import { useTourStore } from '../../store/tour.store'
+import { Sun, Moon, Store, Palette, KeyRound, Printer, HelpCircle, RotateCcw } from 'lucide-react'
 import { cn } from '../../lib/utils'
-import { Card, CardBody, CardHeader, Input, PageHeader, Select } from '../../components/ui'
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Input,
+  PageHeader,
+  Select,
+  TourButton
+} from '../../components/ui'
+import { toast } from '../../lib/toast'
+import { usePageTour } from '../../lib/use-page-tour'
+import { configTourSteps } from '../../lib/tour-steps'
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
   const theme = useThemeStore((s) => s.theme)
   const setTheme = useThemeStore((s) => s.setTheme)
+  const resetAllTours = useTourStore((s) => s.resetAll)
 
   useEffect(() => {
     window.api.settings.getAll().then((all) => {
@@ -25,15 +39,27 @@ export default function ConfiguracionPage() {
     await window.api.settings.set(key, value)
   }
 
+  const handleResetTours = (): void => {
+    resetAllTours()
+    toast.success('Tutoriales reiniciados. Aparecerán al entrar a cada pantalla.')
+  }
+
+  const { startTour } = usePageTour({ key: 'config', steps: configTourSteps })
+
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       <PageHeader
         title="Configuración"
         subtitle="Personalizá los datos del negocio, la apariencia y la impresora"
+        actions={<TourButton onClick={startTour} />}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          data-tour="config-business"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader>
             <div className="flex items-center gap-3">
               <div
@@ -76,7 +102,11 @@ export default function ConfiguracionPage() {
           </CardBody>
         </Card>
 
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          data-tour="config-theme"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader>
             <div className="flex items-center gap-3">
               <div
@@ -111,7 +141,11 @@ export default function ConfiguracionPage() {
           </CardBody>
         </Card>
 
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          data-tour="config-login"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader>
             <div className="flex items-center gap-3">
               <div
@@ -146,7 +180,11 @@ export default function ConfiguracionPage() {
           </CardBody>
         </Card>
 
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          data-tour="config-printer"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader>
             <div className="flex items-center gap-3">
               <div
@@ -184,6 +222,37 @@ export default function ConfiguracionPage() {
                 <option value="80">80 mm</option>
               </Select>
             </div>
+          </CardBody>
+        </Card>
+
+        <Card
+          data-tour="config-tutorials"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0"
+                style={{ background: 'var(--gradient-kpi-blue)' }}
+              >
+                <HelpCircle size={18} />
+              </div>
+              <div>
+                <h2 className="font-semibold text-text-main">Tutoriales</h2>
+                <p className="text-xs text-text-muted">Volver a mostrar la guía en cada pantalla</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardBody>
+            <p className="text-sm text-text-muted mb-3">
+              Reinicia el progreso de los tutoriales. La próxima vez que entres a cada pantalla
+              vuelve a aparecer el recorrido guiado.
+            </p>
+            <Button variant="secondary" onClick={handleResetTours} className="rounded-xl">
+              <RotateCcw size={14} />
+              Reiniciar tutoriales
+            </Button>
           </CardBody>
         </Card>
       </div>

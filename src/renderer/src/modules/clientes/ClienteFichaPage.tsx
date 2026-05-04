@@ -24,8 +24,11 @@ import {
   Modal,
   MoneyInput,
   Skeleton,
-  TableSkeleton
+  TableSkeleton,
+  TourButton
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { clienteFichaTourSteps } from '../../lib/tour-steps'
 import type { Customer, Sale, CustomerPayment, PaymentMethod } from '@shared/types'
 
 const methodLabel: Record<PaymentMethod, string> = {
@@ -83,6 +86,12 @@ export default function ClienteFichaPage() {
     loadData()
   }
 
+  const { startTour } = usePageTour({
+    key: 'cliente-ficha',
+    steps: clienteFichaTourSteps,
+    ready: !!customer
+  })
+
   if (!customer) {
     return (
       <div className="space-y-5">
@@ -123,16 +132,20 @@ export default function ClienteFichaPage() {
 
   return (
     <div className="space-y-5">
-      <button
-        onClick={() => navigate('/clientes')}
-        className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-brand transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Volver a Clientes
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <button
+          onClick={() => navigate('/clientes')}
+          className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-brand transition-colors"
+        >
+          <ArrowLeft size={14} />
+          Volver a Clientes
+        </button>
+        <TourButton onClick={startTour} size="sm" />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card
+          data-tour="cliente-ficha-info"
           className="lg:col-span-2 rounded-2xl"
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
@@ -165,6 +178,7 @@ export default function ClienteFichaPage() {
         </Card>
 
         <Card
+          data-tour="cliente-ficha-balance"
           className={cn('rounded-2xl border', owes ? 'border-danger-500/40' : 'border-border')}
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
@@ -212,7 +226,11 @@ export default function ClienteFichaPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          data-tour="cliente-ficha-sales"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader>
             <div className="flex items-center gap-2">
               <ShoppingBag size={16} className="text-text-muted" />
@@ -306,7 +324,11 @@ export default function ClienteFichaPage() {
           </CardBody>
         </Card>
 
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card
+          data-tour="cliente-ficha-payments"
+          className="rounded-2xl"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
           <CardHeader>
             <div className="flex items-center gap-2">
               <Wallet size={16} className="text-text-muted" />

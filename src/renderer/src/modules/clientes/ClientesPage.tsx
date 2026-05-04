@@ -12,8 +12,11 @@ import {
   Modal,
   PageHeader,
   Pagination,
-  Select
+  Select,
+  TourButton
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { clientesTourSteps } from '../../lib/tour-steps'
 
 const emptyForm: {
   name: string
@@ -103,23 +106,29 @@ export default function ClientesPage() {
     setForm(emptyForm)
   }
 
+  const { startTour } = usePageTour({ key: 'clientes', steps: clientesTourSteps })
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Clientes"
         subtitle={`${total} cliente${total === 1 ? '' : 's'} registrado${total === 1 ? '' : 's'}`}
         actions={
-          <button
-            onClick={handleNew}
-            className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-          >
-            <Plus size={18} />
-            Nuevo Cliente
-          </button>
+          <>
+            <TourButton onClick={startTour} />
+            <button
+              data-tour="clientes-new"
+              onClick={handleNew}
+              className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+            >
+              <Plus size={18} />
+              Nuevo Cliente
+            </button>
+          </>
         }
       />
 
-      <div className="flex gap-3 flex-wrap items-center">
+      <div data-tour="clientes-search" className="flex gap-3 flex-wrap items-center">
         <div className="relative flex-1 min-w-[260px] max-w-md">
           <Search
             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
@@ -144,6 +153,7 @@ export default function ClientesPage() {
       </div>
 
       <Card
+        data-tour="clientes-table"
         className="rounded-2xl overflow-hidden"
         style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >

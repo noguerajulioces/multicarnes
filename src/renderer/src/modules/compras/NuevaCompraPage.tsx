@@ -15,8 +15,11 @@ import {
   Modal,
   MoneyInput,
   PageHeader,
-  Select
+  Select,
+  TourButton
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { compraNuevaTourSteps } from '../../lib/tour-steps'
 
 interface OrderItem {
   productId: number
@@ -100,14 +103,21 @@ export default function NuevaCompraPage() {
     setLoading(false)
   }
 
+  const { startTour } = usePageTour({ key: 'compra-nueva', steps: compraNuevaTourSteps })
+
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <PageHeader
         title="Nueva Orden de Compra"
         subtitle="Registrá una compra a un proveedor. Si la marcás como recibida, el stock se actualiza automáticamente."
+        actions={<TourButton onClick={startTour} />}
       />
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="compra-nueva-supplier"
+        className="rounded-2xl"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <CardHeader>
           <h2 className="font-semibold text-text-main">Detalles de la orden</h2>
           <p className="text-xs text-text-muted">Proveedor y notas</p>
@@ -141,7 +151,11 @@ export default function NuevaCompraPage() {
         </CardBody>
       </Card>
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="compra-nueva-items"
+        className="rounded-2xl"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <CardHeader className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold text-text-main">Productos</h2>
@@ -231,7 +245,7 @@ export default function NuevaCompraPage() {
         </CardBody>
       </Card>
 
-      <div className="flex gap-3 justify-end flex-wrap">
+      <div data-tour="compra-nueva-actions" className="flex gap-3 justify-end flex-wrap">
         <Button
           variant="secondary"
           size="lg"

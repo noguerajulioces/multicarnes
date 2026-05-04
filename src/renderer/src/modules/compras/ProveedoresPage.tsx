@@ -2,7 +2,18 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Supplier } from '@shared/types'
 import { ArrowLeft, Edit2, Plus, Users } from 'lucide-react'
-import { Button, Card, EmptyState, Input, Modal, PageHeader, Pagination } from '../../components/ui'
+import {
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  Modal,
+  PageHeader,
+  Pagination,
+  TourButton
+} from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { proveedoresTourSteps } from '../../lib/tour-steps'
 
 const emptyForm = { name: '', phone: '', email: '', address: '' }
 const PER_PAGE = 50
@@ -61,6 +72,8 @@ export default function ProveedoresPage() {
     setForm(emptyForm)
   }
 
+  const { startTour } = usePageTour({ key: 'proveedores', steps: proveedoresTourSteps })
+
   return (
     <div className="space-y-5">
       <button
@@ -75,17 +88,22 @@ export default function ProveedoresPage() {
         title="Proveedores"
         subtitle={`${total} proveedor${total === 1 ? '' : 'es'} registrado${total === 1 ? '' : 's'}`}
         actions={
-          <button
-            onClick={handleNew}
-            className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-          >
-            <Plus size={18} />
-            Nuevo Proveedor
-          </button>
+          <>
+            <TourButton onClick={startTour} />
+            <button
+              data-tour="proveedores-new"
+              onClick={handleNew}
+              className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+            >
+              <Plus size={18} />
+              Nuevo Proveedor
+            </button>
+          </>
         }
       />
 
       <Card
+        data-tour="proveedores-table"
         className="rounded-2xl overflow-hidden"
         style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >

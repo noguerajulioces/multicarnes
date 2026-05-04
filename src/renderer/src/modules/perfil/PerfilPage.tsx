@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { KeyRound, ShieldCheck, UserCircle2 } from 'lucide-react'
 import type { Role, User } from '@shared/types'
-import { Badge, Button, Card, Input, Modal, PageHeader } from '../../components/ui'
+import { Badge, Button, Card, Input, Modal, PageHeader, TourButton } from '../../components/ui'
 import { useAuthStore } from '../../store/auth.store'
 import { useToastStore } from '../../store/toast.store'
+import { usePageTour } from '../../lib/use-page-tour'
+import { perfilTourSteps } from '../../lib/tour-steps'
 
 const roleTone: Record<Role, 'brand' | 'info' | 'neutral'> = {
   admin: 'brand',
@@ -32,6 +34,12 @@ export default function PerfilPage() {
     if (!sessionUser) return
     window.api.users.getById(sessionUser.id).then((u) => setProfile(u as User | null))
   }, [sessionUser])
+
+  const { startTour } = usePageTour({
+    key: 'perfil',
+    steps: perfilTourSteps,
+    ready: !!sessionUser
+  })
 
   if (!sessionUser) return null
   const user = profile ?? sessionUser
@@ -84,9 +92,17 @@ export default function PerfilPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Mi perfil" subtitle="Información de tu cuenta y seguridad" />
+      <PageHeader
+        title="Mi perfil"
+        subtitle="Información de tu cuenta y seguridad"
+        actions={<TourButton onClick={startTour} />}
+      />
 
-      <Card className="rounded-2xl p-6" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="perfil-info"
+        className="rounded-2xl p-6"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-brand-light text-brand text-xl font-semibold flex items-center justify-center shrink-0">
             {initials}
@@ -113,7 +129,11 @@ export default function PerfilPage() {
         </div>
       </Card>
 
-      <Card className="rounded-2xl p-6" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="perfil-pin"
+        className="rounded-2xl p-6"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <div className="flex items-start justify-between gap-4">
           <div className="flex gap-3 min-w-0">
             <div className="w-10 h-10 rounded-lg bg-warning-50 text-warning-700 flex items-center justify-center shrink-0">

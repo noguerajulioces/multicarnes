@@ -14,8 +14,11 @@ import {
   Modal,
   PageHeader,
   Pagination,
-  Select
+  Select,
+  TourButton
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { productosTourSteps } from '../../lib/tour-steps'
 
 const PER_PAGE = 50
 
@@ -85,24 +88,30 @@ export default function ProductosPage() {
 
   const stockDiff = adjustModal && newStock !== '' ? parseFloat(newStock) - adjustModal.stock : null
 
+  const { startTour } = usePageTour({ key: 'productos', steps: productosTourSteps })
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Productos"
         subtitle={`${total} producto${total === 1 ? '' : 's'} en catálogo`}
         actions={
-          <button
-            onClick={() => navigate('/productos/nuevo')}
-            className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-          >
-            <Plus size={18} />
-            Nuevo Producto
-          </button>
+          <>
+            <TourButton onClick={startTour} />
+            <button
+              data-tour="productos-new"
+              onClick={() => navigate('/productos/nuevo')}
+              className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+            >
+              <Plus size={18} />
+              Nuevo Producto
+            </button>
+          </>
         }
       />
 
       <div className="space-y-3">
-        <div className="relative">
+        <div data-tour="productos-search" className="relative">
           <Search
             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
             size={16}
@@ -114,7 +123,7 @@ export default function ProductosPage() {
             placeholder="Buscar por nombre o código..."
           />
         </div>
-        <div className="flex gap-3 flex-wrap items-center">
+        <div data-tour="productos-filters" className="flex gap-3 flex-wrap items-center">
           <Select
             value={filterCat}
             onChange={(e) => setFilterCat(e.target.value ? Number(e.target.value) : '')}
@@ -153,6 +162,7 @@ export default function ProductosPage() {
       </div>
 
       <Card
+        data-tour="productos-table"
         className="rounded-2xl overflow-hidden"
         style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >

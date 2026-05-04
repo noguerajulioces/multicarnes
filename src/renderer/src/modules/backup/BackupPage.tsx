@@ -11,8 +11,11 @@ import {
   CardHeader,
   EmptyState,
   Input,
-  PageHeader
+  PageHeader,
+  TourButton
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { backupTourSteps } from '../../lib/tour-steps'
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -84,16 +87,23 @@ export default function BackupPage() {
   const scheduleEnabled = settings.backup_schedule_enabled === '1'
   const scheduleTime = settings.backup_schedule_time || '22:00'
 
+  const { startTour } = usePageTour({ key: 'backup', steps: backupTourSteps })
+
   return (
     <div className="max-w-5xl mx-auto space-y-5">
       <PageHeader
         title="Backup"
         subtitle="Resguardá la base de datos del negocio y restaurá copias previas"
+        actions={<TourButton onClick={startTour} />}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <div className="space-y-5">
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card
+            data-tour="backup-actions"
+            className="rounded-2xl"
+            style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          >
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div
@@ -127,7 +137,11 @@ export default function BackupPage() {
             </CardBody>
           </Card>
 
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card
+            data-tour="backup-folder"
+            className="rounded-2xl"
+            style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          >
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div
@@ -160,7 +174,11 @@ export default function BackupPage() {
         </div>
 
         <div className="space-y-5">
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card
+            data-tour="backup-schedule"
+            className="rounded-2xl"
+            style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          >
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div
@@ -239,7 +257,11 @@ export default function BackupPage() {
             </CardBody>
           </Card>
 
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card
+            data-tour="backup-history"
+            className="rounded-2xl"
+            style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          >
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div

@@ -11,8 +11,11 @@ import {
   CardBody,
   CardHeader,
   Skeleton,
-  TableSkeleton
+  TableSkeleton,
+  TourButton
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { compraDetalleTourSteps, compraDetallePendingTourSteps } from '../../lib/tour-steps'
 import type { OrderStatus, PurchaseOrder } from '@shared/types'
 
 const statusTone: Record<OrderStatus, 'warning' | 'success' | 'danger'> = {
@@ -65,6 +68,14 @@ export default function CompraDetallePage() {
     setLoading(false)
   }
 
+  const tourSteps =
+    order?.status === 'pending' ? compraDetallePendingTourSteps : compraDetalleTourSteps
+  const { startTour } = usePageTour({
+    key: order?.status === 'pending' ? 'compra-detalle-pending' : 'compra-detalle',
+    steps: tourSteps,
+    ready: !!order
+  })
+
   if (!order) {
     return (
       <div className="max-w-3xl mx-auto space-y-5">
@@ -94,15 +105,22 @@ export default function CompraDetallePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      <button
-        onClick={() => navigate('/compras')}
-        className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-brand transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Volver a Compras
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <button
+          onClick={() => navigate('/compras')}
+          className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-brand transition-colors"
+        >
+          <ArrowLeft size={14} />
+          Volver a Compras
+        </button>
+        <TourButton onClick={startTour} size="sm" />
+      </div>
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="compra-detalle-header"
+        className="rounded-2xl"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <CardHeader className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
             <div
@@ -127,7 +145,7 @@ export default function CompraDetallePage() {
           <Badge tone={statusTone[order.status]}>{statusLabel[order.status]}</Badge>
         </CardHeader>
 
-        <CardBody>
+        <CardBody data-tour="compra-detalle-items">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -179,7 +197,10 @@ export default function CompraDetallePage() {
         </CardBody>
 
         {order.status === 'pending' && (
-          <div className="px-4 py-4 border-t border-border bg-surface-muted/40 flex gap-3">
+          <div
+            data-tour="compra-detalle-actions"
+            className="px-4 py-4 border-t border-border bg-surface-muted/40 flex gap-3"
+          >
             <Button
               variant="danger"
               className="flex-1 rounded-xl"

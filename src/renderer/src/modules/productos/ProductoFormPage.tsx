@@ -10,10 +10,13 @@ import {
   Input,
   MoneyInput,
   PageHeader,
-  Select
+  Select,
+  TourButton
 } from '../../components/ui'
 import { formatGs } from '../../lib/utils'
 import { PRICE_TYPE_LIST, priceTypeInfo } from '../../lib/price-types'
+import { usePageTour } from '../../lib/use-page-tour'
+import { productoFormTourSteps } from '../../lib/tour-steps'
 
 export default function ProductoFormPage() {
   const navigate = useNavigate()
@@ -110,6 +113,8 @@ export default function ProductoFormPage() {
   const ptInfo = priceTypeInfo(form.price_type)
   const stockUnit = ptInfo.unit
 
+  const { startTour } = usePageTour({ key: 'producto-form', steps: productoFormTourSteps })
+
   return (
     <div className="max-w-6xl mx-auto space-y-5">
       <PageHeader
@@ -119,10 +124,12 @@ export default function ProductoFormPage() {
             ? 'Actualizá los datos del producto y guardá los cambios.'
             : 'Cargá los datos del producto y, si querés, una imagen.'
         }
+        actions={<TourButton onClick={startTour} />}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card
+          data-tour="producto-form-image"
           className="rounded-2xl lg:col-span-1 self-start"
           style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
@@ -156,7 +163,11 @@ export default function ProductoFormPage() {
         </Card>
 
         <div className="lg:col-span-2 space-y-5">
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card
+            data-tour="producto-form-basic"
+            className="rounded-2xl"
+            style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          >
             <CardHeader>
               <h2 className="font-semibold text-text-main">Información básica</h2>
               <p className="text-xs text-text-muted">Nombre, categoría y código</p>
@@ -217,7 +228,11 @@ export default function ProductoFormPage() {
             </CardBody>
           </Card>
 
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card
+            data-tour="producto-form-pricing"
+            className="rounded-2xl"
+            style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          >
             <CardHeader>
               <h2 className="font-semibold text-text-main">Precio y stock</h2>
               <p className="text-xs text-text-muted">Cómo se cobra y la cantidad disponible</p>
@@ -302,7 +317,7 @@ export default function ProductoFormPage() {
         </div>
       </div>
 
-      <div className="flex gap-3 justify-end">
+      <div data-tour="producto-form-actions" className="flex gap-3 justify-end">
         <Button
           variant="secondary"
           className="rounded-xl"

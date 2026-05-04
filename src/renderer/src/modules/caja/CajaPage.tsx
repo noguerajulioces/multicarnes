@@ -15,8 +15,11 @@ import {
   KpiCard,
   Modal,
   MoneyInput,
-  PageHeader
+  PageHeader,
+  TourButton
 } from '../../components/ui'
+import { usePageTour } from '../../lib/use-page-tour'
+import { cajaTourSteps, cajaManagerTourSteps } from '../../lib/tour-steps'
 
 export default function CajaPage() {
   const user = useAuthStore((s) => s.user)
@@ -74,6 +77,13 @@ export default function CajaPage() {
 
   const canClose = user?.role === 'admin' || user?.role === 'supervisor'
 
+  const tourSteps = canClose ? cajaManagerTourSteps : cajaTourSteps
+  const { startTour } = usePageTour({
+    key: canClose ? 'caja-manager' : 'caja',
+    steps: tourSteps,
+    ready: !!summary
+  })
+
   if (!register) return null
 
   return (
@@ -82,18 +92,22 @@ export default function CajaPage() {
         title="Caja Actual"
         subtitle="Movimientos del turno en curso"
         actions={
-          canClose ? (
-            <button
-              onClick={() => navigate('/caja/cierre')}
-              className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-            >
-              Cerrar Caja
-            </button>
-          ) : null
+          <>
+            <TourButton onClick={startTour} />
+            {canClose && (
+              <button
+                data-tour="caja-close"
+                onClick={() => navigate('/caja/cierre')}
+                className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
+              >
+                Cerrar Caja
+              </button>
+            )}
+          </>
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div data-tour="caja-kpis" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           gradient="blue"
           icon={<Wallet size={20} />}
@@ -124,7 +138,7 @@ export default function CajaPage() {
         />
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div data-tour="caja-movements-actions" className="flex flex-wrap gap-3">
         <Button variant="success" onClick={() => setModal({ type: 'income' })}>
           <Plus size={16} /> Registrar Ingreso
         </Button>
@@ -133,7 +147,11 @@ export default function CajaPage() {
         </Button>
       </div>
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card
+        data-tour="caja-movements-list"
+        className="rounded-2xl"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
         <CardHeader>
           <h2 className="font-semibold text-text-main">Movimientos del Turno</h2>
           <p className="text-xs text-text-muted">
