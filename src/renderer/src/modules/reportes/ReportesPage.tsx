@@ -23,7 +23,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { reportesTourSteps } from '../../lib/tour-steps'
-import type { PaymentMethod, Sale } from '@shared/types'
+import type { PaymentMethod } from '@shared/types'
 import {
   FileSpreadsheet,
   FileText,
@@ -37,15 +37,7 @@ import {
   Search
 } from 'lucide-react'
 
-type Tab =
-  | 'ventas'
-  | 'resumen'
-  | 'comparativo'
-  | 'fiados'
-  | 'productos'
-  | 'margen'
-  | 'stock'
-  | 'caja'
+type Tab = 'resumen' | 'comparativo' | 'fiados' | 'productos' | 'margen' | 'stock' | 'caja'
 
 interface ReportConfig {
   columns: { header: string; key: string; align?: 'left' | 'right' | 'center'; width?: number }[]
@@ -109,18 +101,6 @@ const methodTone: Record<PaymentMethod, 'success' | 'warning' | 'info' | 'neutra
 }
 
 const reportConfigs: Partial<Record<Tab, ReportConfig>> = {
-  ventas: {
-    title: 'Reporte de Ventas',
-    filename: 'ventas',
-    columns: [
-      { header: 'Fecha', key: '_fecha', width: 18 },
-      { header: 'N°', key: '_num', width: 8 },
-      { header: 'Cliente', key: 'customer_name', width: 20 },
-      { header: 'Total', key: '_total', align: 'right', width: 15 },
-      { header: 'Método', key: '_method', width: 14 },
-      { header: 'Cajero', key: 'user_name', width: 18 }
-    ]
-  },
   fiados: {
     title: 'Fiados Pendientes (CxC)',
     filename: 'fiados_pendientes',
@@ -182,22 +162,6 @@ const reportConfigs: Partial<Record<Tab, ReportConfig>> = {
 
 function prepareExportData(tab: Tab, data: unknown[]): Record<string, unknown>[] {
   switch (tab) {
-    case 'ventas':
-      return (data as Sale[]).map((s) => {
-        const isCredit = s.payment_method === 'credit'
-        const creditPaid =
-          isCredit && s.customer_balance != null && s.customer_balance >= 0
-        return {
-          ...s,
-          _fecha: formatDateTime(s.created_at),
-          _num: `#${s.id}`,
-          customer_name: s.customer_name || '-',
-          _total: formatGs(s.total),
-          _method: creditPaid
-            ? 'Fiado · Pagado'
-            : methodLabels[s.payment_method] || s.payment_method
-        }
-      })
     case 'fiados':
       return (data as PendingCreditRow[]).map((r) => ({
         ...r,
@@ -310,7 +274,7 @@ const trCls = 'border-t border-border hover:bg-surface-muted/40 transition-color
 const tdCls = 'px-4 py-3'
 
 export default function ReportesPage() {
-  const [tab, setTab] = useState<Tab>('ventas')
+  const [tab, setTab] = useState<Tab>('resumen')
   const [from, setFrom] = useState(firstDayOfMonthStr())
   const [to, setTo] = useState(todayStr())
   const [data, setData] = useState<unknown[]>([])
@@ -323,9 +287,7 @@ export default function ReportesPage() {
   const load = async (): Promise<void> => {
     setLoading(true)
     try {
-      if (tab === 'ventas') {
-        setData(await window.api.reports.salesByPeriod(from, to))
-      } else if (tab === 'resumen') {
+      if (tab === 'resumen') {
         setSummary(await window.api.reports.salesSummary(from, to))
       } else if (tab === 'comparativo') {
         setComparison(await window.api.reports.salesComparison(from, to))
@@ -380,7 +342,6 @@ export default function ReportesPage() {
   }
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'ventas', label: 'Ventas' },
     { key: 'resumen', label: 'Resumen' },
     { key: 'comparativo', label: 'Comparativo' },
     { key: 'fiados', label: 'Fiados pendientes' },
@@ -401,7 +362,7 @@ export default function ReportesPage() {
     <div className="space-y-5">
       <PageHeader
         title="Reportes"
-        subtitle="Analizá ventas, créditos, márgenes y movimientos del negocio"
+        subtitle="Analizá métricas, créditos, márgenes y movimientos del negocio"
         actions={<TourButton onClick={startTour} />}
       />
 
@@ -483,76 +444,6 @@ export default function ReportesPage() {
           <CardBody>
             <TableSkeleton rows={6} columns={6} />
           </CardBody>
-        </Card>
-      )}
-
-      {!loading && tab === 'ventas' && (
-        <Card
-          className="rounded-2xl overflow-hidden"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className={tableHeadCls}>
-                  <th className={thCls}>Fecha</th>
-                  <th className={thCls}>N°</th>
-                  <th className={thCls}>Cliente</th>
-                  <th className={`${thCls} text-right`}>Total</th>
-                  <th className={thCls}>Método</th>
-                  <th className={thCls}>Cajero</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data as Sale[]).map((s) => {
-                  const isCredit = s.payment_method === 'credit'
-                  // Sin tracking pago-por-venta: si el cliente quedó al día (balance >= 0)
-                  // tratamos sus fiados como pagados.
-                  const creditPaid =
-                    isCredit && s.customer_balance != null && s.customer_balance >= 0
-                  return (
-                    <tr key={s.id} className={trCls}>
-                      <td className={`${tdCls} text-text-muted tabular-nums`}>
-                        {formatDateTime(s.created_at)}
-                      </td>
-                      <td className={`${tdCls} font-medium`}>#{s.id}</td>
-                      <td className={tdCls}>
-                        {s.customer_name || (
-                          <span className="text-text-disabled">Consumidor final</span>
-                        )}
-                      </td>
-                      <td className={`${tdCls} text-right font-medium tabular-nums`}>
-                        {formatGs(s.total)}
-                      </td>
-                      <td className={tdCls}>
-                        {creditPaid ? (
-                          <Badge tone="success">Fiado · Pagado</Badge>
-                        ) : (
-                          <Badge tone={methodTone[s.payment_method]}>
-                            {methodLabels[s.payment_method] || s.payment_method}
-                          </Badge>
-                        )}
-                      </td>
-                      <td className={`${tdCls} text-text-muted`}>{s.user_name}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              {data.length > 0 && (
-                <tfoot>
-                  <tr className="border-t-2 border-border bg-surface-muted/40">
-                    <td colSpan={3} className="px-4 py-3 font-medium text-text-muted">
-                      Total: {data.length} ventas
-                    </td>
-                    <td className="px-4 py-3 text-right text-lg font-bold text-brand tabular-nums">
-                      {formatGs((data as Sale[]).reduce((s, v) => s + v.total, 0))}
-                    </td>
-                    <td colSpan={2}></td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
         </Card>
       )}
 

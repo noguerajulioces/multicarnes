@@ -15,6 +15,7 @@ import { useAuthStore } from '../store/auth.store'
 const routeLabels: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/ventas': 'Ventas',
+  '/pos': 'Punto de Venta',
   '/caja': 'Caja',
   '/caja/apertura': 'Apertura',
   '/caja/cierre': 'Cierre',
