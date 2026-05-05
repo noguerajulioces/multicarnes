@@ -180,6 +180,7 @@ export default function PerfilPage() {
                 setPinForm({ ...pinForm, current: e.target.value.replace(/\D/g, '') })
               }
               placeholder="••••••"
+              showToggle
               autoFocus
             />
           </div>
@@ -195,6 +196,7 @@ export default function PerfilPage() {
               value={pinForm.next}
               onChange={(e) => setPinForm({ ...pinForm, next: e.target.value.replace(/\D/g, '') })}
               placeholder="••••••"
+              showToggle
             />
           </div>
 
@@ -211,6 +213,7 @@ export default function PerfilPage() {
                 setPinForm({ ...pinForm, confirm: e.target.value.replace(/\D/g, '') })
               }
               placeholder="••••••"
+              showToggle
             />
           </div>
 

@@ -34,7 +34,7 @@ import {
   TourButton
 } from '../../components/ui'
 import { cn } from '../../lib/utils'
-import { priceTypeInfo } from '../../lib/price-types'
+import { priceTypeInfo, formatQty } from '../../lib/price-types'
 import CobroModal from './CobroModal'
 
 export default function VentasPage() {
@@ -70,6 +70,8 @@ export default function VentasPage() {
   const [showCobro, setShowCobro] = useState(false)
   const [showHeld, setShowHeld] = useState(false)
   const [scannerActive, setScannerActive] = useState(false)
+  const [discountMode, setDiscountMode] = useState<'gs' | 'pct'>('gs')
+  const [discountPct, setDiscountPct] = useState(0)
   const searchRef = useRef<HTMLInputElement>(null)
   const discountRef = useRef<HTMLInputElement>(null)
   const barcodeBuffer = useRef('')
@@ -81,6 +83,15 @@ export default function VentasPage() {
   useEffect(() => {
     window.api.products.categories().then(setCategories)
   }, [])
+
+  // Cuando el descuento se configura en %, recalcular el monto en Gs cada vez que
+  // el subtotal cambia (al agregar/quitar productos).
+  useEffect(() => {
+    if (discountMode === 'pct') {
+      const sub = items.reduce((s, i) => s + i.subtotal, 0)
+      setDiscount(Math.round((sub * discountPct) / 100))
+    }
+  }, [discountMode, discountPct, items, setDiscount])
 
   const { startTour } = usePageTour({
     key: 'ventas',
@@ -233,6 +244,10 @@ export default function VentasPage() {
     const ticket = consumeHeld(id)
     if (!ticket) return
     restore(ticket.items, ticket.discount)
+    // El ticket suspendido guarda el descuento en Gs; volvemos a modo Gs para que
+    // el efecto de % no recalcule sobre el nuevo subtotal.
+    setDiscountMode('gs')
+    setDiscountPct(0)
     setShowHeld(false)
     toast.success('Venta reanudada')
   }
@@ -294,9 +309,9 @@ export default function VentasPage() {
   const computeQty = (product: Product): number => {
     if (inputMode === 'amount') {
       if (amountInput <= 0 || product.price <= 0) return 0
-      const decimals = priceTypeInfo(product.price_type).decimals
-      const factor = Math.pow(10, decimals)
-      return Math.round((amountInput / product.price) * factor) / factor
+      // Sin redondear: queremos qty * price === amount para evitar el "compraste 19.988
+      // ingresando 20.000". La cantidad mostrada en pantalla se redondea solo para display.
+      return amountInput / product.price
     }
     return parseFloat(quantity) || 0
   }
@@ -421,9 +436,10 @@ export default function VentasPage() {
                               <Minus size={14} />
                             </button>
                             <span className="w-12 text-center font-medium">
-                              {itemPt.decimals > 0
-                                ? item.quantity.toFixed(itemPt.decimals)
-                                : item.quantity}
+                              {item.quantity.toLocaleString('es-PY', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: itemPt.decimals
+                              })}
                             </span>
                             <button
                               type="button"
@@ -465,14 +481,53 @@ export default function VentasPage() {
               <span className="font-medium tabular-nums">{formatGs(subtotal())}</span>
             </div>
             <div className="flex justify-between text-sm items-center">
-              <span className="text-text-muted">Descuento</span>
-              <MoneyInput
-                ref={discountRef}
-                value={discount}
-                onValueChange={setDiscount}
-                className="w-32 h-8 text-right"
-                placeholder="0"
-              />
+              <div className="flex items-center gap-2">
+                <span className="text-text-muted">Descuento</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (discountMode === 'gs') {
+                      const sub = items.reduce((s, i) => s + i.subtotal, 0)
+                      const pct = sub > 0 ? Math.round((discount / sub) * 100) : 0
+                      setDiscountPct(Math.min(100, Math.max(0, pct)))
+                      setDiscountMode('pct')
+                    } else {
+                      setDiscountMode('gs')
+                    }
+                  }}
+                  className="px-2 py-0.5 rounded-md border border-border text-xs font-medium text-text-muted hover:bg-surface hover:text-text-main transition-colors"
+                  title="Alternar entre monto (Gs) y porcentaje (%)"
+                >
+                  {discountMode === 'gs' ? 'Gs' : '%'}
+                </button>
+              </div>
+              {discountMode === 'gs' ? (
+                <MoneyInput
+                  ref={discountRef}
+                  value={discount}
+                  onValueChange={setDiscount}
+                  className="w-32 h-8 text-right"
+                  placeholder="0"
+                />
+              ) : (
+                <div className="relative w-32">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={discountPct || ''}
+                    onChange={(e) => {
+                      const n = Number(e.target.value)
+                      setDiscountPct(Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0)
+                    }}
+                    className="h-8 text-right pr-7 tabular-nums"
+                    placeholder="0"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted pointer-events-none">
+                    %
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex items-baseline justify-between pt-3 border-t border-border">
               <span className="text-sm font-semibold text-text-muted">TOTAL</span>
@@ -486,7 +541,7 @@ export default function VentasPage() {
                 className="rounded-xl"
                 onClick={cancelCart}
                 disabled={items.length === 0}
-                title="Cancelar (F8)"
+                title="Cancelar (F8) — Vacía el carrito y descarta el ticket sin guardarlo."
               >
                 <Trash2 size={14} />
               </Button>
@@ -496,7 +551,7 @@ export default function VentasPage() {
                 className="rounded-xl"
                 onClick={suspendCart}
                 disabled={items.length === 0}
-                title="Suspender (F9)"
+                title="Suspender (F9) — Pausa el ticket actual y lo guarda en Pendientes para retomarlo después."
               >
                 <Pause size={14} />
                 Suspender
@@ -610,7 +665,7 @@ export default function VentasPage() {
                           </p>
                           <div className="flex items-center justify-between mt-1.5 gap-2">
                             <span className="text-xs text-text-muted">
-                              Stock: {p.stock} {priceTypeInfo(p.price_type).unit}
+                              Stock: {formatQty(p.stock, p.price_type)}
                             </span>
                             {p.stock <= 0 ? (
                               <Badge tone="danger">Sin stock</Badge>
@@ -661,7 +716,7 @@ export default function VentasPage() {
             const allowAmountMode = qmPt.decimals > 0
             const presets = qmPt.decimals > 0 ? [0.25, 0.5, 1, 2] : [1, 2, 5, 10]
             const stock = product.stock
-            const stockLabel = qmPt.decimals > 0 ? stock.toFixed(qmPt.decimals) : String(stock)
+            const stockLabel = formatQty(stock, product.price_type)
 
             const setQty = (n: number): void => {
               if (n <= 0) {
@@ -675,7 +730,13 @@ export default function VentasPage() {
 
             const currentQty = parseFloat(quantity) || 0
             const finalQty = computeQty(product)
-            const finalTotal = Math.round(finalQty * product.price)
+            // En modo "Por monto", el total mostrado debe coincidir exactamente con el
+            // monto ingresado por el usuario, no con una multiplicación que podría
+            // diferir por floating point.
+            const finalTotal =
+              inputMode === 'amount' && amountInput > 0
+                ? amountInput
+                : Math.round(finalQty * product.price)
             const exceedsStock = finalQty > stock && stock > 0
 
             return (
@@ -707,7 +768,7 @@ export default function VentasPage() {
                             : 'text-text-muted'
                       )}
                     >
-                      Disponible: {stockLabel} {qmPt.unit}
+                      Disponible: {stockLabel}
                     </p>
                   </div>
                 </div>
@@ -811,7 +872,7 @@ export default function VentasPage() {
                         onClick={() => setQty(stock)}
                         disabled={stock <= 0}
                         className="flex-1 py-1.5 text-sm rounded-lg border border-border hover:bg-surface-muted text-text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        title={`Establecer al stock disponible (${stockLabel} ${qmPt.unit})`}
+                        title={`Establecer al stock disponible (${stockLabel})`}
                       >
                         máx
                       </button>
@@ -822,7 +883,7 @@ export default function VentasPage() {
                 {/* Indicadores secundarios */}
                 {finalQty > 0 && inputMode === 'amount' && (
                   <p className="text-center text-sm text-text-muted mb-3">
-                    ≈ {qmPt.decimals > 0 ? finalQty.toFixed(qmPt.decimals) : finalQty} {qmPt.unit}
+                    ≈ {formatQty(finalQty, product.price_type)}
                   </p>
                 )}
 
@@ -832,7 +893,7 @@ export default function VentasPage() {
                     <div className="text-sm leading-tight">
                       <p className="font-semibold text-warning-700">Excede el stock disponible</p>
                       <p className="text-xs text-warning-700/80 mt-0.5">
-                        Solo quedan {stockLabel} {qmPt.unit} en inventario.
+                        Solo quedan {stockLabel} en inventario.
                       </p>
                     </div>
                   </div>
@@ -860,9 +921,23 @@ export default function VentasPage() {
         <CobroModal
           onClose={() => setShowCobro(false)}
           onSuccess={() => {
+            const soldQtyById = new Map<number, number>()
+            for (const it of items) {
+              soldQtyById.set(it.product.id, (soldQtyById.get(it.product.id) ?? 0) + it.quantity)
+            }
+            setProducts((prev) =>
+              prev.map((p) => {
+                const sold = soldQtyById.get(p.id)
+                return sold ? { ...p, stock: Math.max(0, p.stock - sold) } : p
+              })
+            )
             clear()
             setShowCobro(false)
             toast.success('Venta registrada')
+            // Confirmar con la fuente de verdad por si hubo cambios concurrentes
+            // (otra caja, ajuste de stock manual, etc.)
+            loadProducts(1, search || undefined, activeCategory)
+            setProductsPage(1)
           }}
         />
       )}

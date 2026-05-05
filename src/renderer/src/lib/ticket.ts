@@ -33,6 +33,11 @@ interface TicketLine {
   bold?: boolean
   align?: 'left' | 'center' | 'right'
   emphasized?: boolean
+  // Cuando la línea tiene tamaño aumentado (emphasized), el padding monoespaciado
+  // calculado para el tamaño base ya no encaja. `parts` permite re-renderizar la
+  // línea con layout flex (preview HTML) o posicionando left/right por separado
+  // (PDF) sin depender del ancho de columna.
+  parts?: { left: string; right: string }
 }
 
 export interface RenderedTicket {
@@ -153,7 +158,8 @@ export function renderTicket({
   lines.push({
     text: row('TOTAL Gs.', fmtMoney(sale.total), cols),
     bold: true,
-    emphasized: true
+    emphasized: true,
+    parts: { left: 'TOTAL Gs.', right: fmtMoney(sale.total) }
   })
   lines.push({ text: divider(cols) })
 

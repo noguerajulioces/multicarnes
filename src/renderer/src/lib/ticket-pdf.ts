@@ -6,6 +6,7 @@ const POINTS_PER_INCH = 72
 const FONT_SIZE_PT = 9
 const LINE_HEIGHT_PT = 11
 const TOP_MARGIN_PT = 12
+const BOTTOM_MARGIN_PT = 18
 const SIDE_MARGIN_PT = 8
 
 function mmToPt(mm: number): number {
@@ -14,7 +15,7 @@ function mmToPt(mm: number): number {
 
 export function downloadTicketPdf(ticket: RenderedTicket, fileName = 'ticket.pdf'): void {
   const widthPt = mmToPt(ticket.width) + SIDE_MARGIN_PT * 2
-  const heightPt = TOP_MARGIN_PT * 2 + ticket.lines.length * LINE_HEIGHT_PT
+  const heightPt = TOP_MARGIN_PT + BOTTOM_MARGIN_PT + ticket.lines.length * LINE_HEIGHT_PT
 
   const doc = new jsPDF({
     unit: 'pt',
@@ -32,7 +33,15 @@ export function downloadTicketPdf(ticket: RenderedTicket, fileName = 'ticket.pdf
     if (line.emphasized) doc.setFontSize(FONT_SIZE_PT + 1)
     else doc.setFontSize(FONT_SIZE_PT)
 
-    doc.text(line.text || ' ', SIDE_MARGIN_PT, y)
+    if (line.emphasized && line.parts) {
+      // El padding monoespaciado del texto base no alinea cuando subimos el font
+      // size. Posicionamos left y right por separado para que el monto no quede
+      // fuera del ancho del ticket.
+      doc.text(line.parts.left, SIDE_MARGIN_PT, y)
+      doc.text(line.parts.right, widthPt - SIDE_MARGIN_PT, y, { align: 'right' })
+    } else {
+      doc.text(line.text || ' ', SIDE_MARGIN_PT, y)
+    }
     y += LINE_HEIGHT_PT
   }
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Package, Truck, FileText } from 'lucide-react'
 import { formatGs, formatDateTime } from '../../lib/utils'
+import { formatQty } from '../../lib/price-types'
 import { confirm } from '../../lib/confirm'
 import { toast } from '../../lib/toast'
 import {
@@ -165,7 +166,9 @@ export default function CompraDetallePage() {
                 {order.items?.map((item) => (
                   <tr key={item.id} className="border-b border-border last:border-0">
                     <td className="py-2.5 pr-3 font-medium">{item.product_name}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">{item.quantity}</td>
+                    <td className="py-2.5 pr-3 text-right tabular-nums">
+                      {formatQty(item.quantity, item.price_type ?? 'unit')}
+                    </td>
                     <td className="py-2.5 pr-3 text-right tabular-nums">
                       {formatGs(item.unit_cost)}
                     </td>

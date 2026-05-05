@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, protocol, net } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, protocol, net } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import iconPng from '../../resources/icon.png?asset'
@@ -82,15 +82,6 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
-    ...(process.platform === 'win32'
-      ? {
-          titleBarOverlay: {
-            color: '#CC1C1C',
-            symbolColor: '#FFFFFF',
-            height: 36
-          }
-        }
-      : {}),
     icon: process.platform === 'win32' ? iconIco : iconPng,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -109,6 +100,9 @@ function createWindow(): void {
     }, remaining)
   })
 
+  mainWindow.on('maximize', () => mainWindow.webContents.send('window:state', true))
+  mainWindow.on('unmaximize', () => mainWindow.webContents.send('window:state', false))
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -119,6 +113,20 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+function registerWindowControlsIpc(): void {
+  const focused = (): BrowserWindow | null => BrowserWindow.getFocusedWindow()
+  ipcMain.handle('window:minimize', () => focused()?.minimize())
+  ipcMain.handle('window:maximizeToggle', () => {
+    const w = focused()
+    if (!w) return false
+    if (w.isMaximized()) w.unmaximize()
+    else w.maximize()
+    return w.isMaximized()
+  })
+  ipcMain.handle('window:close', () => focused()?.close())
+  ipcMain.handle('window:isMaximized', () => focused()?.isMaximized() ?? false)
 }
 
 // Register custom protocol to serve product images
@@ -163,6 +171,7 @@ app.whenReady().then(() => {
   registerBackupIpc()
   registerNotificationsIpc()
   registerPrintIpc()
+  registerWindowControlsIpc()
 
   createWindow()
 

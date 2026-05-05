@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs } from '../../lib/utils'
 import type { Customer, DocumentType } from '@shared/types'
-import { Search, Plus, Eye, Edit2, UserCheck } from 'lucide-react'
+import { Search, Plus, Eye, Edit2, Trash2, UserCheck } from 'lucide-react'
+import { confirm } from '../../lib/confirm'
+import { toast } from '../../lib/toast'
 import {
   Badge,
   Button,
@@ -104,6 +106,24 @@ export default function ClientesPage() {
     setShowForm(false)
     setEditId(null)
     setForm(emptyForm)
+  }
+
+  const handleDelete = async (c: Customer): Promise<void> => {
+    const ok = await confirm({
+      title: `Eliminar a ${c.name}`,
+      message:
+        'Solo se puede eliminar si no tiene saldo, ventas ni pagos registrados. Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      danger: true
+    })
+    if (!ok) return
+    const result = await window.api.customers.delete(c.id)
+    if (result.ok) {
+      toast.success('Cliente eliminado')
+      reload()
+    } else {
+      toast.error(result.error)
+    }
   }
 
   const { startTour } = usePageTour({ key: 'clientes', steps: clientesTourSteps })
@@ -220,6 +240,13 @@ export default function ClientesPage() {
                           title="Editar"
                         >
                           <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(c)}
+                          className="p-1.5 hover:bg-danger-50 rounded-lg text-text-muted hover:text-danger-700 transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>

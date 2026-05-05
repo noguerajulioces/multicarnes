@@ -51,8 +51,12 @@ const api = {
     update: (id: number, data: unknown) => ipcRenderer.invoke('customers:update', id, data),
     addPayment: (customerId: number, userId: number, amount: number, note?: string) =>
       ipcRenderer.invoke('customers:addPayment', customerId, userId, amount, note),
+    updatePayment: (paymentId: number, amount: number, note?: string | null) =>
+      ipcRenderer.invoke('customers:updatePayment', paymentId, amount, note),
+    deletePayment: (paymentId: number) => ipcRenderer.invoke('customers:deletePayment', paymentId),
     getPayments: (customerId: number) => ipcRenderer.invoke('customers:getPayments', customerId),
-    getSales: (customerId: number) => ipcRenderer.invoke('customers:getSales', customerId)
+    getSales: (customerId: number) => ipcRenderer.invoke('customers:getSales', customerId),
+    delete: (id: number) => ipcRenderer.invoke('customers:delete', id)
   },
   // Cash
   cash: {
@@ -119,6 +123,17 @@ const api = {
   print: {
     ticket: (payload: unknown) => ipcRenderer.invoke('print:ticket', payload),
     hasConfig: () => ipcRenderer.invoke('print:hasConfig')
+  },
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    maximizeToggle: () => ipcRenderer.invoke('window:maximizeToggle'),
+    close: () => ipcRenderer.invoke('window:close'),
+    isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+    onStateChange: (cb: (isMaximized: boolean) => void) => {
+      const handler = (_: unknown, isMaximized: boolean): void => cb(isMaximized)
+      ipcRenderer.on('window:state', handler)
+      return () => ipcRenderer.removeListener('window:state', handler)
+    }
   }
 }
 

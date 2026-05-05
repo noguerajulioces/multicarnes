@@ -92,8 +92,11 @@ interface ApiCustomers {
   }): Promise<Customer>
   update(id: number, data: Partial<Customer>): Promise<Customer>
   addPayment(customerId: number, userId: number, amount: number, note?: string): Promise<Customer>
+  updatePayment(paymentId: number, amount: number, note?: string | null): Promise<Customer>
+  deletePayment(paymentId: number): Promise<Customer>
   getPayments(customerId: number): Promise<CustomerPayment[]>
   getSales(customerId: number): Promise<Sale[]>
+  delete(id: number): Promise<{ ok: true } | { ok: false; error: string }>
 }
 
 interface ApiCash {
@@ -209,6 +212,14 @@ interface ApiPrint {
   hasConfig(): Promise<boolean>
 }
 
+interface ApiWindow {
+  minimize(): Promise<void>
+  maximizeToggle(): Promise<boolean>
+  close(): Promise<void>
+  isMaximized(): Promise<boolean>
+  onStateChange(cb: (isMaximized: boolean) => void): () => void
+}
+
 declare global {
   interface Window {
     api: {
@@ -224,6 +235,7 @@ declare global {
       settings: ApiSettings
       notify: ApiNotify
       print: ApiPrint
+      window: ApiWindow
     }
   }
 }

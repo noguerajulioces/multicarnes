@@ -183,14 +183,21 @@ const reportConfigs: Partial<Record<Tab, ReportConfig>> = {
 function prepareExportData(tab: Tab, data: unknown[]): Record<string, unknown>[] {
   switch (tab) {
     case 'ventas':
-      return (data as Sale[]).map((s) => ({
-        ...s,
-        _fecha: formatDateTime(s.created_at),
-        _num: `#${s.id}`,
-        customer_name: s.customer_name || '-',
-        _total: formatGs(s.total),
-        _method: methodLabels[s.payment_method] || s.payment_method
-      }))
+      return (data as Sale[]).map((s) => {
+        const isCredit = s.payment_method === 'credit'
+        const creditPaid =
+          isCredit && s.customer_balance != null && s.customer_balance >= 0
+        return {
+          ...s,
+          _fecha: formatDateTime(s.created_at),
+          _num: `#${s.id}`,
+          customer_name: s.customer_name || '-',
+          _total: formatGs(s.total),
+          _method: creditPaid
+            ? 'Fiado · Pagado'
+            : methodLabels[s.payment_method] || s.payment_method
+        }
+      })
     case 'fiados':
       return (data as PendingCreditRow[]).map((r) => ({
         ...r,
@@ -497,28 +504,39 @@ export default function ReportesPage() {
                 </tr>
               </thead>
               <tbody>
-                {(data as Sale[]).map((s) => (
-                  <tr key={s.id} className={trCls}>
-                    <td className={`${tdCls} text-text-muted tabular-nums`}>
-                      {formatDateTime(s.created_at)}
-                    </td>
-                    <td className={`${tdCls} font-medium`}>#{s.id}</td>
-                    <td className={tdCls}>
-                      {s.customer_name || (
-                        <span className="text-text-disabled">Consumidor final</span>
-                      )}
-                    </td>
-                    <td className={`${tdCls} text-right font-medium tabular-nums`}>
-                      {formatGs(s.total)}
-                    </td>
-                    <td className={tdCls}>
-                      <Badge tone={methodTone[s.payment_method]}>
-                        {methodLabels[s.payment_method] || s.payment_method}
-                      </Badge>
-                    </td>
-                    <td className={`${tdCls} text-text-muted`}>{s.user_name}</td>
-                  </tr>
-                ))}
+                {(data as Sale[]).map((s) => {
+                  const isCredit = s.payment_method === 'credit'
+                  // Sin tracking pago-por-venta: si el cliente quedó al día (balance >= 0)
+                  // tratamos sus fiados como pagados.
+                  const creditPaid =
+                    isCredit && s.customer_balance != null && s.customer_balance >= 0
+                  return (
+                    <tr key={s.id} className={trCls}>
+                      <td className={`${tdCls} text-text-muted tabular-nums`}>
+                        {formatDateTime(s.created_at)}
+                      </td>
+                      <td className={`${tdCls} font-medium`}>#{s.id}</td>
+                      <td className={tdCls}>
+                        {s.customer_name || (
+                          <span className="text-text-disabled">Consumidor final</span>
+                        )}
+                      </td>
+                      <td className={`${tdCls} text-right font-medium tabular-nums`}>
+                        {formatGs(s.total)}
+                      </td>
+                      <td className={tdCls}>
+                        {creditPaid ? (
+                          <Badge tone="success">Fiado · Pagado</Badge>
+                        ) : (
+                          <Badge tone={methodTone[s.payment_method]}>
+                            {methodLabels[s.payment_method] || s.payment_method}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className={`${tdCls} text-text-muted`}>{s.user_name}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
               {data.length > 0 && (
                 <tfoot>

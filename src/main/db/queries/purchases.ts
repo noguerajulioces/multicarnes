@@ -128,7 +128,7 @@ export function getPurchaseOrderById(id: number) {
   order.items = db
     .prepare(
       `
-    SELECT pi.*, p.name as product_name
+    SELECT pi.*, p.name as product_name, p.price_type as price_type
     FROM purchase_items pi
     LEFT JOIN products p ON pi.product_id = p.id
     WHERE pi.order_id = ?

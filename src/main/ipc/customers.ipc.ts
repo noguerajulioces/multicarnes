@@ -13,10 +13,19 @@ export function registerCustomersIpc(): void {
     (_, customerId: number, userId: number, amount: number, note?: string) =>
       customersQuery.addCustomerPayment(customerId, userId, amount, note)
   )
+  ipcMain.handle(
+    'customers:updatePayment',
+    (_, paymentId: number, amount: number, note?: string | null) =>
+      customersQuery.updateCustomerPayment(paymentId, amount, note)
+  )
+  ipcMain.handle('customers:deletePayment', (_, paymentId: number) =>
+    customersQuery.deleteCustomerPayment(paymentId)
+  )
   ipcMain.handle('customers:getPayments', (_, customerId: number) =>
     customersQuery.getCustomerPayments(customerId)
   )
   ipcMain.handle('customers:getSales', (_, customerId: number) =>
     customersQuery.getCustomerSales(customerId)
   )
+  ipcMain.handle('customers:delete', (_, id: number) => customersQuery.deleteCustomer(id))
 }

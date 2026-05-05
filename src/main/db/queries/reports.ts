@@ -2,7 +2,8 @@ import { getDb } from '../index'
 
 export function salesByPeriod(from: string, to: string, method?: string, userId?: number) {
   let sql = `
-    SELECT s.*, c.name as customer_name, u.name as user_name
+    SELECT s.*, c.name as customer_name, c.balance as customer_balance,
+      u.name as user_name
     FROM sales s
     LEFT JOIN customers c ON s.customer_id = c.id
     LEFT JOIN users u ON s.user_id = u.id
