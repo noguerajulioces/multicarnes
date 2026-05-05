@@ -40,9 +40,16 @@ export function getCurrentCashRegister() {
   )
 }
 
-export function closeCashRegister(id: number, closingAmount: number, notes?: string) {
+export function closeCashRegister(
+  id: number,
+  closingAmount: number,
+  notes?: string,
+  userId?: number
+) {
   const db = getDb()
-  const register = getCashRegisterById(id) as { opening_amount: number } | undefined
+  const register = getCashRegisterById(id) as
+    | { opening_amount: number; opened_at: string; user_name?: string }
+    | undefined
   if (!register) throw new Error('Caja no encontrada')
 
   const cashSales = db
@@ -86,6 +93,12 @@ export function closeCashRegister(id: number, closingAmount: number, notes?: str
     movements.expenses
   const difference = closingAmount - expectedAmount
 
+  const todayLocal = (
+    db.prepare("SELECT date('now','localtime') as d").get() as { d: string }
+  ).d
+  const openedDay = register.opened_at.slice(0, 10)
+  const wasStale = openedDay < todayLocal
+
   db.prepare(
     `
     UPDATE cash_registers
@@ -94,6 +107,22 @@ export function closeCashRegister(id: number, closingAmount: number, notes?: str
     WHERE id = ?
   `
   ).run(closingAmount, expectedAmount, difference, notes || null, id)
+
+  if (wasStale && userId) {
+    const days = Math.max(
+      1,
+      Math.round(
+        (Date.parse(todayLocal + 'T00:00:00') - Date.parse(openedDay + 'T00:00:00')) / 86_400_000
+      )
+    )
+    db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
+      userId,
+      'force_close_register',
+      `Caja #${id} (abierta el ${openedDay}) cerrada con ${days} día${
+        days === 1 ? '' : 's'
+      } de retraso`
+    )
+  }
 
   return getCashRegisterById(id)
 }

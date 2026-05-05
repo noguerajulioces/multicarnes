@@ -102,7 +102,12 @@ interface ApiCustomers {
 interface ApiCash {
   open(userId: number, openingAmount: number): Promise<CashRegister>
   getCurrent(): Promise<CashRegister | null>
-  close(id: number, closingAmount: number, notes?: string): Promise<CashRegister>
+  close(
+    id: number,
+    closingAmount: number,
+    notes?: string,
+    userId?: number
+  ): Promise<CashRegister>
   addMovement(
     registerId: number,
     userId: number,

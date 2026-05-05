@@ -34,3 +34,23 @@ export function firstDayOfMonthStr(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
 }
+
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export function isRegisterStale(register: { opened_at: string } | null | undefined): boolean {
+  if (!register?.opened_at) return false
+  const openedDay = register.opened_at.slice(0, 10)
+  return openedDay < localDateStr(new Date())
+}
+
+export function daysOpen(register: { opened_at: string } | null | undefined): number {
+  if (!register?.opened_at) return 0
+  const opened = new Date(register.opened_at.replace(' ', 'T'))
+  if (Number.isNaN(opened.getTime())) return 0
+  const todayLocal = new Date()
+  const a = Date.UTC(opened.getFullYear(), opened.getMonth(), opened.getDate())
+  const b = Date.UTC(todayLocal.getFullYear(), todayLocal.getMonth(), todayLocal.getDate())
+  return Math.max(0, Math.round((b - a) / 86_400_000))
+}

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { ArrowLeft, DollarSign, Lock, LogOut } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { Badge, EmptyState, Button } from '../../components/ui'
+import { isRegisterStale } from '../../lib/utils'
 import VentasPage from './VentasPage'
 import logo from '../../assets/logo.png'
 
@@ -37,6 +38,8 @@ export default function PosScreen() {
       </div>
     )
   }
+
+  if (isRegisterStale(register)) return <Navigate to="/caja/cierre" replace />
 
   return (
     <div className="h-full relative bg-bg-secondary">
