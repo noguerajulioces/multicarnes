@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
 import { formatGs } from '../../lib/utils'
 import { priceTypeInfo } from '../../lib/price-types'
-import type { Supplier, Product } from '@shared/types'
+import type { Supplier, Product, PriceType } from '@shared/types'
 import { Plus, Trash2, Package } from 'lucide-react'
 import {
   Button,
@@ -24,6 +24,7 @@ import { compraNuevaTourSteps } from '../../lib/tour-steps'
 interface OrderItem {
   productId: number
   productName: string
+  priceType: PriceType
   quantity: number
   unitCost: number
   subtotal: number
@@ -59,7 +60,14 @@ export default function NuevaCompraPage() {
     if (items.find((i) => i.productId === p.id)) return
     setItems([
       ...items,
-      { productId: p.id, productName: p.name, quantity: 1, unitCost: 0, subtotal: 0 }
+      {
+        productId: p.id,
+        productName: p.name,
+        priceType: p.price_type,
+        quantity: 1,
+        unitCost: 0,
+        subtotal: 0
+      }
     ])
     setShowProductSearch(false)
     setSearchProduct('')
@@ -189,20 +197,27 @@ export default function NuevaCompraPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item, idx) => (
+                  {items.map((item, idx) => {
+                    const pt = priceTypeInfo(item.priceType)
+                    return (
                     <tr key={item.productId} className="border-b border-border last:border-0">
                       <td className="py-3 pr-3 font-medium text-text-main">{item.productName}</td>
                       <td className="py-3 pr-3">
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          min={0.01}
-                          step={0.01}
-                          onChange={(e) =>
-                            updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
-                          }
-                          className="h-9 text-right text-sm tabular-nums"
-                        />
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            min={pt.inputStep}
+                            step={pt.inputStep}
+                            onChange={(e) =>
+                              updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
+                            }
+                            className="h-9 text-right text-sm tabular-nums pr-10"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted pointer-events-none">
+                            {pt.unit}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-3 pr-3">
                         <MoneyInput
@@ -226,7 +241,8 @@ export default function NuevaCompraPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-border">

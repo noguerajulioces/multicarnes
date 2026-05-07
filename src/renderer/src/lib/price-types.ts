@@ -42,6 +42,11 @@ export function priceTypeInfo(code: PriceType | string): PriceTypeInfo {
 
 export function formatQty(qty: number, code: PriceType | string): string {
   const info = priceTypeInfo(code)
-  const formatted = info.decimals > 0 ? qty.toFixed(info.decimals) : String(qty)
+  // Locale es-PY usa "," decimal y "." de miles, evitando que "10.000 kg" se lea como 10 mil.
+  // Stripeamos ceros finales con `maximumFractionDigits` (10 → "10", 10.5 → "10,5").
+  const formatted = qty.toLocaleString('es-PY', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: info.decimals
+  })
   return `${formatted} ${info.unit}`
 }

@@ -101,6 +101,7 @@ export interface Sale {
   register_id: number
   customer_id: number | null
   customer_name?: string
+  customer_balance?: number
   user_id: number
   user_name?: string
   subtotal: number
@@ -157,6 +158,7 @@ export interface PurchaseItem {
   order_id: number
   product_id: number
   product_name?: string
+  price_type?: PriceType
   quantity: number
   unit_cost: number
   subtotal: number

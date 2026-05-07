@@ -119,6 +119,83 @@ export function addCustomerPayment(
   return txn()
 }
 
+export function updateCustomerPayment(
+  paymentId: number,
+  newAmount: number,
+  newNote?: string | null
+) {
+  const db = getDb()
+  const txn = db.transaction(() => {
+    const existing = db
+      .prepare('SELECT customer_id, amount FROM customer_payments WHERE id = ?')
+      .get(paymentId) as { customer_id: number; amount: number } | undefined
+    if (!existing) throw new Error('Pago no encontrado')
+    const delta = newAmount - existing.amount
+    db.prepare('UPDATE customer_payments SET amount = ?, note = ? WHERE id = ?').run(
+      newAmount,
+      newNote ?? null,
+      paymentId
+    )
+    db.prepare('UPDATE customers SET balance = balance + ? WHERE id = ?').run(
+      delta,
+      existing.customer_id
+    )
+    return getCustomerById(existing.customer_id)
+  })
+  return txn()
+}
+
+export function deleteCustomerPayment(paymentId: number) {
+  const db = getDb()
+  const txn = db.transaction(() => {
+    const existing = db
+      .prepare('SELECT customer_id, amount FROM customer_payments WHERE id = ?')
+      .get(paymentId) as { customer_id: number; amount: number } | undefined
+    if (!existing) throw new Error('Pago no encontrado')
+    db.prepare('DELETE FROM customer_payments WHERE id = ?').run(paymentId)
+    db.prepare('UPDATE customers SET balance = balance - ? WHERE id = ?').run(
+      existing.amount,
+      existing.customer_id
+    )
+    return getCustomerById(existing.customer_id)
+  })
+  return txn()
+}
+
+export function deleteCustomer(id: number): { ok: true } | { ok: false; error: string } {
+  const db = getDb()
+  const customer = db.prepare('SELECT balance FROM customers WHERE id = ?').get(id) as
+    | { balance: number }
+    | undefined
+  if (!customer) return { ok: false, error: 'Cliente no encontrado' }
+  if (customer.balance !== 0) {
+    return {
+      ok: false,
+      error: 'No se puede eliminar: el cliente tiene saldo pendiente. Saldalo primero.'
+    }
+  }
+  const sales = db
+    .prepare('SELECT COUNT(*) as c FROM sales WHERE customer_id = ?')
+    .get(id) as { c: number }
+  if (sales.c > 0) {
+    return {
+      ok: false,
+      error: 'No se puede eliminar: el cliente tiene ventas registradas a su nombre.'
+    }
+  }
+  const payments = db
+    .prepare('SELECT COUNT(*) as c FROM customer_payments WHERE customer_id = ?')
+    .get(id) as { c: number }
+  if (payments.c > 0) {
+    return {
+      ok: false,
+      error: 'No se puede eliminar: el cliente tiene pagos registrados.'
+    }
+  }
+  db.prepare('DELETE FROM customers WHERE id = ?').run(id)
+  return { ok: true }
+}
+
 export function getCustomerPayments(customerId: number) {
   return getDb()
     .prepare(

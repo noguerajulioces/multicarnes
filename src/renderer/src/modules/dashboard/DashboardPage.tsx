@@ -219,7 +219,7 @@ export default function DashboardPage() {
             <TourButton onClick={startTour} />
             <button
               data-tour="dash-new-sale"
-              onClick={() => navigate('/ventas')}
+              onClick={() => navigate('/pos')}
               className="bg-brand text-white px-5 py-3 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
             >
               <Plus size={20} />
@@ -277,7 +277,7 @@ export default function DashboardPage() {
           <TourButton onClick={startTour} />
           <button
             data-tour="dash-new-sale"
-            onClick={() => navigate('/ventas')}
+            onClick={() => navigate('/pos')}
             className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
           >
             <Plus size={18} />

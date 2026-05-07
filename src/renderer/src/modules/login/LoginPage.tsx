@@ -1,31 +1,71 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ShieldCheck } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
-import { Button, Input, NumericKeypad } from '../../components/ui'
+import { Button, Input, Modal, NumericKeypad } from '../../components/ui'
 import { cn } from '../../lib/utils'
 import type { User, AppSetting } from '@shared/types'
 import logo from '../../assets/logo.png'
 
 export default function LoginPage() {
   const [users, setUsers] = useState<User[]>([])
+  const [usersLoaded, setUsersLoaded] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [keypadEnabled, setKeypadEnabled] = useState(false)
+  const [forgotOpen, setForgotOpen] = useState(false)
+  const [setupForm, setSetupForm] = useState({ name: '', pin: '', confirm: '' })
+  const [setupError, setSetupError] = useState('')
+  const [setupSaving, setSetupSaving] = useState(false)
   const setUser = useAuthStore((s) => s.setUser)
   const setRegister = useCashStore((s) => s.setRegister)
   const navigate = useNavigate()
 
   useEffect(() => {
-    window.api.users.getActive().then(setUsers)
+    window.api.users.getActive().then((list) => {
+      setUsers(list)
+      setUsersLoaded(true)
+    })
     window.api.settings.getAll().then((all: AppSetting[]) => {
       const flag = all.find((s) => s.key === 'login_keypad_enabled')?.value
       setKeypadEnabled(flag === '1')
     })
   }, [])
+
+  const isFirstRun = usersLoaded && users.length === 0
+
+  const handleSetupAdmin = async (): Promise<void> => {
+    setSetupError('')
+    if (!setupForm.name.trim()) {
+      setSetupError('El nombre es obligatorio')
+      return
+    }
+    if (setupForm.pin.length !== 6) {
+      setSetupError('El PIN debe tener 6 dígitos')
+      return
+    }
+    if (setupForm.pin !== setupForm.confirm) {
+      setSetupError('Los PIN no coinciden')
+      return
+    }
+    setSetupSaving(true)
+    try {
+      await window.api.users.create({
+        name: setupForm.name.trim(),
+        role: 'admin',
+        pin: setupForm.pin
+      })
+      const list = await window.api.users.getActive()
+      setUsers(list)
+      setSetupForm({ name: '', pin: '', confirm: '' })
+    } catch (e) {
+      setSetupError(e instanceof Error ? e.message : 'Error al crear el usuario')
+    }
+    setSetupSaving(false)
+  }
 
   const handleLogin = async (): Promise<void> => {
     if (!selectedUser || !pin) return
@@ -75,7 +115,77 @@ export default function LoginPage() {
           <p className="text-text-muted text-sm mt-0.5">Sistema de Punto de Venta</p>
         </div>
 
-        {!selectedUser ? (
+        {isFirstRun ? (
+          <div>
+            <div className="flex items-start gap-3 bg-info-50 text-info-700 rounded-xl px-4 py-3 mb-5">
+              <ShieldCheck size={20} className="shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium">Bienvenido a Multicarnes</p>
+                <p className="text-xs opacity-90 mt-0.5">
+                  Creá el usuario administrador inicial para empezar a usar el sistema.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-text-muted mb-1.5">
+                  Nombre del administrador <span className="text-danger-500">*</span>
+                </label>
+                <Input
+                  value={setupForm.name}
+                  onChange={(e) => setSetupForm({ ...setupForm, name: e.target.value })}
+                  placeholder="Ej. Administrador"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-text-muted mb-1.5">
+                  PIN (6 dígitos) <span className="text-danger-500">*</span>
+                </label>
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={setupForm.pin}
+                  onChange={(e) =>
+                    setSetupForm({ ...setupForm, pin: e.target.value.replace(/\D/g, '') })
+                  }
+                  placeholder="••••••"
+                  showToggle
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-text-muted mb-1.5">
+                  Confirmar PIN <span className="text-danger-500">*</span>
+                </label>
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={setupForm.confirm}
+                  onChange={(e) =>
+                    setSetupForm({ ...setupForm, confirm: e.target.value.replace(/\D/g, '') })
+                  }
+                  placeholder="••••••"
+                  showToggle
+                />
+              </div>
+              {setupError && (
+                <div className="px-3 py-2 bg-danger-50 text-danger-700 rounded-lg text-sm">
+                  {setupError}
+                </div>
+              )}
+              <Button
+                className="w-full rounded-xl mt-1"
+                size="lg"
+                onClick={handleSetupAdmin}
+                disabled={setupSaving}
+              >
+                {setupSaving ? 'Creando…' : 'Crear administrador'}
+              </Button>
+            </div>
+          </div>
+        ) : !selectedUser ? (
           <div>
             <p className="text-sm text-text-muted mb-4 text-center">Seleccione su usuario</p>
             <div className={cn('grid gap-3', users.length === 3 ? 'grid-cols-3' : 'grid-cols-2')}>
@@ -155,6 +265,7 @@ export default function LoginPage() {
                     onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
                     onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                     invalid={!!error}
+                    showToggle
                     className="text-center text-xl tracking-[0.5em] h-12 rounded-xl"
                     placeholder="••••••"
                     autoFocus
@@ -180,10 +291,45 @@ export default function LoginPage() {
                   {loading ? 'Ingresando...' : 'Ingresar'}
                 </Button>
               )}
+
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="block w-full text-center text-xs text-text-muted hover:text-brand transition-colors pt-1"
+              >
+                ¿Olvidaste tu PIN?
+              </button>
             </div>
           </div>
         )}
       </div>
+
+      <Modal
+        open={forgotOpen}
+        onClose={() => setForgotOpen(false)}
+        size="sm"
+        title="¿Olvidaste tu PIN?"
+        footer={
+          <div className="flex justify-end">
+            <Button onClick={() => setForgotOpen(false)}>Entendido</Button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-sm text-text-main">
+          <p>
+            Por seguridad no podemos recuperarlo automáticamente. Pedile al{' '}
+            <strong>administrador</strong> que reinicie tu PIN desde:
+          </p>
+          <div className="bg-surface-muted rounded-xl px-4 py-3 text-text-muted">
+            <p className="font-medium text-text-main">
+              Configuración → Usuarios → Editar tu usuario
+            </p>
+            <p className="text-xs mt-1">
+              El admin puede asignarte un PIN nuevo. Después podés cambiarlo desde tu perfil.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -6,11 +6,15 @@ import {
   ChevronDown,
   ChevronRight,
   CreditCard,
+  Edit2,
   Phone,
   MapPin,
   ShoppingBag,
+  Trash2,
   Wallet
 } from 'lucide-react'
+import { confirm } from '../../lib/confirm'
+import { toast } from '../../lib/toast'
 import { useAuthStore } from '../../store/auth.store'
 import { formatGs, formatDateTime, cn } from '../../lib/utils'
 import { formatQty } from '../../lib/price-types'
@@ -56,6 +60,9 @@ export default function ClienteFichaPage() {
   const [payAmount, setPayAmount] = useState(0)
   const [payNote, setPayNote] = useState('')
   const [expandedSale, setExpandedSale] = useState<number | null>(null)
+  const [editPayment, setEditPayment] = useState<CustomerPayment | null>(null)
+  const [editAmount, setEditAmount] = useState(0)
+  const [editNote, setEditNote] = useState('')
 
   useEffect(() => {
     loadData()
@@ -84,6 +91,41 @@ export default function ClienteFichaPage() {
     await window.api.customers.addPayment(Number(id), user.id, payAmount, payNote || undefined)
     closePaymentModal()
     loadData()
+  }
+
+  const openEditPayment = (p: CustomerPayment): void => {
+    setEditPayment(p)
+    setEditAmount(p.amount)
+    setEditNote(p.note || '')
+  }
+
+  const closeEditPayment = (): void => {
+    setEditPayment(null)
+    setEditAmount(0)
+    setEditNote('')
+  }
+
+  const handleSavePayment = async (): Promise<void> => {
+    if (!editPayment || !editAmount) return
+    await window.api.customers.updatePayment(editPayment.id, editAmount, editNote || null)
+    closeEditPayment()
+    loadData()
+    toast.success('Pago actualizado')
+  }
+
+  const handleDeletePayment = async (): Promise<void> => {
+    if (!editPayment) return
+    const ok = await confirm({
+      title: 'Eliminar pago',
+      message: 'Se restará del saldo del cliente. Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      danger: true
+    })
+    if (!ok) return
+    await window.api.customers.deletePayment(editPayment.id)
+    closeEditPayment()
+    loadData()
+    toast.success('Pago eliminado')
   }
 
   const { startTour } = usePageTour({
@@ -346,12 +388,13 @@ export default function ClienteFichaPage() {
                   <th className="pb-2 font-normal pr-3">Fecha</th>
                   <th className="pb-2 font-normal pr-3 text-right">Monto</th>
                   <th className="pb-2 font-normal">Nota</th>
+                  <th className="pb-2 font-normal w-12"></th>
                 </tr>
               </thead>
               <tbody>
                 {payments.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="py-8 text-center text-text-muted">
+                    <td colSpan={4} className="py-8 text-center text-text-muted">
                       Sin pagos recibidos
                     </td>
                   </tr>
@@ -369,6 +412,16 @@ export default function ClienteFichaPage() {
                       </td>
                       <td className="py-2.5 text-text-muted truncate max-w-[200px]">
                         {p.note || <span className="text-text-disabled">—</span>}
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEditPayment(p)}
+                          className="p-1.5 hover:bg-surface-muted rounded-lg text-text-muted hover:text-text-main transition-colors"
+                          title="Editar pago"
+                        >
+                          <Edit2 size={14} />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -436,6 +489,55 @@ export default function ClienteFichaPage() {
             />
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={editPayment != null}
+        onClose={closeEditPayment}
+        size="sm"
+        title="Editar pago"
+        footer={
+          <div className="flex justify-between w-full">
+            <Button variant="secondary" onClick={handleDeletePayment}>
+              <Trash2 size={14} /> Eliminar
+            </Button>
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={closeEditPayment}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSavePayment} disabled={!editAmount}>
+                Guardar
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        {editPayment && (
+          <div className="space-y-4">
+            <p className="text-xs text-text-muted">
+              Pago original: {formatGs(editPayment.amount)} ·{' '}
+              {formatDateTime(editPayment.created_at)}
+            </p>
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Monto (Gs.)</label>
+              <MoneyInput
+                value={editAmount}
+                onValueChange={setEditAmount}
+                className="h-12 text-right text-lg tabular-nums"
+                placeholder="0"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Nota</label>
+              <Input
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                placeholder="Forma de pago, observaciones..."
+              />
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

@@ -223,7 +223,7 @@ export const reportesTourSteps: StepType[] = [
   {
     selector: '[data-tour="reportes-tabs"]',
     content:
-      'Tipos de reporte disponibles: ventas, resumen, comparativos, fiados, productos top, márgenes, movimientos de stock y cierres de caja.'
+      'Tipos de reporte disponibles: resumen, comparativos, fiados, productos top, márgenes, movimientos de stock y cierres de caja.'
   },
   {
     selector: '[data-tour="reportes-filters"]',

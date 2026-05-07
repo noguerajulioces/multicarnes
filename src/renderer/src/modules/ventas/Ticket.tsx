@@ -36,6 +36,26 @@ export const Ticket = forwardRef<HTMLDivElement, TicketProps>(function Ticket({ 
           style.fontSize = '14px'
           style.padding = '2px 0'
         }
+        // Las líneas emphasized con parts left/right se renderizan con flex
+        // porque el padding monoespaciado del texto base no alinea al subir
+        // el tamaño de fuente.
+        if (line.emphasized && line.parts) {
+          return (
+            <div
+              key={i}
+              style={{
+                ...style,
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 8,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span>{line.parts.left}</span>
+              <span>{line.parts.right}</span>
+            </div>
+          )
+        }
         return (
           <div key={i} style={style}>
             {line.text || ' '}

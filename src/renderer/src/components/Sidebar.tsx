@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/auth.store'
 import {
   LayoutDashboard,
   ShoppingCart,
+  Receipt,
   Package,
   DollarSign,
   Users,
@@ -44,9 +45,15 @@ const navSections: NavSection[] = [
         roles: ['admin', 'supervisor', 'cajero']
       },
       {
+        to: '/pos',
+        label: 'POS',
+        icon: ShoppingCart,
+        roles: ['admin', 'supervisor', 'cajero']
+      },
+      {
         to: '/ventas',
         label: 'Ventas',
-        icon: ShoppingCart,
+        icon: Receipt,
         roles: ['admin', 'supervisor', 'cajero']
       },
       { to: '/caja', label: 'Caja', icon: DollarSign, roles: ['admin', 'supervisor', 'cajero'] }
@@ -56,9 +63,14 @@ const navSections: NavSection[] = [
     label: 'Gestión',
     items: [
       { to: '/productos', label: 'Productos', icon: Package, roles: ['admin', 'supervisor'] },
-      { to: '/compras', label: 'Compras', icon: Truck, roles: ['admin', 'supervisor'] },
-      { to: '/proveedores', label: 'Proveedores', icon: Building2, roles: ['admin', 'supervisor'] },
       { to: '/clientes', label: 'Clientes', icon: UserCheck, roles: ['admin', 'supervisor'] },
+      { to: '/proveedores', label: 'Proveedores', icon: Building2, roles: ['admin', 'supervisor'] },
+      { to: '/compras', label: 'Compras', icon: Truck, roles: ['admin', 'supervisor'] }
+    ]
+  },
+  {
+    label: 'Análisis',
+    items: [
       { to: '/reportes', label: 'Reportes', icon: FileText, roles: ['admin', 'supervisor'] }
     ]
   },
@@ -109,10 +121,10 @@ export default function Sidebar() {
       {/* Brand header */}
       <div
         className={`flex items-center ${
-          collapsed ? 'justify-center px-2 py-4' : 'gap-3 px-4 py-5'
+          collapsed ? 'justify-center px-2 py-3' : 'gap-3 px-4 py-3.5'
         }`}
       >
-        <img src={logo} alt="Multicarnes" className="h-10 w-10 object-contain shrink-0" />
+        <img src={logo} alt="Multicarnes" className="h-9 w-9 object-contain shrink-0" />
         {!collapsed && (
           <div className="leading-tight min-w-0">
             <h1 className="text-base font-bold tracking-tight truncate">Multicarnes</h1>
@@ -124,13 +136,13 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-2 pb-2 overflow-y-auto">
         {filteredSections.map((section, sIdx) => (
-          <div key={section.label} className={sIdx > 0 ? 'mt-4' : ''}>
+          <div key={section.label} className={sIdx > 0 ? 'mt-2.5' : ''}>
             {!collapsed && (
-              <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider opacity-50">
+              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider opacity-50">
                 {section.label}
               </div>
             )}
-            {collapsed && sIdx > 0 && <div className="mx-2 my-2 h-px bg-white/15" />}
+            {collapsed && sIdx > 0 && <div className="mx-2 my-1.5 h-px bg-white/15" />}
             {section.items.map((item) => (
               <NavLink
                 key={item.to}
@@ -139,7 +151,7 @@ export default function Sidebar() {
                 className={({ isActive }) =>
                   `relative flex items-center ${
                     collapsed ? 'justify-center px-2' : 'gap-3 px-3'
-                  } py-2.5 my-0.5 text-sm rounded-xl transition-colors ${
+                  } py-1.5 text-sm rounded-lg transition-colors ${
                     isActive
                       ? 'bg-white/25 font-semibold'
                       : 'text-white/80 hover:bg-white/10 hover:text-white'
@@ -162,7 +174,7 @@ export default function Sidebar() {
       </nav>
 
       {/* User block */}
-      <div className={`border-t border-white/15 ${collapsed ? 'p-2' : 'px-3 py-3'}`}>
+      <div className={`border-t border-white/15 ${collapsed ? 'p-2' : 'px-3 py-2'}`}>
         {!collapsed ? (
           <div className="flex items-center gap-2.5">
             <button

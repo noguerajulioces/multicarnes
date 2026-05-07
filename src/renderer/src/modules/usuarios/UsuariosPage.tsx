@@ -261,6 +261,7 @@ export default function UsuariosPage() {
               value={form.pin}
               onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })}
               placeholder="••••••"
+              showToggle
             />
           </div>
 
@@ -273,6 +274,7 @@ export default function UsuariosPage() {
               value={form.confirmPin}
               onChange={(e) => setForm({ ...form, confirmPin: e.target.value.replace(/\D/g, '') })}
               placeholder="••••"
+              showToggle
             />
           </div>
 

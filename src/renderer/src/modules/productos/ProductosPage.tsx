@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs, cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
-import { priceTypeInfo } from '../../lib/price-types'
+import { priceTypeInfo, formatQty } from '../../lib/price-types'
 import type { Product, Category } from '@shared/types'
 import { Search, Plus, Eye, AlertTriangle, Package, TrendingUp, TrendingDown } from 'lucide-react'
 import {
@@ -224,7 +224,10 @@ export default function ProductosPage() {
                             out ? 'text-danger-700' : low ? 'text-warning-700' : ''
                           )}
                         >
-                          {pt.decimals > 0 ? p.stock.toFixed(pt.decimals) : p.stock}
+                          {p.stock.toLocaleString('es-PY', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: pt.decimals
+                          })}
                         </span>
                       </div>
                     </td>
@@ -309,10 +312,7 @@ export default function ProductosPage() {
                 <div className="bg-surface-muted rounded-xl px-4 py-3">
                   <p className="text-xs text-text-muted">Stock actual</p>
                   <p className="text-lg font-semibold tabular-nums">
-                    {adjPt.decimals > 0
-                      ? adjustModal.stock.toFixed(adjPt.decimals)
-                      : adjustModal.stock}{' '}
-                    {adjPt.unit}
+                    {formatQty(adjustModal.stock, adjustModal.price_type)}
                   </p>
                 </div>
 
@@ -337,18 +337,26 @@ export default function ProductosPage() {
                     >
                       {stockDiff >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                       {stockDiff >= 0 ? '+' : ''}
-                      {stockDiff.toFixed(Math.max(adjPt.decimals, 2))} {adjPt.unit}
+                      {formatQty(stockDiff, adjustModal.price_type)}
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm text-text-muted mb-1.5">Motivo (requerido)</label>
+                  <label className="block text-sm text-text-muted mb-1.5">
+                    Motivo <span className="text-danger-500">*</span>
+                  </label>
                   <Input
                     value={adjustReason}
                     onChange={(e) => setAdjustReason(e.target.value)}
                     placeholder="Compra, merma, conteo, etc."
+                    invalid={!adjustReason && newStock !== ''}
                   />
+                  {!adjustReason && (
+                    <p className="text-xs text-text-muted mt-1">
+                      Indicá por qué cambiás el stock — queda en el historial.
+                    </p>
+                  )}
                 </div>
               </div>
             )

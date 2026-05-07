@@ -6,6 +6,8 @@ import CajaPage from './modules/caja/CajaPage'
 import AperturaCajaPage from './modules/caja/AperturaCajaPage'
 import CierreCajaPage from './modules/caja/CierreCajaPage'
 import PosScreen from './modules/ventas/PosScreen'
+import VentasListadoPage from './modules/ventas-listado/VentasListadoPage'
+import VentaDetallePage from './modules/ventas-listado/VentaDetallePage'
 import ProductosPage from './modules/productos/ProductosPage'
 import ProductoFormPage from './modules/productos/ProductoFormPage'
 import ProductoDetallePage from './modules/productos/ProductoDetallePage'
@@ -26,9 +28,11 @@ export default function AppRouter() {
     <HashRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/ventas" element={<PosScreen />} />
+        <Route path="/pos" element={<PosScreen />} />
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/ventas" element={<VentasListadoPage />} />
+          <Route path="/ventas/:id" element={<VentaDetallePage />} />
           <Route path="/caja" element={<CajaPage />} />
           <Route path="/caja/apertura" element={<AperturaCajaPage />} />
           <Route path="/caja/cierre" element={<CierreCajaPage />} />

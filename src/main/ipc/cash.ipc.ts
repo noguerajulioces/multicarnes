@@ -6,8 +6,10 @@ export function registerCashIpc(): void {
     cashQuery.openCashRegister(userId, openingAmount)
   )
   ipcMain.handle('cash:getCurrent', () => cashQuery.getCurrentCashRegister())
-  ipcMain.handle('cash:close', (_, id: number, closingAmount: number, notes?: string) =>
-    cashQuery.closeCashRegister(id, closingAmount, notes)
+  ipcMain.handle(
+    'cash:close',
+    (_, id: number, closingAmount: number, notes?: string, userId?: number) =>
+      cashQuery.closeCashRegister(id, closingAmount, notes, userId)
   )
   ipcMain.handle(
     'cash:addMovement',
