@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
-import { existsSync, mkdirSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { createTables } from './schema'
 import { seedDatabase } from './seed'
 
@@ -13,42 +13,161 @@ export function getImagesDir(): string {
   return dir
 }
 
-function runMigrations(db: Database.Database): void {
-  // Add image column if it doesn't exist
-  const productsCols = db.prepare('PRAGMA table_info(products)').all() as { name: string }[]
-  if (!productsCols.find((c) => c.name === 'image')) {
-    db.exec('ALTER TABLE products ADD COLUMN image TEXT')
+interface Migration {
+  version: number
+  name: string
+  up: (db: Database.Database) => void
+}
+
+// P3: Versioned migrations. Each entry runs at most once and is recorded in
+// schema_migrations. Append new migrations at the end with the next version
+// number; never reorder, renumber, or mutate an applied migration's body.
+const MIGRATIONS: Migration[] = [
+  {
+    version: 1,
+    name: 'add_products_image_column',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(products)').all() as { name: string }[]
+      if (!cols.find((c) => c.name === 'image')) {
+        db.exec('ALTER TABLE products ADD COLUMN image TEXT')
+      }
+    }
+  },
+  {
+    version: 2,
+    name: 'customers_document_columns_and_backfill',
+    up: (db) => {
+      const cols = db.prepare('PRAGMA table_info(customers)').all() as { name: string }[]
+      const hasDocument = !!cols.find((c) => c.name === 'document')
+      const hasDocumentType = !!cols.find((c) => c.name === 'document_type')
+      const hasCi = !!cols.find((c) => c.name === 'ci')
+      const hasRuc = !!cols.find((c) => c.name === 'ruc')
+
+      if (!hasDocument) db.exec('ALTER TABLE customers ADD COLUMN document TEXT')
+      if (!hasDocumentType) db.exec('ALTER TABLE customers ADD COLUMN document_type TEXT')
+
+      if (hasCi || hasRuc) {
+        const ruc = hasRuc ? 'ruc' : 'NULL'
+        const ci = hasCi ? 'ci' : 'NULL'
+        db.exec(`
+          UPDATE customers
+          SET document = COALESCE(${ruc}, ${ci}),
+              document_type = CASE
+                WHEN ${ruc} IS NOT NULL THEN 'RUC'
+                WHEN ${ci} IS NOT NULL THEN 'CI'
+              END
+          WHERE document IS NULL AND (${ruc} IS NOT NULL OR ${ci} IS NOT NULL)
+        `)
+      }
+    }
+  },
+  {
+    version: 3,
+    name: 'seed_backup_schedule_settings',
+    up: (db) => {
+      const insertSetting = db.prepare(
+        'INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)'
+      )
+      insertSetting.run('backup_schedule_enabled', '0')
+      insertSetting.run('backup_schedule_time', '22:00')
+    }
+  }
+]
+
+function preMigrateBackup(dbPath: string, version: number): void {
+  // Skip the safeguard on a fresh DB: if no real data exists yet there is
+  // nothing to lose to a bad migration. Detected by checking the few user-data
+  // tables we expect to be populated on a real install.
+  try {
+    const usersCount = (db.prepare('SELECT COUNT(*) AS c FROM users').get() as { c: number }).c
+    const salesCount = (db.prepare('SELECT COUNT(*) AS c FROM sales').get() as { c: number }).c
+    const productsCount = (
+      db.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number }
+    ).c
+    if (usersCount === 0 && salesCount === 0 && productsCount === 0) return
+  } catch {
+    // If any of those tables doesn't exist yet (very old install), there's
+    // nothing to back up either.
+    return
   }
 
-  // Add document/document_type columns to customers if they don't exist
-  const customersCols = db.prepare('PRAGMA table_info(customers)').all() as { name: string }[]
-  const hasDocument = !!customersCols.find((c) => c.name === 'document')
-  const hasDocumentType = !!customersCols.find((c) => c.name === 'document_type')
-  const hasCi = !!customersCols.find((c) => c.name === 'ci')
-  const hasRuc = !!customersCols.find((c) => c.name === 'ruc')
+  const backupDir = join(app.getPath('userData'), 'backups')
+  if (!existsSync(backupDir)) mkdirSync(backupDir, { recursive: true })
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const dest = join(backupDir, `pre-migrate-v${version}-${stamp}.db`)
+  try {
+    copyFileSync(dbPath, dest)
+  } catch (err) {
+    // A backup failure is loud but not fatal — the migration still runs.
+    // Surfaces in the main-process console; merchant data is at risk only if
+    // both the backup AND the migration fail, which is handled by the
+    // transaction-per-migration wrapper below (each migration rolls back on
+    // throw).
+    console.error('[migrations] pre-migrate backup failed:', err)
+  }
+}
 
-  if (!hasDocument) db.exec('ALTER TABLE customers ADD COLUMN document TEXT')
-  if (!hasDocumentType) db.exec('ALTER TABLE customers ADD COLUMN document_type TEXT')
-
-  // Backfill document/document_type from legacy ci/ruc columns if present
-  if (hasCi || hasRuc) {
-    const ruc = hasRuc ? 'ruc' : 'NULL'
-    const ci = hasCi ? 'ci' : 'NULL'
-    db.exec(`
-      UPDATE customers
-      SET document = COALESCE(${ruc}, ${ci}),
-          document_type = CASE
-            WHEN ${ruc} IS NOT NULL THEN 'RUC'
-            WHEN ${ci} IS NOT NULL THEN 'CI'
-          END
-      WHERE document IS NULL AND (${ruc} IS NOT NULL OR ${ci} IS NOT NULL)
-    `)
+function backfillLegacyLedger(db: Database.Database): void {
+  // P3: First-boot heuristic for installs that already ran the previous
+  // ad-hoc runMigrations(). Detect each legacy migration's effect and mark
+  // the matching version as applied so it does not replay.
+  const recordIfMissing = (
+    version: number,
+    name: string,
+    detector: () => boolean
+  ): void => {
+    const exists = db
+      .prepare('SELECT 1 FROM schema_migrations WHERE version = ?')
+      .get(version)
+    if (exists) return
+    if (!detector()) return
+    db.prepare(
+      'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)'
+    ).run(version, name, "datetime('now','localtime')-pre-versioned")
   }
 
-  // Add schedule backup settings if missing
-  const insertSetting = db.prepare('INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)')
-  insertSetting.run('backup_schedule_enabled', '0')
-  insertSetting.run('backup_schedule_time', '22:00')
+  recordIfMissing(1, 'add_products_image_column', () => {
+    const cols = db.prepare('PRAGMA table_info(products)').all() as { name: string }[]
+    return !!cols.find((c) => c.name === 'image')
+  })
+  recordIfMissing(2, 'customers_document_columns_and_backfill', () => {
+    const cols = db.prepare('PRAGMA table_info(customers)').all() as { name: string }[]
+    return !!cols.find((c) => c.name === 'document')
+  })
+  recordIfMissing(3, 'seed_backup_schedule_settings', () => {
+    const row = db
+      .prepare("SELECT 1 FROM app_settings WHERE key = 'backup_schedule_enabled'")
+      .get()
+    return !!row
+  })
+}
+
+function runMigrations(db: Database.Database, dbPath: string): void {
+  backfillLegacyLedger(db)
+
+  const appliedRows = db
+    .prepare('SELECT version FROM schema_migrations')
+    .all() as { version: number }[]
+  const applied = new Set(appliedRows.map((r) => r.version))
+  const pending = MIGRATIONS.filter((m) => !applied.has(m.version))
+  if (pending.length === 0) return
+
+  // Snapshot the DB once before applying any pending migration. Each migration
+  // also runs in its own transaction so an individual failure rolls back
+  // cleanly; the file-level backup is the recovery handle when a developer
+  // needs to revert a deployed install.
+  preMigrateBackup(dbPath, pending[0].version)
+
+  const recordApplied = db.prepare(
+    'INSERT INTO schema_migrations (version, name) VALUES (?, ?)'
+  )
+  for (const migration of pending) {
+    const txn = db.transaction(() => {
+      migration.up(db)
+      recordApplied.run(migration.version, migration.name)
+    })
+    txn()
+  }
 }
 
 export function initDatabase(): Database.Database {
@@ -57,7 +176,7 @@ export function initDatabase(): Database.Database {
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   createTables(db)
-  runMigrations(db)
+  runMigrations(db, dbPath)
   seedDatabase(db)
   return db
 }

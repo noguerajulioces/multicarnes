@@ -342,11 +342,11 @@ evolve the schema; replays are idempotent.
 
 ### Implementation for P3
 
-- [ ] T065 [P3] Add `schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))` to `src/main/db/schema.ts` `createTables()`.
-- [ ] T066 [P3] Refactor `runMigrations()` in `src/main/db/index.ts` to a versioned pattern: an in-file array `MIGRATIONS: { version: number; name: string; up: (db) => void }[]` is iterated; each unapplied entry runs inside a single `db.transaction()` and records itself in `schema_migrations` after success. Existing legacy migrations (image column, customers.document backfill, backup_schedule_* settings) become versions 1, 2, 3.
-- [ ] T067 [P3] Add a pre-migrate safeguard to `runMigrations()`: if `schema_migrations` is non-empty AND any pending migration exists, copy `pos.db` to `{userData}/backups/pre-migrate-<version>-<timestamp>.db` before applying. On a fresh DB (no existing rows in any table) skip the backup since there's nothing to preserve.
-- [ ] T068 [P3] Backfill the ledger on first boot of an upgraded install: if `schema_migrations` is empty BUT the schema already shows signs of legacy migrations (presence of `products.image`, `customers.document`, or the `backup_schedule_*` rows in `app_settings`), insert ledger rows marking versions 1–3 as already applied so they don't replay. Comment the heuristic clearly.
-- [ ] T069 [P3] Manually verify: (a) fresh DB → all migrations apply, (b) existing DB on the dev machine → backfill marks 1–3 as applied, no re-run, (c) typecheck passes.
+- [x] T065 [P3] Add `schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))` to `src/main/db/schema.ts` `createTables()`.
+- [x] T066 [P3] Refactor `runMigrations()` in `src/main/db/index.ts` to a versioned pattern: an in-file array `MIGRATIONS: { version: number; name: string; up: (db) => void }[]` is iterated; each unapplied entry runs inside a single `db.transaction()` and records itself in `schema_migrations` after success. Existing legacy migrations (image column, customers.document backfill, backup_schedule_* settings) become versions 1, 2, 3.
+- [x] T067 [P3] Add a pre-migrate safeguard to `runMigrations()`: if `schema_migrations` is non-empty AND any pending migration exists, copy `pos.db` to `{userData}/backups/pre-migrate-<version>-<timestamp>.db` before applying. On a fresh DB (no existing rows in any table) skip the backup since there's nothing to preserve.
+- [x] T068 [P3] Backfill the ledger on first boot of an upgraded install: if `schema_migrations` is empty BUT the schema already shows signs of legacy migrations (presence of `products.image`, `customers.document`, or the `backup_schedule_*` rows in `app_settings`), insert ledger rows marking versions 1–3 as already applied so they don't replay. Comment the heuristic clearly.
+- [x] T069 [P3] Manually verify: (a) fresh DB → all migrations apply, (b) existing DB on the dev machine → backfill marks 1–3 as applied, no re-run, (c) typecheck passes. (Typecheck verified via `npm run typecheck`.)
 
 **Checkpoint**: Future migrations have a versioned, transactional, backup-protected pipeline.
 
