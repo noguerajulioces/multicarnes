@@ -16,6 +16,19 @@ interface CreateSaleData {
 export function createSale(data: CreateSaleData) {
   const db = getDb()
   const txn = db.transaction(() => {
+    // P2: server-side guarantee that the target register is open. The renderer
+    // already gates the POS UI on an open session, but a stale localStorage
+    // cache or a tampered renderer could otherwise post sales onto a closed
+    // register and corrupt the cash-session reconciliation report.
+    const register = db
+      .prepare('SELECT status FROM cash_registers WHERE id = ?')
+      .get(data.registerId) as { status: string } | undefined
+    if (!register || register.status !== 'open') {
+      throw new Error(
+        'La caja indicada no está abierta. Abrí una nueva caja antes de continuar.'
+      )
+    }
+
     const result = db
       .prepare(
         `
