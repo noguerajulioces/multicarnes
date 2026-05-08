@@ -405,8 +405,8 @@ code does. The Sync Impact Report at the top reflects the amendment.
 
 ### Implementation for P7
 
-- [ ] T077 [P7] Edit `.specify/memory/constitution.md` Principle V: keep the rule that **thermal printer logic** lives in main, but split out a sub-rule that **report generation (xlsx, jsPDF)** MAY live in the renderer provided (a) the formatters take plain data in and return blobs/buffers out, and (b) no untrusted input crosses the formatter (current behaviour). Add a "Rationale (renderer-side reports)" paragraph explaining the cost/benefit.
-- [ ] T078 [P7] Update the Sync Impact Report comment at the top of `constitution.md`: bump version `1.0.0` → `1.1.0` (MINOR — guidance materially expanded), set `LAST_AMENDED_DATE` to today (2026-05-08), and list the modified principle.
+- [x] T077 [P7] Edit `.specify/memory/constitution.md` Principle V: keep the rule that **thermal printer logic** lives in main, but split out a sub-rule that **report generation (xlsx, jsPDF)** MAY live in the renderer provided (a) the formatters take plain data in and return blobs/buffers out, and (b) no untrusted input crosses the formatter (current behaviour). Added "Rationale (renderer-side reports)" paragraph.
+- [x] T078 [P7] Update the Sync Impact Report comment at the top of `constitution.md`: bump version `1.0.0` → `1.1.0` (MINOR — guidance materially expanded), set `LAST_AMENDED_DATE` to today (2026-05-08), and list the modified principle.
 
 **Checkpoint**: Principle V is no longer in conflict with the code.
 
@@ -421,8 +421,8 @@ runtime deps; the diff between them is empty.
 
 ### Implementation for P8
 
-- [ ] T079 [P8] Edit `.specify/memory/constitution.md` Principle I: add `recharts` (charts), `@reactour/tour` (guided tours), `date-fns` (date utilities), `lucide-react` (icons), `clsx` + `tailwind-merge` (className composition), and `@fontsource/inter` (UI font) to the approved list with one-line purposes each. Note that this is documenting reality, not approving anything new.
-- [ ] T080 [P8] Roll the version bump from P7 (1.0.0 → 1.1.0) into the same Sync Impact Report entry rather than re-bumping; update the report's "Modified principles" line to include Principle I as well. If P7 has not yet shipped at edit time, P8 produces the version bump alone.
+- [x] T079 [P8] Edit `.specify/memory/constitution.md` Principle I: add `recharts` (charts), `@reactour/tour` (guided tours), `date-fns` (date utilities), `lucide-react` (icons), `clsx` + `tailwind-merge` (className composition), and `@fontsource/inter` (UI font) to the approved list with one-line purposes each. Note that this is documenting reality, not approving anything new.
+- [x] T080 [P8] Roll the version bump from P7 (1.0.0 → 1.1.0) into the same Sync Impact Report entry rather than re-bumping; update the report's "Modified principles" line to include Principle I as well.
 
 **Checkpoint**: Principle I is now an enforceable gate (the baseline matches reality).
 
