@@ -71,6 +71,24 @@ const MIGRATIONS: Migration[] = [
       insertSetting.run('backup_schedule_enabled', '0')
       insertSetting.run('backup_schedule_time', '22:00')
     }
+  },
+  {
+    version: 4,
+    name: 'create_held_tickets_table',
+    up: (db) => {
+      // Schema-level CREATE TABLE IF NOT EXISTS already handles creation on
+      // fresh installs; this migration is a no-op there. On upgraded installs
+      // where createTables() has already run, the IF NOT EXISTS keeps it safe.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS held_tickets (
+          id         TEXT PRIMARY KEY,
+          label      TEXT NOT NULL,
+          payload    TEXT NOT NULL,
+          discount   INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        )
+      `)
+    }
   }
 ]
 

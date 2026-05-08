@@ -217,6 +217,26 @@ interface ApiPrint {
   hasConfig(): Promise<boolean>
 }
 
+interface HeldTicketRow {
+  id: string
+  label: string
+  payload: string
+  discount: number
+  created_at: string
+}
+
+interface ApiHeldTickets {
+  list(): Promise<HeldTicketRow[]>
+  add(data: {
+    id: string
+    label: string
+    payload: string
+    discount: number
+  }): Promise<HeldTicketRow>
+  remove(id: string): Promise<void>
+  clear(): Promise<void>
+}
+
 interface ApiWindow {
   minimize(): Promise<void>
   maximizeToggle(): Promise<boolean>
@@ -240,6 +260,7 @@ declare global {
       settings: ApiSettings
       notify: ApiNotify
       print: ApiPrint
+      heldTickets: ApiHeldTickets
       window: ApiWindow
     }
   }

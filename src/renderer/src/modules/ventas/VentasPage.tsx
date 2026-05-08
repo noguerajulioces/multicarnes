@@ -53,6 +53,8 @@ export default function VentasPage() {
     total
   } = useCartStore()
   const heldTickets = useHeldStore((s) => s.tickets)
+  const heldLoaded = useHeldStore((s) => s.loaded)
+  const loadHeldFromDb = useHeldStore((s) => s.loadFromDb)
   const addHeld = useHeldStore((s) => s.add)
   const consumeHeld = useHeldStore((s) => s.consume)
   const removeHeld = useHeldStore((s) => s.remove)
@@ -83,6 +85,10 @@ export default function VentasPage() {
   useEffect(() => {
     window.api.products.categories().then(setCategories)
   }, [])
+
+  useEffect(() => {
+    if (!heldLoaded) void loadHeldFromDb()
+  }, [heldLoaded, loadHeldFromDb])
 
   // Cuando el descuento se configura en %, recalcular el monto en Gs cada vez que
   // el subtotal cambia (al agregar/quitar productos).

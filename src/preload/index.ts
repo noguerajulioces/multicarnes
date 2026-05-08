@@ -124,6 +124,13 @@ const api = {
     ticket: (payload: unknown) => ipcRenderer.invoke('print:ticket', payload),
     hasConfig: () => ipcRenderer.invoke('print:hasConfig')
   },
+  heldTickets: {
+    list: () => ipcRenderer.invoke('held:list'),
+    add: (data: { id: string; label: string; payload: string; discount: number }) =>
+      ipcRenderer.invoke('held:add', data),
+    remove: (id: string) => ipcRenderer.invoke('held:remove', id),
+    clear: () => ipcRenderer.invoke('held:clear')
+  },
   window: {
     minimize: () => ipcRenderer.invoke('window:minimize'),
     maximizeToggle: () => ipcRenderer.invoke('window:maximizeToggle'),

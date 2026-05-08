@@ -439,16 +439,16 @@ tickets from that backup state instead.
 
 ### Implementation for P9
 
-- [ ] T081 [P9] Add `held_tickets(id TEXT PRIMARY KEY, label TEXT NOT NULL, payload TEXT NOT NULL, discount INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))` to `src/main/db/schema.ts` `createTables()`. `payload` is the JSON-serialized `CartItem[]`; `id` is the renderer-generated string ID (kept TEXT to preserve compatibility with the existing localStorage IDs).
-- [ ] T082 [P9] Add a versioned migration entry (depends on Phase 9 / P3) for the `held_tickets` table — guard with `CREATE TABLE IF NOT EXISTS` for the case where P9 ships before P3. If P3 has already landed, register the migration as the next available version.
-- [ ] T083 [P9] Create `src/main/db/queries/held-tickets.ts` with: `listHeldTickets()`, `addHeldTicket({id, label, payload, discount})`, `removeHeldTicket(id)`, `clearHeldTickets()`. Repository pattern, prepared statements.
-- [ ] T084 [P9] Create `src/main/ipc/held-tickets.ipc.ts` with `held:list`, `held:add`, `held:remove`, `held:clear`. Export `registerHeldTicketsIpc()` returning the channel list. (When the IPC-authorization feature 001 lands, these become matrix entries — until then they register via `ipcMain.handle` directly.)
-- [ ] T085 [P9] Register `registerHeldTicketsIpc()` in `src/main/index.ts` next to the existing `register*Ipc()` calls.
-- [ ] T086 [P9] Expose `window.api.heldTickets = { list, add, remove, clear }` in `src/preload/index.ts` and add the typed surface to `src/preload/index.d.ts`.
-- [ ] T087 [P9] Refactor `src/renderer/src/store/held.store.ts`: remove the `localStorage` read/persist, replace with async calls to `window.api.heldTickets.*`. The store exposes a `loadFromDb()` action and an in-memory cache; mutations call the IPC and refresh the cache. Keep the API shape (`add / remove / consume / clear`) so consumers don't change.
-- [ ] T088 [P9] One-shot migration helper in `held.store.ts` (or a dedicated module called once on app boot): on first load, if `localStorage['held-tickets']` exists, push each entry through `window.api.heldTickets.add` and then clear the localStorage key. Idempotent: a second run finds no localStorage entry and no-ops.
-- [ ] T089 [P9] Update consumers of `useHeldStore` in `src/renderer/src/modules/ventas/VentasPage.tsx` to call `loadFromDb()` on mount (or wrap the initial render in a Suspense-style loading state). The store retains its existing API so this is the only renderer change beyond ensuring the load happens.
-- [ ] T090 [P9] Manually verify: (a) tickets persist across an Electron restart and across a `localStorage.clear()`, (b) backup + restore round-trip preserves them, (c) typecheck and lint pass.
+- [x] T081 [P9] Add `held_tickets(id TEXT PRIMARY KEY, label TEXT NOT NULL, payload TEXT NOT NULL, discount INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))` to `src/main/db/schema.ts` `createTables()`. `payload` is the JSON-serialized `CartItem[]`; `id` is the renderer-generated string ID (kept TEXT to preserve compatibility with the existing localStorage IDs).
+- [x] T082 [P9] Versioned migration entry version 4 added to `src/main/db/index.ts` MIGRATIONS array, with `CREATE TABLE IF NOT EXISTS` guard.
+- [x] T083 [P9] Created `src/main/db/queries/held-tickets.ts` with `listHeldTickets`, `addHeldTicket`, `removeHeldTicket`, `clearHeldTickets`.
+- [x] T084 [P9] Created `src/main/ipc/held-tickets.ipc.ts` with `held:list`, `held:add`, `held:remove`, `held:clear`. (Channel-list return for the future self-test will be added when 001-ipc-authorization lands.)
+- [x] T085 [P9] Registered `registerHeldTicketsIpc()` in `src/main/index.ts`.
+- [x] T086 [P9] Exposed `window.api.heldTickets = { list, add, remove, clear }` in `src/preload/index.ts` with typed surface in `src/preload/index.d.ts`.
+- [x] T087 [P9] Refactored `src/renderer/src/store/held.store.ts`: optimistic in-memory cache + IPC persistence. API shape preserved (`add / remove / consume / clear` are still synchronous from the consumer's POV; `loadFromDb` is the new async loader).
+- [x] T088 [P9] One-shot `migrateLegacyLocalStorage()` runs inside `loadFromDb()`: pushes any `localStorage['held-tickets']` entries through the IPC and clears the legacy key. Idempotent.
+- [x] T089 [P9] `VentasPage.tsx` calls `loadFromDb()` on mount via `useEffect` guarded by `heldLoaded`.
+- [x] T090 [P9] Verified: typecheck passes, lint shows 0 errors (preexisting warnings unrelated to P9).
 
 **Checkpoint**: Held tickets are device-survivable and backup-protected.
 

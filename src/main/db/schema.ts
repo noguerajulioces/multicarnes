@@ -163,5 +163,13 @@ export function createTables(db: Database.Database): void {
       name       TEXT NOT NULL,
       applied_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS held_tickets (
+      id         TEXT PRIMARY KEY,
+      label      TEXT NOT NULL,
+      payload    TEXT NOT NULL,
+      discount   INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
   `)
 }
