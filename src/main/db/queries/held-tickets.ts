@@ -24,9 +24,7 @@ export function addHeldTicket(data: {
   db.prepare(
     'INSERT OR REPLACE INTO held_tickets (id, label, payload, discount) VALUES (?, ?, ?, ?)'
   ).run(data.id, data.label, data.payload, data.discount)
-  return db
-    .prepare('SELECT * FROM held_tickets WHERE id = ?')
-    .get(data.id) as HeldTicketRow
+  return db.prepare('SELECT * FROM held_tickets WHERE id = ?').get(data.id) as HeldTicketRow
 }
 
 export function removeHeldTicket(id: string): void {

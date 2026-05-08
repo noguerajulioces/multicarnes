@@ -24,9 +24,7 @@ export function createSale(data: CreateSaleData) {
       .prepare('SELECT status FROM cash_registers WHERE id = ?')
       .get(data.registerId) as { status: string } | undefined
     if (!register || register.status !== 'open') {
-      throw new Error(
-        'La caja indicada no está abierta. Abrí una nueva caja antes de continuar.'
-      )
+      throw new Error('La caja indicada no está abierta. Abrí una nueva caja antes de continuar.')
     }
 
     const result = db

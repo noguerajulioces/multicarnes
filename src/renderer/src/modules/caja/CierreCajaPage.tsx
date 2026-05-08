@@ -142,9 +142,7 @@ export default function CierreCajaPage() {
               style={{ boxShadow: 'var(--shadow-card-soft)' }}
             >
               <p className="text-xs text-text-muted mb-1">Efectivo esperado</p>
-              <p className="text-2xl font-bold text-text-main tabular-nums">
-                {formatGs(expected)}
-              </p>
+              <p className="text-2xl font-bold text-text-main tabular-nums">{formatGs(expected)}</p>
             </div>
 
             <div data-tour="caja-cierre-counted">

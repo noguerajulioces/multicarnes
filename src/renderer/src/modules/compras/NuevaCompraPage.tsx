@@ -200,47 +200,47 @@ export default function NuevaCompraPage() {
                   {items.map((item, idx) => {
                     const pt = priceTypeInfo(item.priceType)
                     return (
-                    <tr key={item.productId} className="border-b border-border last:border-0">
-                      <td className="py-3 pr-3 font-medium text-text-main">{item.productName}</td>
-                      <td className="py-3 pr-3">
-                        <div className="relative">
-                          <Input
-                            type="number"
-                            value={item.quantity}
-                            min={pt.inputStep}
-                            step={pt.inputStep}
-                            onChange={(e) =>
-                              updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
-                            }
-                            className="h-9 text-right text-sm tabular-nums pr-10"
+                      <tr key={item.productId} className="border-b border-border last:border-0">
+                        <td className="py-3 pr-3 font-medium text-text-main">{item.productName}</td>
+                        <td className="py-3 pr-3">
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              min={pt.inputStep}
+                              step={pt.inputStep}
+                              onChange={(e) =>
+                                updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
+                              }
+                              className="h-9 text-right text-sm tabular-nums pr-10"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted pointer-events-none">
+                              {pt.unit}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-3">
+                          <MoneyInput
+                            value={item.unitCost}
+                            onValueChange={(v) => updateItem(idx, 'unitCost', v)}
+                            className="h-9 text-right text-sm tabular-nums"
+                            placeholder="0"
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted pointer-events-none">
-                            {pt.unit}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 pr-3">
-                        <MoneyInput
-                          value={item.unitCost}
-                          onValueChange={(v) => updateItem(idx, 'unitCost', v)}
-                          className="h-9 text-right text-sm tabular-nums"
-                          placeholder="0"
-                        />
-                      </td>
-                      <td className="py-3 text-right font-medium tabular-nums">
-                        {formatGs(item.subtotal)}
-                      </td>
-                      <td className="py-3">
-                        <button
-                          type="button"
-                          onClick={() => removeItem(idx)}
-                          className="p-1.5 text-danger-500 hover:bg-danger-50 rounded-lg"
-                          aria-label="Quitar"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
+                        </td>
+                        <td className="py-3 text-right font-medium tabular-nums">
+                          {formatGs(item.subtotal)}
+                        </td>
+                        <td className="py-3">
+                          <button
+                            type="button"
+                            onClick={() => removeItem(idx)}
+                            className="p-1.5 text-danger-500 hover:bg-danger-50 rounded-lg"
+                            aria-label="Quitar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
                     )
                   })}
                 </tbody>

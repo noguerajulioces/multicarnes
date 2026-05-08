@@ -70,9 +70,7 @@ const navSections: NavSection[] = [
   },
   {
     label: 'Análisis',
-    items: [
-      { to: '/reportes', label: 'Reportes', icon: FileText, roles: ['admin', 'supervisor'] }
-    ]
+    items: [{ to: '/reportes', label: 'Reportes', icon: FileText, roles: ['admin', 'supervisor'] }]
   },
   {
     label: 'Sistema',
