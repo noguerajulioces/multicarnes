@@ -203,6 +203,10 @@ export function cancelSale(id: number, userId: number) {
         sale.customer_id
       )
     }
+    // TODO(P6 follow-up): when payment_method === 'mixed' and the sale
+    // included a credit portion, that portion is NOT refunded to the customer
+    // balance. Documented in functional-spec.md §7.11. Conservative behaviour
+    // preserved; merchants can correct manually via a customer payment.
 
     db.prepare("UPDATE sales SET status = 'cancelled' WHERE id = ?").run(id)
     db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(

@@ -384,9 +384,9 @@ describing exactly what `sales:cancel` does, with `file:line` citations.
 
 ### Implementation for P6
 
-- [ ] T074 [P6] Add §7.11 "Sale cancellation" to `.specify/memory/functional-spec.md` documenting: (1) who can call (admin/supervisor per the IPC spec), (2) idempotency (already-cancelled is a no-op returning null), (3) restock behaviour (each item's quantity is added back), (4) credit refund (full total returned to customer balance for `payment_method='credit'`), (5) cash-session impact (cancelled sales drop out of the day's totals because cash queries filter `status='completed'`), (6) audit trail (`action_logs` row with `action='cancel_sale'`, plus the `stock_adjustments` rows added in P5).
-- [ ] T075 [P6] Verify in code that the documentation is accurate by re-reading `cancelSale()` and the cash queries (`getDayCashSalesTotal`, `getRegisterSummary`). Note in §7.11 any divergence between spec and code; if a divergence exists and the conservative fix is small (e.g., `mixed`-payment cancellation does not refund the credit portion), add a TODO with the file:line for follow-up rather than expanding scope.
-- [ ] T076 [P6] Update `gap-analysis.md` Appendix A item 4 to mark §7.11 as added.
+- [x] T074 [P6] Add §7.11 "Sale cancellation" to `.specify/memory/functional-spec.md` documenting: (1) who can call (admin/supervisor per the IPC spec), (2) idempotency (already-cancelled is a no-op returning null), (3) restock behaviour (each item's quantity is added back), (4) credit refund (full total returned to customer balance for `payment_method='credit'`), (5) cash-session impact (cancelled sales drop out of the day's totals because cash queries filter `status='completed'`), (6) audit trail (`action_logs` row with `action='cancel_sale'`, plus the `stock_adjustments` rows added in P5).
+- [x] T075 [P6] Verify in code that the documentation is accurate by re-reading `cancelSale()` and the cash queries (`getDayCashSalesTotal`, `getRegisterSummary`). Found divergence: `mixed`-payment cancellation does not refund the credit portion. Documented in §7.11 as a known divergence; TODO comment added at the cancelSale credit-refund block in `src/main/db/queries/sales.ts`.
+- [x] T076 [P6] Update `gap-analysis.md` Appendix A item 4 to mark §7.11 as added.
 
 **Checkpoint**: The cancellation flow is no longer an undocumented sensitive operation.
 
