@@ -19,6 +19,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { productosTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 
 const PER_PAGE = 50
 
@@ -67,12 +68,17 @@ export default function ProductosPage() {
 
   const handleAdjust = async (): Promise<void> => {
     if (!adjustModal || !newStock || !adjustReason || !user) return
-    await window.api.products.adjustStock(
-      adjustModal.id,
-      parseFloat(newStock),
-      adjustReason,
-      user.id
-    )
+    try {
+      await window.api.products.adjustStock(
+        adjustModal.id,
+        parseFloat(newStock),
+        adjustReason,
+        user.id
+      )
+    } catch (err) {
+      handleApiError(err)
+      return
+    }
     closeAdjustModal()
     window.api.products.getAll(buildFilters()).then((res) => {
       setProducts(res.items)

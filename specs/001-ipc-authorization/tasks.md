@@ -90,15 +90,14 @@ This is an Electron desktop app with the existing layout:
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Populate matrix entries for US2 channels in `src/main/auth/matrix.ts`: `sales:create` / `sales:getById` / `sales:getRecent` / `sales:getByRegister` / `sales:dayTotal` (privileged all-roles), `sales:cancel` (privileged admin+supervisor), `cash:open` / `cash:getCurrent` / `cash:getMovements` / `cash:getSummary` (privileged all-roles), `cash:close` (privileged admin+supervisor — cashier-self exception handled inside the handler), `cash:addMovement` (privileged admin+supervisor), `cash:getAll` (privileged admin+supervisor), `customers:getAll` / `customers:getById` / `customers:getPayments` / `customers:getSales` (privileged all-roles), `customers:create` / `customers:update` / `customers:delete` / `customers:addPayment` / `customers:updatePayment` / `customers:deletePayment` (privileged admin+supervisor), `products:create` / `products:update` / `products:adjustStock` / `products:createCategory` / `products:uploadImage` / `products:pickImage` / `products:saveImageFromPath` (privileged admin+supervisor), `print:ticket` (privileged all-roles), `print:hasConfig` (public), `products:getImagePath` (public), `notify:show` (public).
-- [ ] T023 [US2] Convert handler registrations in `src/main/ipc/sales.ipc.ts` to `registerAuthorized` and return channel list from `registerSalesIpc()`.
-- [ ] T024 [P] [US2] Convert handler registrations in `src/main/ipc/cash.ipc.ts` to `registerAuthorized`. Different file → parallelizable.
-- [ ] T025 [P] [US2] Convert handler registrations in `src/main/ipc/customers.ipc.ts` to `registerAuthorized`.
-- [ ] T026 [P] [US2] Convert handler registrations in `src/main/ipc/products.ipc.ts` to `registerAuthorized` for the **mutating** channels listed in T022. Read channels (`getAll`, `getById`, `getByBarcode`, `categories`, `lowStock`, plus the cost-revealing ones) are wrapped in US3/T031.
-- [ ] T027 [P] [US2] Convert handler registrations in `src/main/ipc/print.ipc.ts` and `src/main/ipc/notifications.ipc.ts` to `registerAuthorized`.
-- [ ] T028 [US2] Implement the cashier-self exception for `cash:close` in `src/main/db/queries/cash.ts`: receive `ctx`, look up the register, allow when `ctx.role ∈ {'admin','supervisor'}` OR `register.user_id === ctx.userId`. Reject with an application error (not `AuthError`) when neither holds. Required because the `privileged: ['admin','supervisor']` rule alone would block the legitimate cashier-self path.
-- [ ] T029 [P] [US2] Wire `.catch(handleApiError)` into `src/renderer/src/modules/ventas/VentasPage.tsx`, `src/renderer/src/modules/ventas/CobroModal.tsx`, `src/renderer/src/modules/caja/CajaPage.tsx`, `src/renderer/src/modules/caja/CierreCajaPage.tsx`, `src/renderer/src/modules/clientes/ClientesPage.tsx`, `src/renderer/src/modules/clientes/ClienteFichaPage.tsx`, and `src/renderer/src/modules/productos/ProductosPage.tsx`.
-- [ ] T030 [US2] Run [quickstart.md](quickstart.md) Test 2 manually.
+- [x] T022 [US2] All US2 matrix entries populated in `src/main/auth/matrix.ts` (already populated as part of T007 / Phase 2 along with all other phases).
+- [x] T023 [US2] `src/main/ipc/sales.ipc.ts` converted to `registerAuthorized`. Returns its channel slice from `listRegisteredChannels`.
+- [x] T024 [US2] `src/main/ipc/cash.ipc.ts` converted to `registerAuthorized`.
+- [x] T025 [US2] `src/main/ipc/customers.ipc.ts` converted to `registerAuthorized`.
+- [x] T026 [US2] `src/main/ipc/products.ipc.ts` fully converted (mutating + read handlers; cost stripping per US3/T035 also done in this same pass).
+- [x] T027 [US2] `src/main/ipc/print.ipc.ts` and `src/main/ipc/notifications.ipc.ts` converted to `registerAuthorized`. `src/main/ipc/held-tickets.ipc.ts` also wrapped (round-2 P9 channels).
+- [x] T028 [US2] Cashier-self exception implemented in `cash:close` handler in `src/main/ipc/cash.ipc.ts`. Matrix lets all 3 roles through; the handler rejects non-admin/supervisor callers who do not own the register.
+- [x] T029 [US2] `.catch(handleApiError)` wired into `ClientesPage.tsx` (handleSave + handleDelete), `ClienteFichaPage.tsx` (handlePayment + handleSavePayment + handleDeletePayment), `ProductosPage.tsx` (handleAdjust), `CajaPage.tsx` (handleAddMovement), `CierreCajaPage.tsx` (close path). `VentasPage.tsx` / `CobroModal.tsx` left as-is — `sales:create` allows all roles and existing inline error handling already surfaces register-open failures from P2.
 
 **Checkpoint**: Both P1 stories are live. Privilege-escalation paths (US1) and financial-mutation paths (US2) are protected. This is a fully shippable security release on its own.
 

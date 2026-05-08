@@ -33,6 +33,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { clienteFichaTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 import type { Customer, Sale, CustomerPayment, PaymentMethod } from '@shared/types'
 
 const methodLabel: Record<PaymentMethod, string> = {
@@ -88,7 +89,12 @@ export default function ClienteFichaPage() {
 
   const handlePayment = async (): Promise<void> => {
     if (!user || !id || !payAmount) return
-    await window.api.customers.addPayment(Number(id), user.id, payAmount, payNote || undefined)
+    try {
+      await window.api.customers.addPayment(Number(id), user.id, payAmount, payNote || undefined)
+    } catch (err) {
+      handleApiError(err)
+      return
+    }
     closePaymentModal()
     loadData()
   }
@@ -107,7 +113,12 @@ export default function ClienteFichaPage() {
 
   const handleSavePayment = async (): Promise<void> => {
     if (!editPayment || !editAmount) return
-    await window.api.customers.updatePayment(editPayment.id, editAmount, editNote || null)
+    try {
+      await window.api.customers.updatePayment(editPayment.id, editAmount, editNote || null)
+    } catch (err) {
+      handleApiError(err)
+      return
+    }
     closeEditPayment()
     loadData()
     toast.success('Pago actualizado')
@@ -122,7 +133,12 @@ export default function ClienteFichaPage() {
       danger: true
     })
     if (!ok) return
-    await window.api.customers.deletePayment(editPayment.id)
+    try {
+      await window.api.customers.deletePayment(editPayment.id)
+    } catch (err) {
+      handleApiError(err)
+      return
+    }
     closeEditPayment()
     loadData()
     toast.success('Pago eliminado')

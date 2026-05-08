@@ -1,13 +1,19 @@
-import { ipcMain } from 'electron'
 import * as heldQuery from '../db/queries/held-tickets'
+import { registerAuthorized, listRegisteredChannels } from '../auth/guard'
+import { getRule } from '../auth/matrix'
 
-export function registerHeldTicketsIpc(): void {
-  ipcMain.handle('held:list', () => heldQuery.listHeldTickets())
-  ipcMain.handle(
+export function registerHeldTicketsIpc(): string[] {
+  const before = listRegisteredChannels().length
+  registerAuthorized('held:list', getRule('held:list'), () => heldQuery.listHeldTickets())
+  registerAuthorized(
     'held:add',
-    (_, data: { id: string; label: string; payload: string; discount: number }) =>
+    getRule('held:add'),
+    (_e, _c, data: { id: string; label: string; payload: string; discount: number }) =>
       heldQuery.addHeldTicket(data)
   )
-  ipcMain.handle('held:remove', (_, id: string) => heldQuery.removeHeldTicket(id))
-  ipcMain.handle('held:clear', () => heldQuery.clearHeldTickets())
+  registerAuthorized('held:remove', getRule('held:remove'), (_e, _c, id: string) =>
+    heldQuery.removeHeldTicket(id)
+  )
+  registerAuthorized('held:clear', getRule('held:clear'), () => heldQuery.clearHeldTickets())
+  return listRegisteredChannels().slice(before)
 }

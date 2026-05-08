@@ -1,6 +1,7 @@
-import { ipcMain } from 'electron'
 import { printer as ThermalPrinter, types as PrinterTypes } from 'node-thermal-printer'
 import { getDb } from '../db'
+import { registerAuthorized, listRegisteredChannels } from '../auth/guard'
+import { getRule } from '../auth/matrix'
 
 interface PrintLine {
   text: string
@@ -71,7 +72,15 @@ async function printTicket(payload: PrintTicketPayload): Promise<PrintResult> {
   }
 }
 
-export function registerPrintIpc(): void {
-  ipcMain.handle('print:ticket', (_, payload: PrintTicketPayload) => printTicket(payload))
-  ipcMain.handle('print:hasConfig', () => Boolean(getSetting('thermal_printer_name')))
+export function registerPrintIpc(): string[] {
+  const before = listRegisteredChannels().length
+  registerAuthorized(
+    'print:ticket',
+    getRule('print:ticket'),
+    (_event, _ctx, payload: PrintTicketPayload) => printTicket(payload)
+  )
+  registerAuthorized('print:hasConfig', getRule('print:hasConfig'), () =>
+    Boolean(getSetting('thermal_printer_name'))
+  )
+  return listRegisteredChannels().slice(before)
 }
