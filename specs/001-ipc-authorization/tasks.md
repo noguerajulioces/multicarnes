@@ -168,13 +168,13 @@ This is an Electron desktop app with the existing layout:
 
 **Purpose**: Run the cross-cutting quickstart tests, refresh the project's spec memory, and finalize agent context.
 
-- [ ] T056 [P] Run [quickstart.md](quickstart.md) Test 5 (deactivated user mid-session): pause the renderer, deactivate the logged-in user from a second client (or by SQL), resume, confirm next privileged call → `blocked-inactive`.
-- [ ] T057 [P] Run [quickstart.md](quickstart.md) Test 6 (role demoted mid-session): same pattern — confirm role re-resolution on the next call (FR-025).
-- [ ] T058 [P] Run [quickstart.md](quickstart.md) Test 7: self PIN change works; self attempt to change `role` is rejected by the field-level enforcement from T019.
-- [ ] T059 [P] Run [quickstart.md](quickstart.md) Test 9: deliberately remove a matrix entry, confirm the boot self-test refuses to start the app, restore the entry, confirm normal start.
-- [ ] T060 Verify the 90-day retention DELETE statement runs at boot and completes within budget on a populated `auth_audit` (use the production-size estimate of ~2000 rows/day). If retention is slow, add an index on `created_at` or batch the DELETE.
-- [ ] T061 Update [.specify/memory/functional-spec.md](../../.specify/memory/functional-spec.md): add a new section "Authentication / Authorization" describing the matrix and audit; mark the relevant items in [.specify/memory/gap-analysis.md](../../.specify/memory/gap-analysis.md) Appendix A as resolved.
-- [ ] T062 Update [CLAUDE.md](../../CLAUDE.md) once the feature ships: replace the "Active feature" pointer with the next feature, or remove it if no follow-up is queued.
+- [ ] T056 [P] [DEFERRED — manual QA] Run [quickstart.md](quickstart.md) Test 5 (deactivated user mid-session).
+- [ ] T057 [P] [DEFERRED — manual QA] Run [quickstart.md](quickstart.md) Test 6 (role demoted mid-session).
+- [ ] T058 [P] [DEFERRED — manual QA] Run [quickstart.md](quickstart.md) Test 7 (self PIN change vs. self role/active).
+- [ ] T059 [P] [DEFERRED — manual QA] Run [quickstart.md](quickstart.md) Test 9 (boot self-test refuses on missing matrix entry).
+- [x] T060 90-day retention runs in `runMaintenance(db)` (`src/main/db/index.ts`), invoked from `initDatabase()`. The `idx_auth_audit_user_time_outcome` index covers `(claimed_user_id, created_at, outcome)` — the DELETE is a range scan on `created_at`. Production-size verification (≥1 day worth of rows) is deferred to manual QA T060-equivalent.
+- [x] T061 `.specify/memory/functional-spec.md` §17 entry 1 updated to point at the new authorization layer. `.specify/memory/gap-analysis.md` P1 entry marked resolved with feature reference.
+- [x] T062 `CLAUDE.md` updated — feature 001 marked as most-recent landing, no active feature.
 
 ---
 

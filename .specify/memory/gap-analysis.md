@@ -202,8 +202,8 @@ Ranked by risk to a POS in production. The risk model assumes: real money in the
 
 ### CRITICAL — fix before next merchant deployment
 
-**P1. Backend authorization on IPC.**  
-0 of 81 IPC handlers verify the caller's role or even verify that a user is logged in. A single XSS through a product image, supplier name, or customer note can call `users:create`, `cash:close`, `sales:cancel`, `customers:update` (mutating balances), or `backup:restore` (overwriting the database). For a POS, this is the single biggest risk. The fix: pass `userId` from the renderer's auth store on every IPC call **and** re-resolve role on the main side from the `users` table before executing privileged operations. Channels needing role gates at minimum: `users:*`, `cash:close`, `cash:addMovement`, `sales:cancel`, `customers:delete`, `products:adjustStock`, `backup:restore`, `settings:set`.
+**P1. Backend authorization on IPC.** — **Resolved (feature 001-ipc-authorization, 2026-05-08).**  
+All registered IPC handlers now flow through `registerAuthorized()`. Identity is bound to Electron's `webContents.id` (forge-proof from the renderer), the role is re-resolved from `users` on every call, and decisions are matched against `src/main/auth/matrix.ts`. Every decision is persisted to `auth_audit` (90-day retention, indexed on `(claimed_user_id, created_at, outcome)`). Repeated-failure alerts (≥5 blocked / 10 minutes) surface on the admin dashboard via `<AuthAlertsBanner />`.
 
 **P2. `sales:create` must validate the cash register is open.**  
 Currently a stale `register_id` (cleared session, tampered localStorage, race condition during a close) can post sales onto a closed register. This corrupts the cash-session reconciliation report (counted vs. expected) and the cash-flow KPIs. Fix at the query layer: `WHERE id = ? AND status = 'open'` precondition before insert.
