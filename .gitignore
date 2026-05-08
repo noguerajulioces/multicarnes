@@ -6,4 +6,3 @@ out
 *.log*
 electron.vite.config.*.mjs
 .claude
-.specify
