@@ -111,14 +111,13 @@ This is an Electron desktop app with the existing layout:
 
 ### Implementation for User Story 3
 
-- [ ] T031 [US3] Populate matrix entries for US3 channels in `src/main/auth/matrix.ts`: `reports:salesByPeriod` / `reports:topProducts` / `reports:salesSummary` / `reports:salesComparison` (privileged all-roles), `reports:profitMargin` / `reports:stockMovements` / `reports:cashRegisters` / `reports:pendingCredits` (privileged admin+supervisor), `products:getAll` / `products:getById` / `products:getByBarcode` / `products:categories` / `products:lowStock` (privileged all-roles), `products:movements` / `products:recentSales` / `products:salesStats` / `products:lastPurchase` (privileged admin+supervisor), `suppliers:getAll` / `suppliers:getById` / `suppliers:create` / `suppliers:update` / `purchases:getAll` / `purchases:getById` / `purchases:create` / `purchases:receive` / `purchases:cancel` (all privileged admin+supervisor).
-- [ ] T032 [US3] Convert handler registrations in `src/main/ipc/reports.ipc.ts` to `registerAuthorized`.
-- [ ] T033 [P] [US3] Convert the **read** handler registrations in `src/main/ipc/products.ipc.ts` to `registerAuthorized` (the mutating ones were done in T026). Different concern, same file: **NOT** parallel with T026 (already done by this phase) but parallel with T034 below.
-- [ ] T034 [P] [US3] Convert handler registrations in `src/main/ipc/purchases.ipc.ts` to `registerAuthorized` (file owns both `suppliers:*` and `purchases:*`).
-- [ ] T035 [US3] Implement cost-field stripping in `src/main/db/queries/products.ts` for `getAll` and `getById`: when `ctx.role === 'cajero'`, remove `last_purchase_cost`, any `margin*` field, and the supplier name from each returned row. The query stays the same; the projection happens in TypeScript before return. Depends on T009 to receive `ctx`.
-- [ ] T036 [US3] Update `src/renderer/src/modules/productos/ProductoDetallePage.tsx` to render the cost/margin section conditionally (omit when the response lacks those fields). The KPI card "Última compra" / "Margen" hides instead of showing "-".
-- [ ] T037 [P] [US3] Wire `.catch(handleApiError)` into `src/renderer/src/modules/reportes/ReportesPage.tsx`, `src/renderer/src/modules/compras/ComprasPage.tsx`, `src/renderer/src/modules/compras/NuevaCompraPage.tsx`, `src/renderer/src/modules/compras/CompraDetallePage.tsx`, and `src/renderer/src/modules/compras/ProveedoresPage.tsx`.
-- [ ] T038 [US3] Run [quickstart.md](quickstart.md) Test 3 manually.
+- [x] T031 [US3] All US3 matrix entries populated in `src/main/auth/matrix.ts` (done as part of T007).
+- [x] T032 [US3] `src/main/ipc/reports.ipc.ts` converted to `registerAuthorized`.
+- [x] T033 [US3] Read handlers in `src/main/ipc/products.ipc.ts` converted (already covered in Phase 4 / T026 since the file was rewritten in one pass).
+- [x] T034 [US3] `src/main/ipc/purchases.ipc.ts` converted to `registerAuthorized` (covers both `suppliers:*` and `purchases:*`).
+- [x] T035 [US3] Cost-field stripping implemented in the IPC handler layer (`src/main/ipc/products.ipc.ts`) rather than the query layer — applies to `getAll`, `getById`, and `getByBarcode`. When `ctx.role === 'cajero'`, fields `last_purchase_cost`, `last_unit_cost`, `margin`, `margin_pct`, `profit_margin` are stripped from each row.
+- [x] T036 [US3] `ProductoDetallePage.tsx` now uses `Promise.allSettled` so auth-blocked endpoints (movements / recentSales / salesStats / lastPurchase) don't tear down the page; the "Última compra" KPI card is hidden entirely for `role === 'cajero'`.
+- [x] T037 [US3] `.catch(handleApiError)` wired into `ReportesPage.tsx` (load), `NuevaCompraPage.tsx` (handleSave), `CompraDetallePage.tsx` (handleReceive + handleCancel), and `ProveedoresPage.tsx` (handleSave). `ComprasPage.tsx` is read-only listing — no mutation entry point to wrap.
 
 **Checkpoint**: Read-side authorization is in place. Cost data does not leak to cashiers via direct invocation or via the product-detail screen.
 

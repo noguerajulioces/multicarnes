@@ -23,6 +23,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { reportesTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 import type { PaymentMethod } from '@shared/types'
 import {
   FileSpreadsheet,
@@ -302,8 +303,8 @@ export default function ReportesPage() {
       } else if (tab === 'caja') {
         setData(await window.api.reports.cashRegisters())
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      handleApiError(err)
     }
     setLoading(false)
   }

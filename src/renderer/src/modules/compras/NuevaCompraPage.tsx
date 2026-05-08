@@ -20,6 +20,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { compraNuevaTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 
 interface OrderItem {
   productId: number
@@ -106,7 +107,7 @@ export default function NuevaCompraPage() {
       })
       navigate('/compras')
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error')
+      handleApiError(err)
     }
     setLoading(false)
   }
