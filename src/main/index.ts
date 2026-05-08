@@ -15,6 +15,7 @@ import { registerBackupIpc } from './ipc/backup.ipc'
 import { registerNotificationsIpc } from './ipc/notifications.ipc'
 import { registerPrintIpc } from './ipc/print.ipc'
 import { registerHeldTicketsIpc } from './ipc/held-tickets.ipc'
+import { registerAuthIpc } from './ipc/auth.ipc'
 import { listRegisteredChannels } from './auth/guard'
 import { assertMatrixCoverage } from './auth/self-test'
 import { installSessionListeners } from './auth/session'
@@ -185,6 +186,7 @@ app.whenReady().then(() => {
   registerNotificationsIpc()
   registerPrintIpc()
   registerHeldTicketsIpc()
+  registerAuthIpc()
   registerWindowControlsIpc()
 
   // Boot self-test: every channel that registered itself with the guard must

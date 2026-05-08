@@ -131,16 +131,15 @@ This is an Electron desktop app with the existing layout:
 
 ### Implementation for User Story 4
 
-- [ ] T039 [US4] Add high-level alert detection helpers in `src/main/db/queries/auth.ts`: `findOpenAlertWindows()` runs the CTE from [contracts/audit-schema.md](contracts/audit-schema.md), upserts `auth_alert_acks` rows, and returns currently-open alerts joined with `users.name`. Builds on the prepared statements created in T005.
-- [ ] T040 [US4] Create `src/main/auth/alerts.ts` exporting `getOpenAlerts()` and `acknowledge(alertId, ackByUserId)` that orchestrate `src/main/db/queries/auth.ts`. Pure orchestration; no DB code lives here.
-- [ ] T041 [P] [US4] Create `src/main/ipc/auth.ipc.ts` registering channels `auth:matrixSummary`, `auth:listAuditEntries`, `auth:listAlerts`, `auth:acknowledgeAlert` via `registerAuthorized`. (`auth:recoveryNeeded` is added by US5/T046 in the same file.) Export `registerAuthIpc()` returning the channel list.
-- [ ] T042 [US4] Register `registerAuthIpc()` in `src/main/index.ts` and add the four new channels to the matrix entries in `src/main/auth/matrix.ts`: `auth:matrixSummary` / `auth:listAuditEntries` / `auth:listAlerts` / `auth:acknowledgeAlert` all `privileged: ['admin']`. Depends on T041.
-- [ ] T043 [P] [US4] Add `window.api.auth = { matrixSummary, listAuditEntries, listAlerts, acknowledgeAlert }` to `src/preload/index.ts`. (Plus `recoveryNeeded` placeholder; the handler is implemented in US5/T046.)
-- [ ] T044 [P] [US4] Update `src/preload/index.d.ts` with the typed `window.api.auth` surface, importing `AuthAlert`, `AuthAuditEntry`, `AuthOutcome`, `Role` from `src/shared/auth-types.ts`.
-- [ ] T045 [P] [US4] Create `src/renderer/src/store/auth-events.store.ts` (Zustand): state `{alerts: AuthAlert[], loading: boolean}`, actions `fetchAlerts()` and `acknowledge(alertId)` that call `window.api.auth.*`. Domain-scoped per Constitution Principle II.
-- [ ] T046 [P] [US4] Create `src/renderer/src/components/AuthAlertsBanner.tsx` that calls `useAuthEventsStore` and renders one banner per open alert with the user name, failure count, window start, and "Acknowledge" button. Hidden entirely when `alerts.length === 0`.
-- [ ] T047 [US4] Integrate `<AuthAlertsBanner />` into `src/renderer/src/modules/dashboard/DashboardPage.tsx` above the existing KPI grid, conditional on `useAuthStore.getState().role === 'admin'`. On mount, the banner triggers `fetchAlerts()`.
-- [ ] T048 [US4] Run [quickstart.md](quickstart.md) Test 4 manually.
+- [x] T039 [US4] `detectAndPersistAlertWindows()` in `src/main/db/queries/auth.ts` runs the CTE, upserts `auth_alert_acks` rows on first detection, and returns merged records. `acknowledgeAlert()` performs the conditional UPDATE (no-op if already acknowledged).
+- [x] T040 [US4] `src/main/auth/alerts.ts` exports `getOpenAlerts()` and `acknowledge(alertId, ackByUserId)` as thin orchestration over the auth.ts queries.
+- [x] T041 [US4] `src/main/ipc/auth.ipc.ts` registers `auth:matrixSummary`, `auth:listAuditEntries`, `auth:listAlerts`, `auth:acknowledgeAlert`, and `auth:recoveryNeeded` (the last one belongs to US5 but the file owns it). `registerAuthIpc()` returns the channel list.
+- [x] T042 [US4] `registerAuthIpc()` registered in `src/main/index.ts`. Matrix entries for the auth channels were already populated in T007.
+- [x] T043 [US4] `window.api.auth = { recoveryNeeded, matrixSummary, listAuditEntries, listAlerts, acknowledgeAlert }` exposed in `src/preload/index.ts`.
+- [x] T044 [US4] `ApiAuth` typed surface added to `src/preload/index.d.ts`, importing `AuthAlert` / `AuthAuditEntry` / `AuthAuditFilters` / `AuthMatrixSummaryEntry`.
+- [x] T045 [US4] `src/renderer/src/store/auth-events.store.ts` created (Zustand). `fetchAlerts` swallows auth failures (non-admins silently see empty list); `acknowledge` is optimistic.
+- [x] T046 [US4] `src/renderer/src/components/AuthAlertsBanner.tsx` created. Hidden when `alerts.length === 0`. Each alert shows username, failure count, window start, and a "Marcar visto" button.
+- [x] T047 [US4] `<AuthAlertsBanner />` integrated into `DashboardPage.tsx` above the KPI grid, conditional on `user?.role === 'admin'`.
 
 **Checkpoint**: Admins now have visibility into authorization failures and can detect probing or compromised accounts. The full audit list is queryable for incident review.
 

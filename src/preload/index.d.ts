@@ -233,6 +233,21 @@ interface ApiHeldTickets {
   clear(): Promise<void>
 }
 
+import type {
+  AuthAlert,
+  AuthAuditEntry,
+  AuthAuditFilters,
+  AuthMatrixSummaryEntry
+} from '../shared/auth-types'
+
+interface ApiAuth {
+  recoveryNeeded(): Promise<{ recoveryNeeded: boolean }>
+  matrixSummary(): Promise<AuthMatrixSummaryEntry[]>
+  listAuditEntries(filters?: AuthAuditFilters): Promise<{ entries: AuthAuditEntry[]; total: number }>
+  listAlerts(): Promise<AuthAlert[]>
+  acknowledgeAlert(alertId: number): Promise<{ ok: true }>
+}
+
 interface ApiWindow {
   minimize(): Promise<void>
   maximizeToggle(): Promise<boolean>
@@ -257,6 +272,7 @@ declare global {
       notify: ApiNotify
       print: ApiPrint
       heldTickets: ApiHeldTickets
+      auth: ApiAuth
       window: ApiWindow
     }
   }

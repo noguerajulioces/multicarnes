@@ -12,6 +12,7 @@ import { TopProductsDonut, type TopProductSlice } from './components/TopProducts
 import { RecentSalesTable } from './components/RecentSalesTable'
 import { StockSummaryCard } from './components/StockSummaryCard'
 import { PeriodSelector, type PeriodOption } from './components/PeriodSelector'
+import AuthAlertsBanner from '../../components/AuthAlertsBanner'
 
 type ChartPeriod = '7d' | '30d' | '6m'
 type DonutPeriod = '7d' | '30d' | '6m'
@@ -285,6 +286,8 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {user?.role === 'admin' && <AuthAlertsBanner />}
 
       <div data-tour="dash-kpis" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard

@@ -132,6 +132,13 @@ const api = {
     remove: (id: string) => ipcRenderer.invoke('held:remove', id),
     clear: () => ipcRenderer.invoke('held:clear')
   },
+  auth: {
+    recoveryNeeded: () => ipcRenderer.invoke('auth:recoveryNeeded'),
+    matrixSummary: () => ipcRenderer.invoke('auth:matrixSummary'),
+    listAuditEntries: (filters?: unknown) => ipcRenderer.invoke('auth:listAuditEntries', filters),
+    listAlerts: () => ipcRenderer.invoke('auth:listAlerts'),
+    acknowledgeAlert: (alertId: number) => ipcRenderer.invoke('auth:acknowledgeAlert', alertId)
+  },
   window: {
     minimize: () => ipcRenderer.invoke('window:minimize'),
     maximizeToggle: () => ipcRenderer.invoke('window:maximizeToggle'),
