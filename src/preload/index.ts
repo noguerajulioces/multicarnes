@@ -7,6 +7,7 @@ const api = {
     getActive: () => ipcRenderer.invoke('users:getActive'),
     getById: (id: number) => ipcRenderer.invoke('users:getById', id),
     login: (userId: number, pin: string) => ipcRenderer.invoke('users:login', userId, pin),
+    logout: () => ipcRenderer.invoke('users:logout'),
     create: (data: unknown) => ipcRenderer.invoke('users:create', data),
     update: (id: number, data: unknown) => ipcRenderer.invoke('users:update', id, data)
   },

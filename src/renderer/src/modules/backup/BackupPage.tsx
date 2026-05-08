@@ -16,6 +16,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { backupTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -44,7 +45,11 @@ export default function BackupPage() {
 
   const saveSetting = async (key: string, value: string): Promise<void> => {
     setSettings((prev) => ({ ...prev, [key]: value }))
-    await window.api.settings.set(key, value)
+    try {
+      await window.api.settings.set(key, value)
+    } catch (err) {
+      handleApiError(err)
+    }
   }
 
   const handleBackup = async (): Promise<void> => {
@@ -55,7 +60,7 @@ export default function BackupPage() {
       window.api.backup.list().then(setBackups)
       window.api.notify.show('Backup creado', `Se guardó en ${path}`).catch(() => {})
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error al crear backup')
+      handleApiError(err)
     }
     setLoading(false)
   }
@@ -75,13 +80,17 @@ export default function BackupPage() {
         toast.success('Backup restaurado. La aplicación se reiniciará.')
       }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error al restaurar')
+      handleApiError(err)
     }
   }
 
   const handleSelectFolder = async (): Promise<void> => {
-    const folder = await window.api.backup.selectFolder()
-    if (folder) saveSetting('backup_path', folder)
+    try {
+      const folder = await window.api.backup.selectFolder()
+      if (folder) saveSetting('backup_path', folder)
+    } catch (err) {
+      handleApiError(err)
+    }
   }
 
   const scheduleEnabled = settings.backup_schedule_enabled === '1'

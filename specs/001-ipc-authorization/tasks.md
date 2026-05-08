@@ -33,8 +33,8 @@ This is an Electron desktop app with the existing layout:
 
 **Purpose**: Create the directory and shared types the rest of the feature builds on.
 
-- [ ] T001 Create the new module directory `src/main/auth/` (will contain `matrix.ts`, `session.ts`, `guard.ts`, `audit.ts`, `alerts.ts`, `self-test.ts`).
-- [ ] T002 [P] Create `src/shared/auth-types.ts` with the shared types listed in [data-model.md §Shared types](data-model.md): `Role`, `AuthOutcome`, `AuthRule` (discriminated union with `public` / `self-only` / `self-or-roles` / `privileged`), `AuthAuditEntry`, `AuthAlert`.
+- [x] T001 Create the new module directory `src/main/auth/` (will contain `matrix.ts`, `session.ts`, `guard.ts`, `audit.ts`, `alerts.ts`, `self-test.ts`).
+- [x] T002 [P] Create `src/shared/auth-types.ts` with the shared types: `Role`, `AuthOutcome`, `AuthRule`, `AuthAuditEntry`, `AuthAuditFilters`, `AuthAlert`, `AuthMatrixSummaryEntry`, `AuthErrorEnvelope`.
 
 ---
 
@@ -44,19 +44,20 @@ This is an Electron desktop app with the existing layout:
 
 **⚠️ CRITICAL**: All of T003–T015 must complete before Phase 3.
 
-- [ ] T003 Add `auth_audit` and `auth_alert_acks` table declarations to `src/main/db/schema.ts` per [contracts/audit-schema.md](contracts/audit-schema.md). Both inside the existing `createTables()` call.
-- [ ] T004 Add idempotent migration blocks to `src/main/db/index.ts` `runMigrations()`: detect missing `auth_audit` / `auth_alert_acks` tables via `sqlite_master` and create them with the index from [contracts/audit-schema.md](contracts/audit-schema.md). Append the 90-day retention `DELETE FROM auth_audit WHERE created_at < datetime('now','-90 days')` statement at the end of `runMigrations()`.
-- [ ] T005 [P] Create `src/main/db/queries/auth.ts` repository with prepared-statement-backed functions: `insertAudit(entry)`, `listAudit(filters)`, `detectFailureWindows()` (the 10-minute `HAVING COUNT(*) >= 5` query from [contracts/audit-schema.md](contracts/audit-schema.md)), `ensureAlertWindow(userId, windowStart)`, `listOpenAlerts()`, `acknowledgeAlert(alertId, ackByUserId)`.
-- [ ] T006 [P] Create `src/main/auth/session.ts` with an in-memory `Map<number, AuthSession>` keyed by `webContents.id`. Exports: `recordLogin(senderId, userId)`, `clearBySender(senderId)`, `clearByUser(userId)`, `getBySender(senderId)`. Listen for the Electron `web-contents-destroyed` event in `app.on(...)` and clear the corresponding session.
-- [ ] T007 [P] Create `src/main/auth/matrix.ts` with: (a) an empty `Record<string, AuthRule>` exported as `AUTH_MATRIX`; (b) a `getRule(channel)` helper that returns the entry or the failure-closed default `{kind:'privileged', roles:[]}` per FR-008; (c) a re-export of the rule types from `src/shared/auth-types.ts`. Entries are populated per user-story phase.
-- [ ] T008 Create `src/main/auth/audit.ts` exporting `recordDecision(decision: AuthDecision)` that maps the decision into an `AuthAuditEntry` and calls `insertAudit` from `src/main/db/queries/auth.ts`. Depends on T005.
-- [ ] T009 Create `src/main/auth/guard.ts` exporting `registerAuthorized(channel, rule, handler)`: (1) wraps `ipcMain.handle(channel, ...)`, (2) reads `event.sender.id`, (3) looks up session via `src/main/auth/session.ts`, (4) re-resolves the user and role from `src/main/db/queries/users.ts` (`SELECT id, role, active FROM users WHERE id = ?`), (5) evaluates the rule (delegating `self-only` / `self-or-roles` to a `selfArgIndex`-aware helper), (6) calls `recordDecision` from `src/main/auth/audit.ts`, (7) on `allowed` invokes the original handler with `(event, ctx, ...args)` where `ctx={userId,role}`, (8) on rejection throws an `AuthError`. Also export `AuthError`. Depends on T006, T007, T008.
-- [ ] T010 [P] Create `src/main/auth/self-test.ts` exporting `assertMatrixCoverage(registeredChannels: string[])` that compares the set of channels passed in to the keys of `AUTH_MATRIX` and throws a descriptive error when any registered channel has no matrix entry. Depends on T007.
-- [ ] T011 Modify `src/main/index.ts` to: (1) import `assertMatrixCoverage` and call it after every `register*Ipc()` invocation, passing the union of channels each module reports back; (2) refuse to finish app startup (show an error dialog and quit) if the assertion fails. Depends on T009, T010. Each `register*Ipc()` will be modified in subsequent phases to return its channel list and to use `registerAuthorized`.
-- [ ] T012 [P] Create `src/renderer/src/lib/api-error.ts` exporting an `isAuthError(err)` predicate (matches the `outcome: 'blocked-*'` envelope from `AuthError`) and a `handleApiError(err)` helper that emits a uniform toast ("No tenés permiso para realizar esta acción.") via the existing `src/renderer/src/store/toast.store.ts`. Renderer modules will call `handleApiError` from their `.catch(...)` blocks (rolled out per US phase).
-- [ ] T013 [P] Add a settings field whitelist in `src/main/ipc/backup.ipc.ts` `settings:getAll` handler. Whitelist = `['business_name','business_address','business_phone','thermal_printer_name','thermal_printer_width','login_keypad_enabled','backup_path','auto_backup','backup_schedule_enabled','backup_schedule_time']` per [contracts/auth-matrix.md](contracts/auth-matrix.md). The handler filters the SELECT result to those keys before returning. Defensive measure for the public `settings:getAll` channel.
-- [ ] T014 Modify `users:login` handling in `src/main/db/queries/users.ts` (or its IPC wrapper in `src/main/ipc/users.ipc.ts`, whichever has access to `event.sender`): on bcrypt success, call `recordLogin(event.sender.id, user.id)` from `src/main/auth/session.ts`. Depends on T006.
-- [ ] T015 Add `users:logout` handler to `src/main/ipc/users.ipc.ts`: clears the session for `event.sender.id`, returns `{ ok: true }`. Public channel — register via `registerAuthorized` with `{kind:'public'}`. Depends on T006, T009.
+- [x] T003 Added `auth_audit`, `auth_alert_acks`, `idx_auth_audit_user_time_outcome` to `src/main/db/schema.ts` `createTables()`.
+- [x] T004 Appended `MIGRATIONS[]` entry version 5 (`create_auth_audit_tables`) in `src/main/db/index.ts` — uses `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`, runs in the existing transaction-per-migration wrapper.
+- [x] T004b Added `runMaintenance(db)` invoked from `initDatabase()` after `runMigrations()`. Runs the 90-day retention DELETE every boot.
+- [x] T005 Created `src/main/db/queries/auth.ts` with `insertAudit`, `listAudit`, `detectAndPersistAlertWindows`, `acknowledgeAlert`. The CTE-based detection upserts ack rows in one pass.
+- [x] T006 Created `src/main/auth/session.ts` with `recordLogin`, `clearBySender`, `clearByUser`, `getBySender`, plus `installSessionListeners()` for `web-contents-created`/`destroyed` cleanup.
+- [x] T007 Created `src/main/auth/matrix.ts` with the full `AUTH_MATRIX` populated for US1–US5 + the round-2 held-tickets channels, `getRule(channel)`, and `matrixSummary()`. (Populating early avoids self-test failures during foundational rollout — handlers are still gated incrementally.)
+- [x] T008 Created `src/main/auth/audit.ts` exporting `recordDecision()`. Errors are swallowed with `console.error` so audit-write failure cannot block the call's outcome.
+- [x] T009 Created `src/main/auth/guard.ts` exporting `registerAuthorized()`, `AuthError`, `listRegisteredChannels()`. Evaluates `public`, `privileged`, `self-only`, `self-or-roles`, plus the `recoveryOnly` modifier.
+- [x] T010 Created `src/main/auth/self-test.ts` exporting `assertMatrixCoverage()`.
+- [x] T011 `src/main/index.ts` now calls `refreshRecoveryMode()`, `installSessionListeners()`, registers IPC, then `assertMatrixCoverage(listRegisteredChannels())` and `app.exit(1)` on failure.
+- [x] T012 Created `src/renderer/src/lib/api-error.ts` with `isAuthError` + `handleApiError` (uniform toast).
+- [x] T013 `settings:getAll` in `backup.ipc.ts` now filters by `PUBLIC_SETTING_KEYS`.
+- [x] T014 `users:login` handler calls `recordLogin(event.sender.id, user.id)` on bcrypt success.
+- [x] T015 `users:logout` registered as `public`; clears session for `event.sender.id`.
 
 **Checkpoint**: Foundation is in place. The matrix is empty (so the boot self-test will fail until at least one channel has an entry — this is expected and forces the team to populate the matrix as each story lands). All user-story phases below can proceed once T015 is done.
 
@@ -70,11 +71,11 @@ This is an Electron desktop app with the existing layout:
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Populate `AUTH_MATRIX` entries for the US1 channels in `src/main/auth/matrix.ts`: `users:getActive` (public), `users:login` (public), `users:logout` (public), `users:getAll` (privileged admin), `users:getById` (`self-or-roles` admin, `selfArgIndex: 0`), `users:create` (privileged admin — recovery-only modifier added in US5/T048), `users:update` (`self-or-roles` admin, `selfArgIndex: 0`), `backup:create` (privileged admin+supervisor), `backup:list` (privileged admin+supervisor), `backup:restore` (privileged admin), `backup:selectFolder` (privileged admin), `settings:getAll` (public), `settings:set` (privileged admin).
-- [ ] T017 [US1] Convert all handler registrations in `src/main/ipc/users.ipc.ts` from `ipcMain.handle(...)` to `registerAuthorized(channel, AUTH_MATRIX[channel], handler)`. Update `registerUsersIpc()` to return its channel list for the boot self-test (T011).
-- [ ] T018 [P] [US1] Convert all handler registrations in `src/main/ipc/backup.ipc.ts` (the file that owns `backup:*` and `settings:*`) to `registerAuthorized`. Update `registerBackupIpc()` to return its channel list. Different file from T017 → parallelizable.
-- [ ] T019 [US1] Implement field-level enforcement on the `users:update` handler in `src/main/db/queries/users.ts`: when `ctx.userId === targetUserId` AND `ctx.role !== 'admin'` (i.e., the caller matched via the `self` branch of `self-or-roles`), reject any payload that touches `role`, `active`, or `name`. Only `pin_hash` may change in that branch. Throws an application error (not an `AuthError`) so the audit row still records `outcome='allowed'` while the operation fails. Depends on T009 to receive `ctx`.
-- [ ] T020 [US1] Wire renderer `.catch(handleApiError)` into `src/renderer/src/modules/usuarios/UsuariosPage.tsx`, `src/renderer/src/modules/backup/BackupPage.tsx`, `src/renderer/src/modules/configuracion/ConfiguracionPage.tsx`, and `src/renderer/src/modules/perfil/PerfilPage.tsx` so authorization rejections surface as toasts (FR-024).
+- [x] T016 [US1] Populated `AUTH_MATRIX` entries for the US1 channels (and all other phases) in `src/main/auth/matrix.ts`. `users:create` carries the `recoveryOnly: true` modifier; `users:getById` and `users:update` use `self-or-roles` with `selfArgIndex: 0`.
+- [x] T017 [US1] `src/main/ipc/users.ipc.ts` converted to `registerAuthorized`. `registerUsersIpc()` returns its channel list slice from `listRegisteredChannels`.
+- [x] T018 [US1] `src/main/ipc/backup.ipc.ts` converted to `registerAuthorized`. `registerBackupIpc()` returns its channel list slice. `settings:getAll` filters to `PUBLIC_SETTING_KEYS`.
+- [x] T019 [US1] Field-level enforcement implemented in the `users:update` handler in `src/main/ipc/users.ipc.ts`: when `ctx.userId === id` AND `ctx.role !== 'admin'`, payloads that touch `role`/`active`/`name` are rejected with a clear validation error (not an `AuthError`).
+- [x] T020 [US1] Renderer `.catch(handleApiError)` wired into `UsuariosPage.tsx` (handleSave), `BackupPage.tsx` (saveSetting / handleBackup / handleRestore / handleSelectFolder), and `ConfiguracionPage.tsx` (saveSetting). `PerfilPage.tsx` already has its own try/catch with inline error display — Error.message from the field-level enforcement renders correctly without changes.
 - [ ] T021 [US1] Run [quickstart.md](quickstart.md) Test 1 manually: confirm the four documented invocations are rejected and that one `auth_audit` row exists per attempt with `outcome='blocked-insufficient-role'` and `resolved_role='cajero'`.
 
 **Checkpoint**: User Story 1 (MVP) is complete and demoable. The system blocks the highest-impact escalation path — admin-account creation, backup restore, settings change — even if the renderer is compromised.

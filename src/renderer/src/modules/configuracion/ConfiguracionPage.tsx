@@ -17,6 +17,7 @@ import {
 import { toast } from '../../lib/toast'
 import { usePageTour } from '../../lib/use-page-tour'
 import { configTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
@@ -36,7 +37,11 @@ export default function ConfiguracionPage() {
 
   const saveSetting = async (key: string, value: string): Promise<void> => {
     setSettings({ ...settings, [key]: value })
-    await window.api.settings.set(key, value)
+    try {
+      await window.api.settings.set(key, value)
+    } catch (err) {
+      handleApiError(err)
+    }
   }
 
   const handleResetTours = (): void => {

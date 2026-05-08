@@ -25,6 +25,7 @@ interface ApiUsers {
   getActive(): Promise<User[]>
   getById(id: number): Promise<User | null>
   login(userId: number, pin: string): Promise<User | null>
+  logout(): Promise<{ ok: true }>
   create(data: { name: string; role: string; pin: string }): Promise<User>
   update(
     id: number,
@@ -102,12 +103,7 @@ interface ApiCustomers {
 interface ApiCash {
   open(userId: number, openingAmount: number): Promise<CashRegister>
   getCurrent(): Promise<CashRegister | null>
-  close(
-    id: number,
-    closingAmount: number,
-    notes?: string,
-    userId?: number
-  ): Promise<CashRegister>
+  close(id: number, closingAmount: number, notes?: string, userId?: number): Promise<CashRegister>
   addMovement(
     registerId: number,
     userId: number,

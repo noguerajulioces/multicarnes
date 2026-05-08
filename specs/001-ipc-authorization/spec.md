@@ -149,7 +149,7 @@ The merchant must be able to recover when the local database has been wiped or c
 
 #### Operational
 
-- **FR-023**: Authorization decisions MUST complete within 100 milliseconds at the 95th percentile under the application's typical load (single-terminal, single user logged in).
+- **FR-023** *(aspirational, no automated verification in v1)*: Authorization decisions SHOULD complete within 100 milliseconds at the 95th percentile under the application's typical load (single terminal, single logged-in user, populated `users` table). Plan-level estimate: <2 ms via one indexed lookup + one INSERT in WAL mode (see [plan.md](plan.md) and [contracts/audit-schema.md](contracts/audit-schema.md) §Performance estimates). v1 ships **without an automated benchmark** — verification is by ad-hoc measurement during quickstart Test 1 if a regression is suspected. Adding a real benchmark task is deferred to a future feature alongside the test-runner introduction (gap analysis P4).
 - **FR-024**: An authorization rejection MUST surface to the user as a clear "you do not have permission to do this" message; it MUST NOT silently no-op.
 - **FR-025**: When user-management operations change a user's role or active state, ongoing sessions for that user remain logged in, but every subsequent privileged operation is re-evaluated against the new role/active state on the next call.
 
@@ -174,7 +174,7 @@ The merchant must be able to recover when the local database has been wiped or c
 - **SC-005**: For every authorization-blocked operation, an audit entry is written within five seconds. The number of blocked operations in production with no corresponding audit entry is zero.
 - **SC-006**: After six authorization failures from the same user in ten minutes, an administrator opening the dashboard sees the repeated-failure alert. The alert is dismissable and is recorded as acknowledged.
 - **SC-007**: When the database contains zero active admins, no privileged operation succeeds until the first-run admin flow has created one.
-- **SC-008**: Authorization decisions complete in under 100 milliseconds at the 95th percentile, measured on the production hardware profile (single user, local database).
+- **SC-008** *(aspirational, no automated verification in v1)*: Authorization decisions complete in under 100 milliseconds at the 95th percentile, measured on the production hardware profile (single user, local database). Documented as a target; v1 does not include an automated benchmark task. Verification is via ad-hoc measurement if regression is suspected. Plan-level estimate: <2 ms in the common path (see [contracts/audit-schema.md](contracts/audit-schema.md) §Performance estimates).
 - **SC-009**: When a previously logged-in user is deactivated, their next attempted privileged operation is rejected within one operation cycle (no need to re-launch the app).
 - **SC-010**: After a role demotion (supervisor → cajero), the user's next attempted privileged operation is evaluated against the new role within one operation cycle.
 

@@ -15,6 +15,10 @@ import { registerBackupIpc } from './ipc/backup.ipc'
 import { registerNotificationsIpc } from './ipc/notifications.ipc'
 import { registerPrintIpc } from './ipc/print.ipc'
 import { registerHeldTicketsIpc } from './ipc/held-tickets.ipc'
+import { listRegisteredChannels } from './auth/guard'
+import { assertMatrixCoverage } from './auth/self-test'
+import { installSessionListeners } from './auth/session'
+import { refreshRecoveryMode } from './auth/recovery'
 import { pathToFileURL } from 'url'
 
 let splashWindow: BrowserWindow | null = null
@@ -161,6 +165,14 @@ app.whenReady().then(() => {
   // Initialize database
   initDatabase()
 
+  // Refresh recovery-mode flag based on the current user table; allow the
+  // matrix's recoveryOnly modifier (users:create) to flip public when the
+  // database has zero active admins.
+  refreshRecoveryMode()
+
+  // Bind session-cleanup listener for webContents destruction.
+  installSessionListeners()
+
   // Register IPC handlers
   registerUsersIpc()
   registerProductsIpc()
@@ -174,6 +186,19 @@ app.whenReady().then(() => {
   registerPrintIpc()
   registerHeldTicketsIpc()
   registerWindowControlsIpc()
+
+  // Boot self-test: every channel that registered itself with the guard must
+  // have a matrix entry. Channels registered via raw ipcMain.handle (window:*,
+  // legacy notify:show) are not guarded yet; we only check what the guard
+  // sees. Throws → app fails to boot if a developer forgot a matrix entry.
+  try {
+    assertMatrixCoverage(listRegisteredChannels())
+  } catch (err) {
+    console.error('[auth] matrix coverage failed:', err)
+    // In production we'd show a dialog here; for now, hard-quit so the bug is loud.
+    app.exit(1)
+    return
+  }
 
   createWindow()
 

@@ -89,8 +89,51 @@ const MIGRATIONS: Migration[] = [
         )
       `)
     }
+  },
+  {
+    version: 5,
+    name: 'create_auth_audit_tables',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS auth_audit (
+          id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+          operation          TEXT    NOT NULL,
+          claimed_user_id    INTEGER,
+          resolved_user_id   INTEGER,
+          resolved_role      TEXT,
+          outcome            TEXT    NOT NULL CHECK(outcome IN
+                               ('allowed',
+                                'blocked-no-user',
+                                'blocked-inactive',
+                                'blocked-insufficient-role')),
+          sender_id          INTEGER,
+          created_at         TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_auth_audit_user_time_outcome
+          ON auth_audit(claimed_user_id, created_at, outcome);
+        CREATE TABLE IF NOT EXISTS auth_alert_acks (
+          id               INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id          INTEGER NOT NULL REFERENCES users(id),
+          window_start     TEXT    NOT NULL,
+          acknowledged_at  TEXT,
+          acknowledged_by  INTEGER REFERENCES users(id),
+          UNIQUE(user_id, window_start)
+        );
+      `)
+    }
   }
 ]
+
+// Recurring maintenance that runs every boot (not a one-shot migration).
+// Currently: 90-day retention on auth_audit (FR-019).
+function runMaintenance(db: Database.Database): void {
+  try {
+    db.exec("DELETE FROM auth_audit WHERE created_at < datetime('now','-90 days')")
+  } catch (err) {
+    // Maintenance failures are non-fatal — surface in console but don't block boot.
+    console.error('[maintenance] auth_audit retention sweep failed:', err)
+  }
+}
 
 function preMigrateBackup(dbPath: string, version: number): void {
   // Skip the safeguard on a fresh DB: if no real data exists yet there is
@@ -99,9 +142,8 @@ function preMigrateBackup(dbPath: string, version: number): void {
   try {
     const usersCount = (db.prepare('SELECT COUNT(*) AS c FROM users').get() as { c: number }).c
     const salesCount = (db.prepare('SELECT COUNT(*) AS c FROM sales').get() as { c: number }).c
-    const productsCount = (
-      db.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number }
-    ).c
+    const productsCount = (db.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number })
+      .c
     if (usersCount === 0 && salesCount === 0 && productsCount === 0) return
   } catch {
     // If any of those tables doesn't exist yet (very old install), there's
@@ -129,19 +171,15 @@ function backfillLegacyLedger(db: Database.Database): void {
   // P3: First-boot heuristic for installs that already ran the previous
   // ad-hoc runMigrations(). Detect each legacy migration's effect and mark
   // the matching version as applied so it does not replay.
-  const recordIfMissing = (
-    version: number,
-    name: string,
-    detector: () => boolean
-  ): void => {
-    const exists = db
-      .prepare('SELECT 1 FROM schema_migrations WHERE version = ?')
-      .get(version)
+  const recordIfMissing = (version: number, name: string, detector: () => boolean): void => {
+    const exists = db.prepare('SELECT 1 FROM schema_migrations WHERE version = ?').get(version)
     if (exists) return
     if (!detector()) return
-    db.prepare(
-      'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)'
-    ).run(version, name, "datetime('now','localtime')-pre-versioned")
+    db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)').run(
+      version,
+      name,
+      "datetime('now','localtime')-pre-versioned"
+    )
   }
 
   recordIfMissing(1, 'add_products_image_column', () => {
@@ -153,9 +191,7 @@ function backfillLegacyLedger(db: Database.Database): void {
     return !!cols.find((c) => c.name === 'document')
   })
   recordIfMissing(3, 'seed_backup_schedule_settings', () => {
-    const row = db
-      .prepare("SELECT 1 FROM app_settings WHERE key = 'backup_schedule_enabled'")
-      .get()
+    const row = db.prepare("SELECT 1 FROM app_settings WHERE key = 'backup_schedule_enabled'").get()
     return !!row
   })
 }
@@ -163,9 +199,9 @@ function backfillLegacyLedger(db: Database.Database): void {
 function runMigrations(db: Database.Database, dbPath: string): void {
   backfillLegacyLedger(db)
 
-  const appliedRows = db
-    .prepare('SELECT version FROM schema_migrations')
-    .all() as { version: number }[]
+  const appliedRows = db.prepare('SELECT version FROM schema_migrations').all() as {
+    version: number
+  }[]
   const applied = new Set(appliedRows.map((r) => r.version))
   const pending = MIGRATIONS.filter((m) => !applied.has(m.version))
   if (pending.length === 0) return
@@ -176,9 +212,7 @@ function runMigrations(db: Database.Database, dbPath: string): void {
   // needs to revert a deployed install.
   preMigrateBackup(dbPath, pending[0].version)
 
-  const recordApplied = db.prepare(
-    'INSERT INTO schema_migrations (version, name) VALUES (?, ?)'
-  )
+  const recordApplied = db.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)')
   for (const migration of pending) {
     const txn = db.transaction(() => {
       migration.up(db)
@@ -195,6 +229,7 @@ export function initDatabase(): Database.Database {
   db.pragma('foreign_keys = ON')
   createTables(db)
   runMigrations(db, dbPath)
+  runMaintenance(db)
   seedDatabase(db)
   return db
 }
