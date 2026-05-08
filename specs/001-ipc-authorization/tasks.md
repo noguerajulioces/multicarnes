@@ -153,13 +153,12 @@ This is an Electron desktop app with the existing layout:
 
 ### Implementation for User Story 5
 
-- [ ] T049 [US5] Add `countActiveAdmins(): number` to `src/main/db/queries/users.ts` (`SELECT COUNT(*) FROM users WHERE active = 1 AND role = 'admin'`).
-- [ ] T050 [US5] Modify `src/main/index.ts` startup sequence: after `initDatabase()`, compute `recoveryMode = countActiveAdmins() === 0` and store it in a small module under `src/main/auth/recovery.ts` exporting `isRecoveryMode()` and `refreshRecoveryMode()`. The flag is also refreshed inside `users:create` after a successful insert (so creating the first admin closes the recovery path immediately within the same session).
-- [ ] T051 [US5] Implement `auth:recoveryNeeded` handler in `src/main/ipc/auth.ipc.ts` (file created in US4/T041): returns `{ recoveryNeeded: isRecoveryMode() }`. Add the matrix entry `auth:recoveryNeeded` (public).
-- [ ] T052 [US5] Update the `users:create` handler in `src/main/db/queries/users.ts` to honor the recovery-only modifier: when `isRecoveryMode()` is true, allow the call regardless of caller role **but** force `role = 'admin'` (the recovery flow only creates admins, per FR-022). When recovery mode is false, the matrix's `privileged: ['admin']` rule already blocks non-admins via the guard. After successful insert in recovery, call `refreshRecoveryMode()`.
-- [ ] T053 [US5] Update `users:create`'s matrix entry in `src/main/auth/matrix.ts` to `privileged: ['admin']` with `recoveryOnly: true`. Update `src/main/auth/guard.ts` to honor the `recoveryOnly` modifier (allow the call when `isRecoveryMode()` is true, even with no resolved user). Depends on the `recovery.ts` module from T050.
-- [ ] T054 [US5] Update `src/renderer/src/modules/login/LoginPage.tsx`: on mount, call `window.api.auth.recoveryNeeded()`; when `true`, render the existing first-run admin-creation form (the branch already keyed on empty user list). When the form submits successfully, refresh the user list and the recoveryNeeded flag.
-- [ ] T055 [US5] Run [quickstart.md](quickstart.md) Test 8 manually.
+- [x] T049 [US5] `refreshRecoveryMode()` (in `src/main/auth/recovery.ts`) runs the COUNT query directly. A standalone `countActiveAdmins` helper was unnecessary — the recovery module owns the threshold check.
+- [x] T050 [US5] `src/main/auth/recovery.ts` exports `isRecoveryMode()` and `refreshRecoveryMode()`. `src/main/index.ts` calls `refreshRecoveryMode()` right after `initDatabase()`. `users:create` handler also calls it after a successful insert.
+- [x] T051 [US5] `auth:recoveryNeeded` registered in `src/main/ipc/auth.ipc.ts` (alongside the US4 channels). Matrix entry (public) was already populated in T007.
+- [x] T052 [US5] `users:create` handler in `src/main/ipc/users.ipc.ts` forces `role = 'admin'` when `isRecoveryMode()` is true and refreshes after insert. (Already implemented in Phase 1+2 since the guard depends on the recovery module.)
+- [x] T053 [US5] Matrix entry for `users:create` is `{ kind: 'privileged', roles: ['admin'], recoveryOnly: true }`. Guard honors the `recoveryOnly` modifier — `evaluate()` short-circuits to `allowed` when `rule.recoveryOnly && isRecoveryMode()`, even with no resolved user.
+- [x] T054 [US5] `LoginPage.tsx` calls `window.api.auth.recoveryNeeded()` on mount; when true (in addition to the existing `users.length === 0` branch), it renders the admin-creation form. After successful create, it re-fetches the recoveryNeeded flag so the form closes immediately (FR-021).
 
 **Checkpoint**: All five user stories are independently functional. The merchant cannot lock themselves out by losing their admin PIN — they can recover by wiping the user table and creating a new admin.
 

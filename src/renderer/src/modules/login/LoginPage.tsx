@@ -11,6 +11,7 @@ import logo from '../../assets/logo.png'
 export default function LoginPage() {
   const [users, setUsers] = useState<User[]>([])
   const [usersLoaded, setUsersLoaded] = useState(false)
+  const [recoveryNeeded, setRecoveryNeeded] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
@@ -29,13 +30,20 @@ export default function LoginPage() {
       setUsers(list)
       setUsersLoaded(true)
     })
+    window.api.auth
+      .recoveryNeeded()
+      .then((r) => setRecoveryNeeded(r.recoveryNeeded))
+      .catch(() => setRecoveryNeeded(false))
     window.api.settings.getAll().then((all: AppSetting[]) => {
       const flag = all.find((s) => s.key === 'login_keypad_enabled')?.value
       setKeypadEnabled(flag === '1')
     })
   }, [])
 
-  const isFirstRun = usersLoaded && users.length === 0
+  // Recovery covers two cases: (a) brand-new database with zero users,
+  // (b) database has users but no active admin (deactivated, partial restore).
+  // The backend channel auth:recoveryNeeded is the canonical answer.
+  const isFirstRun = usersLoaded && (users.length === 0 || recoveryNeeded)
 
   const handleSetupAdmin = async (): Promise<void> => {
     setSetupError('')
@@ -60,6 +68,10 @@ export default function LoginPage() {
       })
       const list = await window.api.users.getActive()
       setUsers(list)
+      // Refresh the recovery flag so the form closes the moment an admin
+      // exists (FR-021).
+      const r = await window.api.auth.recoveryNeeded().catch(() => ({ recoveryNeeded: false }))
+      setRecoveryNeeded(r.recoveryNeeded)
       setSetupForm({ name: '', pin: '', confirm: '' })
     } catch (e) {
       setSetupError(e instanceof Error ? e.message : 'Error al crear el usuario')
