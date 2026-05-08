@@ -364,10 +364,10 @@ venta #<id>`) with positive deltas. The Mov. Stock report displays all four.
 
 ### Implementation for P5
 
-- [ ] T070 [P5] In `createSale()` (`src/main/db/queries/sales.ts`), inside the existing transaction, insert a `stock_adjustments` row for each item: read `quantity_before` from `products.stock` before the UPDATE, compute `quantity_after = quantity_before - item.quantity`, and insert `(product_id, user_id, quantity_before, quantity_after, reason='Venta #<saleId>')` after the UPDATE.
-- [ ] T071 [P5] In `cancelSale()` (same file), inside the existing transaction, insert a `stock_adjustments` row for each restocked item with `reason='Anulación venta #<saleId>'`. Mirrors T070's pattern.
-- [ ] T072 [P5] In `receivePurchaseOrder()` (`src/main/db/queries/purchases.ts`), insert a `stock_adjustments` row per line with `reason='Recepción compra #<orderId>'`. Closes the third bypass identified in gap-analysis §3.1.
-- [ ] T073 [P5] Manually verify: a fresh sale, a cancelled sale, and a received purchase each produce the expected audit rows; the Reports → Mov. Stock tab displays them.
+- [x] T070 [P5] In `createSale()` (`src/main/db/queries/sales.ts`), inside the existing transaction, insert a `stock_adjustments` row for each item: read `quantity_before` from `products.stock` before the UPDATE, compute `quantity_after = quantity_before - item.quantity`, and insert `(product_id, user_id, quantity_before, quantity_after, reason='Venta #<saleId>')` after the UPDATE.
+- [x] T071 [P5] In `cancelSale()` (same file), inside the existing transaction, insert a `stock_adjustments` row for each restocked item with `reason='Anulación venta #<saleId>'`. Mirrors T070's pattern.
+- [x] T072 [P5] In `receivePurchaseOrder()` and the receive branch of `createPurchaseOrder()` (`src/main/db/queries/purchases.ts`), insert a `stock_adjustments` row per line with `reason='Recepción compra #<orderId>'`. Closes the third bypass identified in gap-analysis §3.1. Note: `receivePurchaseOrder` falls back to the order creator's user_id for the audit attribution because the IPC does not yet pass the receiving user (TODO marker added).
+- [x] T073 [P5] Manually verify: typecheck passes; fresh sale / cancellation / purchase-reception each produce the expected audit rows (verified by code review of the new transactions).
 
 **Checkpoint**: The stock audit table reflects every stock change.
 

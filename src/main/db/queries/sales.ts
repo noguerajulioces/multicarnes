@@ -51,12 +51,27 @@ export function createSale(data: CreateSaleData) {
     const insertItem = db.prepare(
       'INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)'
     )
+    const readStock = db.prepare('SELECT stock FROM products WHERE id = ?')
     const updateStock = db.prepare(
       "UPDATE products SET stock = stock - ?, updated_at = datetime('now','localtime') WHERE id = ?"
     )
+    // P5: every sale-driven decrement writes a stock_adjustments row so the
+    // Mov. Stock report reflects the full audit trail (sales used to bypass
+    // the audit table).
+    const insertAdjustment = db.prepare(
+      'INSERT INTO stock_adjustments (product_id, user_id, quantity_before, quantity_after, reason) VALUES (?, ?, ?, ?, ?)'
+    )
     for (const item of data.items) {
       insertItem.run(saleId, item.productId, item.quantity, item.unitPrice, item.subtotal)
+      const before = (readStock.get(item.productId) as { stock: number } | undefined)?.stock ?? 0
       updateStock.run(item.quantity, item.productId)
+      insertAdjustment.run(
+        item.productId,
+        data.userId,
+        before,
+        before - item.quantity,
+        `Venta #${saleId}`
+      )
     }
 
     if (data.payments && data.payments.length > 0) {
@@ -161,10 +176,25 @@ export function cancelSale(id: number, userId: number) {
       product_id: number
       quantity: number
     }[]
+    const readStock = db.prepare('SELECT stock FROM products WHERE id = ?')
+    const restock = db.prepare(
+      "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
+    )
+    // P5: cancellation restock writes its own stock_adjustments row so the
+    // restore is auditable alongside the original sale's adjustment.
+    const insertAdjustment = db.prepare(
+      'INSERT INTO stock_adjustments (product_id, user_id, quantity_before, quantity_after, reason) VALUES (?, ?, ?, ?, ?)'
+    )
     for (const item of items) {
-      db.prepare(
-        "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
-      ).run(item.quantity, item.product_id)
+      const before = (readStock.get(item.product_id) as { stock: number } | undefined)?.stock ?? 0
+      restock.run(item.quantity, item.product_id)
+      insertAdjustment.run(
+        item.product_id,
+        userId,
+        before,
+        before + item.quantity,
+        `Anulación venta #${id}`
+      )
     }
 
     if (sale.payment_method === 'credit' && sale.customer_id) {

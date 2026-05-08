@@ -170,13 +170,29 @@ export function createPurchaseOrder(data: {
     const insertItem = db.prepare(
       'INSERT INTO purchase_items (order_id, product_id, quantity, unit_cost, subtotal) VALUES (?, ?, ?, ?, ?)'
     )
+    const readStock = db.prepare('SELECT stock FROM products WHERE id = ?')
+    const updateStock = db.prepare(
+      "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
+    )
+    // P5: purchase reception writes a stock_adjustments row so the audit
+    // trail is complete (previously bypassed the audit table).
+    const insertAdjustment = db.prepare(
+      'INSERT INTO stock_adjustments (product_id, user_id, quantity_before, quantity_after, reason) VALUES (?, ?, ?, ?, ?)'
+    )
 
     for (const item of data.items) {
       insertItem.run(orderId, item.productId, item.quantity, item.unitCost, item.subtotal)
       if (data.receive) {
-        db.prepare(
-          "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
-        ).run(item.quantity, item.productId)
+        const before =
+          (readStock.get(item.productId) as { stock: number } | undefined)?.stock ?? 0
+        updateStock.run(item.quantity, item.productId)
+        insertAdjustment.run(
+          item.productId,
+          data.userId,
+          before,
+          before + item.quantity,
+          `Recepción compra #${orderId}`
+        )
       }
     }
     return getPurchaseOrderById(orderId)
@@ -191,10 +207,32 @@ export function receivePurchaseOrder(id: number) {
       product_id: number
       quantity: number
     }[]
+    // The IPC layer does not yet pass the receiving user (will land with the
+    // 001-ipc-authorization feature). Conservative fallback: attribute the
+    // audit row to the order creator. TODO(001-ipc-authorization): replace
+    // with the authenticated caller's userId.
+    const order = db
+      .prepare('SELECT user_id FROM purchase_orders WHERE id = ?')
+      .get(id) as { user_id: number } | undefined
+    const auditUserId = order?.user_id ?? 0
+    const readStock = db.prepare('SELECT stock FROM products WHERE id = ?')
+    const updateStock = db.prepare(
+      "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
+    )
+    const insertAdjustment = db.prepare(
+      'INSERT INTO stock_adjustments (product_id, user_id, quantity_before, quantity_after, reason) VALUES (?, ?, ?, ?, ?)'
+    )
     for (const item of items) {
-      db.prepare(
-        "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
-      ).run(item.quantity, item.product_id)
+      const before =
+        (readStock.get(item.product_id) as { stock: number } | undefined)?.stock ?? 0
+      updateStock.run(item.quantity, item.product_id)
+      insertAdjustment.run(
+        item.product_id,
+        auditUserId,
+        before,
+        before + item.quantity,
+        `Recepción compra #${id}`
+      )
     }
     db.prepare(
       "UPDATE purchase_orders SET status = 'received', received_at = datetime('now','localtime') WHERE id = ?"
