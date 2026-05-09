@@ -61,24 +61,32 @@ export function listAudit(filters: AuthAuditFilters = {}): {
   entries: AuthAuditEntry[]
   total: number
 } {
-  const limit = Math.min(Math.max(filters.limit ?? 50, 1), 1000)
-  const offset = Math.max(filters.offset ?? 0, 0)
-  const userId = filters.userId ?? null
-  const operation = filters.operation ?? null
-  const outcome = filters.outcome ?? null
-  const from = filters.from ?? null
-  const to = filters.to ?? null
+  const params = {
+    userId: filters.userId ?? null,
+    operation: filters.operation ?? null,
+    outcome: filters.outcome ?? null,
+    from: filters.from ?? null,
+    to: filters.to ?? null,
+    limit: Math.min(Math.max(filters.limit ?? 50, 1), 1000),
+    offset: Math.max(filters.offset ?? 0, 0)
+  }
 
   const totalRow = getDb()
     .prepare(
       `SELECT COUNT(*) AS c FROM auth_audit a
-       WHERE (?1 IS NULL OR a.claimed_user_id = ?1)
-         AND (?2 IS NULL OR a.operation = ?2)
-         AND (?3 IS NULL OR a.outcome = ?3)
-         AND (?4 IS NULL OR a.created_at >= ?4)
-         AND (?5 IS NULL OR a.created_at <= ?5)`
+       WHERE (:userId IS NULL OR a.claimed_user_id = :userId)
+         AND (:operation IS NULL OR a.operation = :operation)
+         AND (:outcome IS NULL OR a.outcome = :outcome)
+         AND (:from IS NULL OR a.created_at >= :from)
+         AND (:to IS NULL OR a.created_at <= :to)`
     )
-    .get(userId, operation, outcome, from, to) as { c: number }
+    .get({
+      userId: params.userId,
+      operation: params.operation,
+      outcome: params.outcome,
+      from: params.from,
+      to: params.to
+    }) as { c: number }
 
   const rows = getDb()
     .prepare(
@@ -87,15 +95,15 @@ export function listAudit(filters: AuthAuditFilters = {}): {
               u.name AS user_name
        FROM auth_audit a
        LEFT JOIN users u ON u.id = a.claimed_user_id
-       WHERE (?1 IS NULL OR a.claimed_user_id = ?1)
-         AND (?2 IS NULL OR a.operation = ?2)
-         AND (?3 IS NULL OR a.outcome = ?3)
-         AND (?4 IS NULL OR a.created_at >= ?4)
-         AND (?5 IS NULL OR a.created_at <= ?5)
+       WHERE (:userId IS NULL OR a.claimed_user_id = :userId)
+         AND (:operation IS NULL OR a.operation = :operation)
+         AND (:outcome IS NULL OR a.outcome = :outcome)
+         AND (:from IS NULL OR a.created_at >= :from)
+         AND (:to IS NULL OR a.created_at <= :to)
        ORDER BY a.created_at DESC
-       LIMIT ?6 OFFSET ?7`
+       LIMIT :limit OFFSET :offset`
     )
-    .all(userId, operation, outcome, from, to, limit, offset) as AuditRow[]
+    .all(params) as AuditRow[]
 
   return { entries: rows.map(rowToEntry), total: totalRow.c }
 }
@@ -109,6 +117,10 @@ interface AlertWindowRow {
   acknowledged_at: string | null
 }
 
+// Both created_at and the filter use 'localtime' to match the table's
+// CREATE DEFAULT (datetime('now','localtime')) — otherwise rows stored
+// in local time are compared against a UTC threshold and recent inserts
+// look stale, suppressing alerts that should fire.
 const ALERT_WINDOW_QUERY = `
   WITH windows AS (
     SELECT
@@ -116,7 +128,7 @@ const ALERT_WINDOW_QUERY = `
       MIN(created_at)      AS window_start,
       COUNT(*)             AS failure_count
     FROM auth_audit
-    WHERE created_at >= datetime('now','-10 minutes')
+    WHERE created_at >= datetime('now','localtime','-10 minutes')
       AND outcome LIKE 'blocked-%'
       AND claimed_user_id IS NOT NULL
     GROUP BY claimed_user_id

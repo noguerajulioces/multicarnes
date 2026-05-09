@@ -126,9 +126,16 @@ const MIGRATIONS: Migration[] = [
 
 // Recurring maintenance that runs every boot (not a one-shot migration).
 // Currently: 90-day retention on auth_audit (FR-019).
+//
+// Both branches of the comparison must use 'localtime' to match the table's
+// stored timestamp convention (DEFAULT datetime('now','localtime')) — using a
+// bare 'now' would compare local-time strings against a UTC threshold and skew
+// the cutoff by the local TZ offset.
 function runMaintenance(db: Database.Database): void {
   try {
-    db.exec("DELETE FROM auth_audit WHERE created_at < datetime('now','-90 days')")
+    db.exec(
+      "DELETE FROM auth_audit WHERE created_at < datetime('now','localtime','-90 days')"
+    )
   } catch (err) {
     // Maintenance failures are non-fatal — surface in console but don't block boot.
     console.error('[maintenance] auth_audit retention sweep failed:', err)
@@ -237,4 +244,12 @@ export function initDatabase(): Database.Database {
 export function getDb(): Database.Database {
   if (!db) throw new Error('Database not initialized')
   return db
+}
+
+// Test-only hatch. Used by scripts/auth-smoke.ts to point the queries layer
+// at an in-memory database without going through initDatabase() (which calls
+// app.getPath, only valid inside Electron). Do NOT call this from production
+// code paths.
+export function setDbForTesting(database: Database.Database): void {
+  db = database
 }
