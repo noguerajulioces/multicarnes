@@ -244,6 +244,14 @@ export default function Sidebar() {
         )}
       </div>
 
+      {/* Version */}
+      <div
+        className="border-t border-white/15 px-3 py-1.5 text-[10px] text-white/55 text-center font-mono tracking-wide select-none"
+        title={`Versión ${__APP_VERSION__}`}
+      >
+        v{__APP_VERSION__}
+      </div>
+
       {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed((c) => !c)}
