@@ -360,6 +360,43 @@ function main(): void {
   }
 
   // -------------------------------------------------------------------------
+  // Section 9: recovery-mode atomicity (002-review-fixes FR-012 / SC-005)
+  // -------------------------------------------------------------------------
+  // Single-threaded harness cannot exercise SQLite write-serialisation, so we
+  // assert the logic: with no active admins the next createUserAtomicRecoveryCheck
+  // forces role='admin' and the following one respects the requested role.
+  usersQuery.updateUser(adminUser.id, { active: false })
+  recovery.refreshRecoveryMode()
+  check('FR-012 setup: recovery mode active before first call', recovery.isRecoveryMode())
+
+  const recovered = usersQuery.createUserAtomicRecoveryCheck({
+    name: 'First-after-deactivation',
+    role: 'cajero',
+    pin: '444444'
+  }) as SeedUser
+  check(
+    'FR-012: first call in recovery mode is forced to admin',
+    recovered.role === 'admin'
+  )
+
+  recovery.refreshRecoveryMode()
+  check('FR-012: recovery mode closes after admin restored', !recovery.isRecoveryMode())
+
+  const normal = usersQuery.createUserAtomicRecoveryCheck({
+    name: 'Second-after-recovery',
+    role: 'cajero',
+    pin: '555555'
+  }) as SeedUser
+  check(
+    'FR-012: second call (recovery closed) keeps requested role',
+    normal.role === 'cajero'
+  )
+
+  // Restore the original admin so any later test sections see a clean state.
+  usersQuery.updateUser(adminUser.id, { active: true })
+  recovery.refreshRecoveryMode()
+
+  // -------------------------------------------------------------------------
   // Summary
   // -------------------------------------------------------------------------
   console.log(`\n${pass} passed, ${fail} failed`)

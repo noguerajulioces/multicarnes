@@ -164,7 +164,7 @@ export function getSalesByRegister(registerId: number) {
     .all(registerId)
 }
 
-export function cancelSale(id: number, userId: number) {
+export function cancelSale(id: number, userId: number, options?: { refundMixedCredit?: boolean }) {
   const db = getDb()
   const txn = db.transaction(() => {
     const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(id) as Record<string, unknown>
@@ -195,27 +195,55 @@ export function cancelSale(id: number, userId: number) {
       )
     }
 
+    let detailsText = `Venta #${id} anulada`
+
     if (sale.payment_method === 'credit' && sale.customer_id) {
       db.prepare('UPDATE customers SET balance = balance + ? WHERE id = ?').run(
         sale.total,
         sale.customer_id
       )
+    } else if (sale.payment_method === 'mixed' && sale.customer_id) {
+      // 002-review-fixes US3: cancelling a mixed-payment sale surfaces an
+      // explicit choice. The caller decides whether to refund the credit
+      // portion (charged to the customer's balance at sale time); either
+      // outcome is recorded in action_logs.details so a future audit can
+      // trace what happened (FR-008/FR-009).
+      const creditRow = db
+        .prepare(
+          "SELECT COALESCE(SUM(amount), 0) AS credit FROM sale_payments WHERE sale_id = ? AND method = 'credit'"
+        )
+        .get(id) as { credit: number }
+      const creditPortion = creditRow.credit
+      if (creditPortion > 0) {
+        if (options?.refundMixedCredit) {
+          db.prepare('UPDATE customers SET balance = balance + ? WHERE id = ?').run(
+            creditPortion,
+            sale.customer_id
+          )
+          detailsText = `Venta #${id} anulada — porción crédito ${formatGs(creditPortion)} (devolución aplicada)`
+        } else {
+          detailsText = `Venta #${id} anulada — porción crédito ${formatGs(creditPortion)} (devolución NO aplicada por decisión del cajero)`
+        }
+      }
     }
-    // TODO(P6 follow-up): when payment_method === 'mixed' and the sale
-    // included a credit portion, that portion is NOT refunded to the customer
-    // balance. Documented in functional-spec.md §7.11. Conservative behaviour
-    // preserved; merchants can correct manually via a customer payment.
 
     db.prepare("UPDATE sales SET status = 'cancelled' WHERE id = ?").run(id)
     db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
       userId,
       'cancel_sale',
-      `Venta #${id} anulada`
+      detailsText
     )
 
     return getSaleById(id)
   })
   return txn()
+}
+
+// Format a Guarani amount the same way the renderer does for ticket / audit
+// strings, so the audit row reads naturally to a Spanish-speaking merchant.
+// e.g. 50000 → "Gs. 50.000".
+function formatGs(value: number): string {
+  return `Gs. ${Math.round(value).toLocaleString('es-PY')}`
 }
 
 export function getDaySalesTotal() {

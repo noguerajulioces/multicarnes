@@ -41,7 +41,8 @@ const api = {
     getById: (id: number) => ipcRenderer.invoke('sales:getById', id),
     getRecent: (limit?: number) => ipcRenderer.invoke('sales:getRecent', limit),
     getByRegister: (registerId: number) => ipcRenderer.invoke('sales:getByRegister', registerId),
-    cancel: (id: number, userId: number) => ipcRenderer.invoke('sales:cancel', id, userId),
+    cancel: (id: number, options?: { refundMixedCredit?: boolean }) =>
+      ipcRenderer.invoke('sales:cancel', id, options),
     dayTotal: () => ipcRenderer.invoke('sales:dayTotal')
   },
   // Customers

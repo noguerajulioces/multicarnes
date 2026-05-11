@@ -76,7 +76,7 @@ interface ApiSales {
   getById(id: number): Promise<Sale | null>
   getRecent(limit?: number): Promise<Sale[]>
   getByRegister(registerId: number): Promise<Sale[]>
-  cancel(id: number, userId: number): Promise<Sale | null>
+  cancel(id: number, options?: { refundMixedCredit?: boolean }): Promise<Sale | null>
   dayTotal(): Promise<{ total: number; count: number }>
 }
 
@@ -243,7 +243,9 @@ import type {
 interface ApiAuth {
   recoveryNeeded(): Promise<{ recoveryNeeded: boolean }>
   matrixSummary(): Promise<AuthMatrixSummaryEntry[]>
-  listAuditEntries(filters?: AuthAuditFilters): Promise<{ entries: AuthAuditEntry[]; total: number }>
+  listAuditEntries(
+    filters?: AuthAuditFilters
+  ): Promise<{ entries: AuthAuditEntry[]; total: number }>
   listAlerts(): Promise<AuthAlert[]>
   acknowledgeAlert(alertId: number): Promise<{ ok: true }>
 }

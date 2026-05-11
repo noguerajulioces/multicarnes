@@ -199,21 +199,23 @@ export function createPurchaseOrder(data: {
   return txn()
 }
 
-export function receivePurchaseOrder(id: number) {
+export function receivePurchaseOrder(id: number, userId: number) {
   const db = getDb()
   const txn = db.transaction(() => {
+    // Defense-in-depth: the auth guard already validated the caller, but the
+    // repository refuses to write stock_adjustments rows attributed to a
+    // missing or inactive user (002-review-fixes FR-007).
+    const userOk = db.prepare('SELECT 1 FROM users WHERE id = ? AND active = 1').get(userId) as
+      | { 1: number }
+      | undefined
+    if (!userOk) {
+      throw new Error('receivePurchaseOrder: userId must reference an active user')
+    }
+
     const items = db.prepare('SELECT * FROM purchase_items WHERE order_id = ?').all(id) as {
       product_id: number
       quantity: number
     }[]
-    // The IPC layer does not yet pass the receiving user (will land with the
-    // 001-ipc-authorization feature). Conservative fallback: attribute the
-    // audit row to the order creator. TODO(001-ipc-authorization): replace
-    // with the authenticated caller's userId.
-    const order = db.prepare('SELECT user_id FROM purchase_orders WHERE id = ?').get(id) as
-      | { user_id: number }
-      | undefined
-    const auditUserId = order?.user_id ?? 0
     const readStock = db.prepare('SELECT stock FROM products WHERE id = ?')
     const updateStock = db.prepare(
       "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
@@ -226,7 +228,7 @@ export function receivePurchaseOrder(id: number) {
       updateStock.run(item.quantity, item.product_id)
       insertAdjustment.run(
         item.product_id,
-        auditUserId,
+        userId,
         before,
         before + item.quantity,
         `Recepción compra #${id}`
@@ -241,6 +243,10 @@ export function receivePurchaseOrder(id: number) {
 }
 
 export function cancelPurchaseOrder(id: number) {
-  getDb().prepare("UPDATE purchase_orders SET status = 'cancelled' WHERE id = ?").run(id)
-  return getPurchaseOrderById(id)
+  const db = getDb()
+  const txn = db.transaction(() => {
+    db.prepare("UPDATE purchase_orders SET status = 'cancelled' WHERE id = ?").run(id)
+    return getPurchaseOrderById(id)
+  })
+  return txn()
 }

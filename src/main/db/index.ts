@@ -121,6 +121,20 @@ const MIGRATIONS: Migration[] = [
         );
       `)
     }
+  },
+  {
+    version: 6,
+    name: 'add_held_tickets_user_id',
+    up: (db) => {
+      // Adds owner attribution to held_tickets so each cashier sees only their
+      // own held tickets. Legacy rows pre-dating this migration get user_id
+      // NULL and are invisible to every cashier (002-review-fixes FR-001/FR-005
+      // edge case).
+      const cols = db.prepare('PRAGMA table_info(held_tickets)').all() as { name: string }[]
+      if (!cols.find((c) => c.name === 'user_id')) {
+        db.exec('ALTER TABLE held_tickets ADD COLUMN user_id INTEGER NULL REFERENCES users(id)')
+      }
+    }
   }
 ]
 
@@ -133,9 +147,7 @@ const MIGRATIONS: Migration[] = [
 // the cutoff by the local TZ offset.
 function runMaintenance(db: Database.Database): void {
   try {
-    db.exec(
-      "DELETE FROM auth_audit WHERE created_at < datetime('now','localtime','-90 days')"
-    )
+    db.exec("DELETE FROM auth_audit WHERE created_at < datetime('now','localtime','-90 days')")
   } catch (err) {
     // Maintenance failures are non-fatal — surface in console but don't block boot.
     console.error('[maintenance] auth_audit retention sweep failed:', err)

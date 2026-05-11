@@ -24,7 +24,8 @@ export function registerSalesIpc(): string[] {
   registerAuthorized(
     'sales:cancel',
     getRule('sales:cancel'),
-    (_event, _ctx, id: number, userId: number) => salesQuery.cancelSale(id, userId)
+    (_event, ctx, id: number, options?: { refundMixedCredit?: boolean }) =>
+      salesQuery.cancelSale(id, ctx.userId!, options)
   )
   registerAuthorized('sales:dayTotal', getRule('sales:dayTotal'), () =>
     salesQuery.getDaySalesTotal()

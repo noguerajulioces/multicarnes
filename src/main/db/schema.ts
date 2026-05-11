@@ -169,6 +169,7 @@ export function createTables(db: Database.Database): void {
       label      TEXT NOT NULL,
       payload    TEXT NOT NULL,
       discount   INTEGER NOT NULL DEFAULT 0,
+      user_id    INTEGER NULL REFERENCES users(id),
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
 

@@ -19,6 +19,9 @@ interface HeldState {
   remove: (id: string) => void
   consume: (id: string) => HeldTicket | null
   clear: () => void
+  // Wipes the in-memory cache so a freshly-logged-in user does not see the
+  // previous user's tickets before loadFromDb() refetches the server-filtered list.
+  reset: () => void
 }
 
 interface HeldRowFromDb {
@@ -119,5 +122,9 @@ export const useHeldStore = create<HeldState>((set, get) => ({
   clear: () => {
     set({ tickets: [] })
     void window.api.heldTickets.clear()
+  },
+
+  reset: () => {
+    set({ tickets: [], loaded: false })
   }
 }))

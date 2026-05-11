@@ -2,7 +2,7 @@ import * as usersQuery from '../db/queries/users'
 import { registerAuthorized, listRegisteredChannels } from '../auth/guard'
 import { getRule } from '../auth/matrix'
 import { recordLogin, clearBySender } from '../auth/session'
-import { isRecoveryMode, refreshRecoveryMode } from '../auth/recovery'
+import { refreshRecoveryMode } from '../auth/recovery'
 
 export function registerUsersIpc(): string[] {
   const before = listRegisteredChannels().length
@@ -38,10 +38,11 @@ export function registerUsersIpc(): string[] {
     'users:create',
     getRule('users:create'),
     (_event, _ctx, data: { name: string; role: string; pin: string }) => {
-      // FR-022: in recovery mode, only admin accounts may be created.
-      const payload = isRecoveryMode() ? { ...data, role: 'admin' } : data
-      const created = usersQuery.createUser(payload)
-      // Close the recovery window the moment an admin lands.
+      // FR-022 / 002-FR-012: the recovery-mode check and the insert run inside
+      // a single transaction so two simultaneous calls cannot both succeed as
+      // admin. The in-memory recoveryMode flag is refreshed once after the
+      // insert from the post-commit state.
+      const created = usersQuery.createUserAtomicRecoveryCheck(data)
       refreshRecoveryMode()
       return created
     }

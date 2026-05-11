@@ -18,10 +18,7 @@ export function registerPurchasesIpc(): string[] {
     'suppliers:update',
     getRule('suppliers:update'),
     (_e, _c, id: number, data: unknown) =>
-      purchasesQuery.updateSupplier(
-        id,
-        data as Parameters<typeof purchasesQuery.updateSupplier>[1]
-      )
+      purchasesQuery.updateSupplier(id, data as Parameters<typeof purchasesQuery.updateSupplier>[1])
   )
   registerAuthorized('purchases:getAll', getRule('purchases:getAll'), (_e, _c, opts: unknown) =>
     purchasesQuery.getAllPurchaseOrders(
@@ -36,8 +33,8 @@ export function registerPurchasesIpc(): string[] {
       data as Parameters<typeof purchasesQuery.createPurchaseOrder>[0]
     )
   )
-  registerAuthorized('purchases:receive', getRule('purchases:receive'), (_e, _c, id: number) =>
-    purchasesQuery.receivePurchaseOrder(id)
+  registerAuthorized('purchases:receive', getRule('purchases:receive'), (_e, ctx, id: number) =>
+    purchasesQuery.receivePurchaseOrder(id, ctx.userId!)
   )
   registerAuthorized('purchases:cancel', getRule('purchases:cancel'), (_e, _c, id: number) =>
     purchasesQuery.cancelPurchaseOrder(id)
