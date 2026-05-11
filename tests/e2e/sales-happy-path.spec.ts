@@ -1,6 +1,5 @@
 import { test } from '@playwright/test'
 
-const skipOnMac = process.platform === 'darwin'
 
 /**
  * sales-4-* — POS happy path tests. See test-plan.md for full scenarios.
@@ -16,7 +15,6 @@ const skipOnMac = process.platform === 'darwin'
  * a stable visible string`.
  */
 test.describe('Sales — POS happy path', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test.fixme('sales-4-1 — cash sale completes and writes the audit chain', async () => {
     // Preconditions: cashier logged in, register open, product with stock 10.

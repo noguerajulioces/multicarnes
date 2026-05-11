@@ -1,9 +1,8 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
-import { setupAdminViaRecovery, createUserViaIpc } from './helpers/seed'
+import { loginAsSeedAdmin, createUserViaIpc } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 
-const skipOnMac = process.platform === 'darwin'
 
 /**
  * Tests for US1 of feature 002 — held tickets are scoped per cashier.
@@ -24,13 +23,12 @@ interface HeldTicketRow {
 }
 
 test.describe('Held tickets — per-cashier privacy (US1 of 002)', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test('held-3-1 / held-3-2 — cashier B sees zero of cashier A tickets; A sees them after re-login', async () => {
     const { window, cleanup } = await launchApp()
     try {
       // 1. Setup admin via recovery.
-      await setupAdminViaRecovery(window)
+      await loginAsSeedAdmin(window)
 
       // 2. Admin creates cashier A and cashier B.
       await createUserViaIpc(window, { name: 'Caja A', role: 'cajero', pin: '222222' })
@@ -97,7 +95,7 @@ test.describe('Held tickets — per-cashier privacy (US1 of 002)', () => {
   test('held-3-3 — cross-user remove writes an action_logs row and throws (FR-003)', async () => {
     const { window, cleanup } = await launchApp()
     try {
-      await setupAdminViaRecovery(window)
+      await loginAsSeedAdmin(window)
       const cashierA = await createUserViaIpc(window, {
         name: 'Caja A',
         role: 'cajero',

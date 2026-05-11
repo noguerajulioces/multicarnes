@@ -1,9 +1,7 @@
 import { test } from '@playwright/test'
 
-const skipOnMac = process.platform === 'darwin'
 
 test.describe('Sales — list & filters', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test.fixme('sales-list-6-1 — filter by payment method narrows the result (P2)', async () => {
     // Seed: 1 cash + 1 credit + 1 mixed sale.

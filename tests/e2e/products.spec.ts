@@ -1,9 +1,7 @@
 import { test } from '@playwright/test'
 
-const skipOnMac = process.platform === 'darwin'
 
 test.describe('Products', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test.fixme('product-9-1 — create product with required fields (P2)', async () => {
     // Steps: /productos/nuevo → fill Nombre, Categoría, Precio, Tipo → submit.

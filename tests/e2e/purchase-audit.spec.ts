@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
 import {
-  setupAdminViaRecovery,
+  loginAsSeedAdmin,
+  SEED_ADMIN,
   createUserViaIpc,
   createProductViaIpc
 } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 
-const skipOnMac = process.platform === 'darwin'
 
 interface StockAdjustmentRow {
   id: number
@@ -28,12 +28,11 @@ interface StockAdjustmentRow {
  */
 
 test.describe('Purchase reception audit attribution (US2 of 002)', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test('purchase-10-1 — receiver, not creator, is recorded on stock_adjustments', async () => {
     const { window, cleanup } = await launchApp()
     try {
-      const admin = await setupAdminViaRecovery(window)
+      const admin = await loginAsSeedAdmin(window)
       const supervisor = await createUserViaIpc(window, {
         name: 'Supervisor One',
         role: 'supervisor',
@@ -48,14 +47,16 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
       })
 
       // Admin creates a purchase order for 5 units of the product.
-      const order = await ipc(window, async (productId) => {
+      const order = await ipc(window, async ([productId, userId]) => {
         const result = (await window.api.purchases.create({
+          supplierId: null,
+          userId,
           items: [{ productId, quantity: 5, unitCost: 40_000, subtotal: 200_000 }],
           total: 200_000,
           notes: 'e2e PO'
         })) as { id: number }
         return result
-      }, product.id)
+      }, [product.id, admin.id] as const)
 
       const login = new LoginPage(window)
       await login.logout()
@@ -92,7 +93,7 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
   test('purchase-10-2 — receiving with a deactivated user is rejected before any DB mutation', async () => {
     const { window, cleanup } = await launchApp()
     try {
-      const admin = await setupAdminViaRecovery(window)
+      const admin = await loginAsSeedAdmin(window)
       const supervisor = await createUserViaIpc(window, {
         name: 'Supervisor Two',
         role: 'supervisor',
@@ -105,12 +106,14 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
         priceType: 'kg'
       })
 
-      const order = await ipc(window, async (productId) => {
+      const order = await ipc(window, async ([productId, userId]) => {
         return (await window.api.purchases.create({
+          supplierId: null,
+          userId,
           items: [{ productId, quantity: 3, unitCost: 30_000, subtotal: 90_000 }],
           total: 90_000
         })) as { id: number }
-      }, product.id)
+      }, [product.id, admin.id] as const)
 
       // Admin deactivates the supervisor BEFORE login.
       await ipc(window, async (supId) => {
@@ -126,7 +129,7 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
       await expect(window.getByRole('button', { name: /Supervisor Two/i })).toHaveCount(0)
 
       // Sanity: admin (still active) can receive successfully.
-      await login.loginAs('Admin Test', '111111')
+      await login.loginAs(SEED_ADMIN.name, SEED_ADMIN.pin)
       const ok = await ipc(window, async (id) => {
         try {
           await window.api.purchases.receive(id)

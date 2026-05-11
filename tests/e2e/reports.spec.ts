@@ -1,9 +1,7 @@
 import { test } from '@playwright/test'
 
-const skipOnMac = process.platform === 'darwin'
 
 test.describe('Reports', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test.fixme('report-11-1 — cashier blocked from profit-margin report (P1)', async () => {
     // Preconditions: cashier logged in.

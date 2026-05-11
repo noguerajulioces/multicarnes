@@ -1,9 +1,7 @@
 import { test } from '@playwright/test'
 
-const skipOnMac = process.platform === 'darwin'
 
 test.describe('Customers', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test.fixme('customer-8-1 — create customer with name only (P2)', async () => {
     // Steps: /clientes → "Nuevo Cliente" → name only → submit.

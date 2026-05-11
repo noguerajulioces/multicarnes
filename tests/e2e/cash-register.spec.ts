@@ -1,6 +1,5 @@
 import { test } from '@playwright/test'
 
-const skipOnMac = process.platform === 'darwin'
 
 /**
  * Cash register flows. The "cashier closes own register, not another's"
@@ -8,7 +7,6 @@ const skipOnMac = process.platform === 'darwin'
  * exception added in feature 001 (T028).
  */
 test.describe('Cash register', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test.fixme('cash-7-1 — open register with ₲0 requires confirmation (P1)', async () => {
     // Preconditions: cashier logged in, no active register.

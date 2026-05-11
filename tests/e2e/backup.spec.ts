@@ -1,9 +1,7 @@
 import { test } from '@playwright/test'
 
-const skipOnMac = process.platform === 'darwin'
 
 test.describe('Backup', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test.fixme('backup-13-1 — admin creates a backup and the file appears in the list (P2)', async () => {
     // Steps: /backup → "Crear Backup".

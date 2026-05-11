@@ -1,13 +1,11 @@
 import { test } from '@playwright/test'
 
-const skipOnMac = process.platform === 'darwin'
 
 /**
  * users-12-1 is covered by auth.spec.ts (admin creates cashier).
  * This file covers the other users-management scenarios.
  */
 test.describe('Users management', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test.fixme('users-12-2 — mismatched PIN confirmation rejects creation (P2)', async () => {
     // Steps: open modal, PIN "222222", confirm "333333", submit.

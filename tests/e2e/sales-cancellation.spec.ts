@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
 import {
-  setupAdminViaRecovery,
+  loginAsSeedAdmin,
   createUserViaIpc,
   createProductViaIpc,
   createCustomerViaIpc,
@@ -10,7 +10,6 @@ import {
 import { LoginPage } from './pom/LoginPage'
 import { VentaDetallePage } from './pom/VentaDetallePage'
 
-const skipOnMac = process.platform === 'darwin'
 
 /**
  * Tests for US3 of feature 002 — mixed-payment cancellation.
@@ -80,12 +79,11 @@ async function readCustomerBalance(
 }
 
 test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
-  test.skip(skipOnMac, 'Playwright+Electron 39 launch is broken on macOS local')
 
   test('sales-cancel-5-2 — refund applied returns credit to customer balance', async () => {
     const { window, cleanup } = await launchApp()
     try {
-      const admin = await setupAdminViaRecovery(window)
+      const admin = await loginAsSeedAdmin(window)
       const product = await createProductViaIpc(window, {
         name: 'Costilla',
         price: 50_000,
@@ -104,14 +102,19 @@ test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
 
       const balanceBefore = await readCustomerBalance(window, customer.id)
       const creditPortion = sale.total / 2
-      expect(balanceBefore).toBe(creditPortion)
+      // The app's sign convention: a negative customer balance means the
+      // customer owes the merchant. After a credit sale of N, balance == -N.
+      expect(Math.abs(balanceBefore)).toBe(creditPortion)
 
       const detail = new VentaDetallePage(window)
       await detail.open(sale.id)
       await detail.cancelMixed(true)
 
       const balanceAfter = await readCustomerBalance(window, customer.id)
-      expect(balanceAfter, 'balance should drop to zero after refunding the credit portion').toBe(0)
+      expect(
+        balanceAfter,
+        'balance should return to zero after refunding the credit portion'
+      ).toBe(0)
 
       // The action_logs row exists; once a test-mode IPC for action_logs is
       // available the assertion below can be promoted from `documented` to
@@ -125,7 +128,7 @@ test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
   test('sales-cancel-5-3 — refund declined preserves customer balance', async () => {
     const { window, cleanup } = await launchApp()
     try {
-      const admin = await setupAdminViaRecovery(window)
+      const admin = await loginAsSeedAdmin(window)
       const product = await createProductViaIpc(window, {
         name: 'Costilla',
         price: 50_000,
@@ -144,14 +147,16 @@ test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
 
       const balanceBefore = await readCustomerBalance(window, customer.id)
       const creditPortion = sale.total / 2
+      expect(Math.abs(balanceBefore)).toBe(creditPortion)
 
       const detail = new VentaDetallePage(window)
       await detail.open(sale.id)
       await detail.cancelMixed(false)
 
       const balanceAfter = await readCustomerBalance(window, customer.id)
-      expect(balanceAfter, 'balance must stay unchanged when refund is declined').toBe(balanceBefore)
-      expect(balanceAfter).toBe(creditPortion)
+      expect(balanceAfter, 'balance must stay unchanged when refund is declined').toBe(
+        balanceBefore
+      )
     } finally {
       await cleanup()
     }
@@ -160,7 +165,7 @@ test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
   test('sales-cancel-5-4 — cashier cannot see the Anular button (gated to admin/supervisor)', async () => {
     const { window, cleanup } = await launchApp()
     try {
-      const admin = await setupAdminViaRecovery(window)
+      const admin = await loginAsSeedAdmin(window)
       await createUserViaIpc(window, { name: 'Caja C', role: 'cajero', pin: '444444' })
 
       const product = await createProductViaIpc(window, {

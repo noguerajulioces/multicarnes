@@ -58,18 +58,23 @@ export class LoginPage {
   }
 
   /**
-   * Enters a 6-digit PIN. Supports both the password input field and the
-   * on-screen keypad mode (writes digits to the sr-only hidden input).
+   * Enters a 6-digit PIN. The login screen's PIN input uses placeholder
+   * "••••••". The non-keypad mode renders a standard <Input>; the keypad
+   * mode renders an sr-only <input> with aria-label="PIN" — we fall back
+   * to that one if the visible placeholder field isn't found.
    */
   async enterPin(pin: string): Promise<void> {
-    // The PIN input has aria-label="PIN" and accepts 6 digits.
-    const pinInput = this.page.getByLabel(/^PIN$/i)
-    await pinInput.fill(pin)
+    const placeholder = this.page.getByPlaceholder('••••••').first()
+    if (await placeholder.isVisible().catch(() => false)) {
+      await placeholder.fill(pin)
+      return
+    }
+    await this.page.getByLabel(/^PIN$/i).fill(pin)
   }
 
-  /** Submits the login (Enter key on the PIN input or the explicit button). */
+  /** Submits the login. The "Ingresar" button is the canonical submit. */
   async submit(): Promise<void> {
-    await this.page.getByLabel(/^PIN$/i).press('Enter')
+    await this.page.getByRole('button', { name: /Ingresar/i }).click()
   }
 
   /**
@@ -80,14 +85,13 @@ export class LoginPage {
     await this.selectUser(userName)
     await this.enterPin(pin)
     await this.submit()
-    // Wait for the post-login route (any of the dashboard variants).
-    await this.page
-      .waitForURL(/#?\/(dashboard|caja|ventas|productos|configuracion|backup|usuarios)?$/, {
-        timeout: 15_000
-      })
-      .catch(() => {
-        /* Some builds keep the URL at '#/', that's fine. */
-      })
+    // Wait for the post-login route. The renderer redirects to
+    // /caja/apertura when no register is open, otherwise to /dashboard.
+    // We accept any in-app route as long as the login screen is no longer
+    // visible (the "Seleccione su usuario" text is gone).
+    await expect(this.page.getByText(/Seleccione su usuario/i)).toBeHidden({
+      timeout: 15_000
+    })
   }
 
   /**

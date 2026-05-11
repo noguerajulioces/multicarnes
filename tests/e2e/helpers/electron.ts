@@ -22,14 +22,16 @@ interface LaunchedApp {
 export async function launchApp(): Promise<LaunchedApp> {
   const userDataDir = await mkdtemp(join(tmpdir(), 'pos-e2e-'))
 
+  // `ELECTRON_RUN_AS_NODE` is set by other tooling (tsx, some Node CLIs) and
+  // forces Electron to launch as a plain Node binary — which then rejects
+  // Playwright's `--remote-debugging-port=0` flag with `bad option: ...`.
+  // Strip it out of the spawn env so we always get app mode.
+  const env: Record<string, string | undefined> = { ...process.env, NODE_ENV: 'production' }
+  delete env.ELECTRON_RUN_AS_NODE
+
   const app = await electron.launch({
     args: [APP_ENTRY, `--user-data-dir=${userDataDir}`],
-    // Smoke tests shouldn't be affected by user-level preferences from a
-    // developer machine, so we point Electron at a clean profile.
-    env: {
-      ...process.env,
-      NODE_ENV: 'production'
-    }
+    env: env as Record<string, string>
   })
 
   // The main window opens after a splash transition (~1.5s). Pick the first
@@ -38,11 +40,14 @@ export async function launchApp(): Promise<LaunchedApp> {
   const allWindows = await waitForMainWindow(app)
   const window = allWindows
 
-  // Wait until the renderer is fully ready: the login page or the recovery
-  // setup form must be in the DOM. Either signals a healthy boot.
-  await window.waitForSelector('text=/Configurar primer administrador|Iniciar sesión|Bienvenido/i', {
-    timeout: 30_000
-  })
+  // Wait until the renderer is fully ready. On a fresh DB the seed always
+  // creates the "Administrador" user, so the login screen lands on user
+  // selection ("Seleccione su usuario"). If a future build removes the seed,
+  // the recovery form text is also accepted.
+  await window.waitForSelector(
+    'text=/Seleccione su usuario|Configurar primer administrador/i',
+    { timeout: 30_000 }
+  )
 
   return {
     app,
@@ -60,21 +65,24 @@ export async function launchApp(): Promise<LaunchedApp> {
 }
 
 // Wait for the main BrowserWindow (not the splash) to be present.
-// Strategy: poll firstWindow() and check its URL is the renderer's index.html.
+// Strategy: poll firstWindow() and pick the one that is NOT the splash.
 async function waitForMainWindow(app: ElectronApplication): Promise<Page> {
-  // Give the splash time to finish; the main window opens after that.
   const start = Date.now()
+  let lastSeen: string[] = []
   while (Date.now() - start < 30_000) {
     const windows = app.windows()
-    for (const w of windows) {
-      const url = w.url()
-      if (url.includes('index.html') || url.startsWith('http://localhost') || url.includes('renderer')) {
-        return w
-      }
-    }
+    lastSeen = windows.map((w) => w.url())
+    // Pick the first window whose URL is not the splash. The splash loads
+    // `resources/splash.html`; everything else is the real renderer.
+    const main = windows.find((w) => !w.url().includes('splash.html'))
+    if (main) return main
     await new Promise((r) => setTimeout(r, 250))
   }
-  throw new Error('Main renderer window never appeared within 30s')
+  throw new Error(
+    `Main renderer window never appeared within 30s. Last-seen window URLs: ${JSON.stringify(
+      lastSeen
+    )}`
+  )
 }
 
 /**

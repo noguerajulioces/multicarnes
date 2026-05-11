@@ -55,8 +55,13 @@ export class VentaDetallePage {
     await this.assertCancelled()
   }
 
-  /** Waits until the page reflects the cancelled status badge. */
+  /** Waits until the page reflects the cancelled status badge.
+   *  The badge text is exactly "Anulada"; we use exact: true so the audit
+   *  log line "Venta #N anulada" does not match.
+   */
   async assertCancelled(): Promise<void> {
-    await expect(this.page.getByText(/Anulada/i)).toBeVisible({ timeout: 10_000 })
+    await expect(this.page.getByText('Anulada', { exact: true })).toBeVisible({
+      timeout: 10_000
+    })
   }
 }

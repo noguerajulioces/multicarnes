@@ -2,20 +2,22 @@ import type { Page } from '@playwright/test'
 import { LoginPage } from '../pom/LoginPage'
 
 /**
- * Test seeding utilities. Two layers:
+ * Test seeding utilities.
  *
- *   1. `setupAdminViaRecovery(window, ...)` — drives the first-admin flow
- *      through the real UI on a fresh DB. Mandatory once per test, because
- *      the app cannot operate without at least one user.
+ * The app's `initDatabase()` auto-seeds a default admin user
+ * ("Administrador" / PIN "123456") plus 5 categories and the default
+ * settings on every fresh database — this is production behaviour and
+ * the e2e suite uses it as the starting state.
  *
- *   2. `seedDirect.*` — fast, IPC-driven helpers that run inside the renderer
- *      to create downstream entities (users, products, customers, ...) without
- *      navigating through every page. Use these to set up scenario state.
+ *   1. `loginAsSeedAdmin(window)` — logs in as the seeded Administrador.
+ *      Mandatory at the top of any test that wants an admin session.
  *
- * After step 1, the seeded admin is logged IN (the recovery flow lands you
- * on the dashboard). To switch users, use the LoginPage helper to logout +
- * login as the target user.
+ *   2. `seedDirect.*` — fast, IPC-driven helpers that run inside the
+ *      renderer to create downstream entities (cashiers, products,
+ *      customers, ...) without navigating through every page.
  */
+
+export const SEED_ADMIN = { name: 'Administrador', pin: '123456' } as const
 
 interface SeededUser {
   id: number
@@ -24,36 +26,21 @@ interface SeededUser {
 }
 
 /**
- * Walks the recovery setup form to create the first admin. The app then
- * shows the user-selection login screen; this helper continues by selecting
- * the new admin and entering the PIN so the test starts logged in.
+ * Logs in as the auto-seeded admin user. The seed runs as part of
+ * initDatabase() so this is always available on a fresh userData dir.
  *
- * @returns the seeded admin record.
+ * Returns the admin's user record after login.
  */
-export async function setupAdminViaRecovery(
-  window: Page,
-  options: { name?: string; pin?: string } = {}
-): Promise<SeededUser> {
-  const name = options.name ?? 'Admin Test'
-  const pin = options.pin ?? '111111'
+export async function loginAsSeedAdmin(window: Page): Promise<SeededUser> {
+  const login = new LoginPage(window)
+  await login.loginAs(SEED_ADMIN.name, SEED_ADMIN.pin)
 
-  const loginPage = new LoginPage(window)
-
-  await loginPage.assertOnRecoveryForm()
-  await loginPage.completeRecoverySetup({ name, pin, confirm: pin })
-
-  // After recovery, the login screen shows the new user. Click in.
-  await loginPage.selectUser(name)
-  await loginPage.enterPin(pin)
-  await loginPage.submit()
-
-  // Wait for the dashboard / main app to mount.
-  await window.waitForURL(/#?\/(dashboard|caja|ventas)?$/, { timeout: 15_000 }).catch(() => {})
-
-  const list = await window.evaluate(() => window.api.users.getAll())
-  const admin = (list as SeededUser[]).find((u) => u.name === name)
+  const list = (await window.evaluate(() => window.api.users.getAll())) as SeededUser[]
+  const admin = list.find((u) => u.name === SEED_ADMIN.name)
   if (!admin) {
-    throw new Error(`setupAdminViaRecovery: created user "${name}" not found in users:getAll`)
+    throw new Error(
+      `loginAsSeedAdmin: expected user "${SEED_ADMIN.name}" not found after login`
+    )
   }
   return admin
 }
@@ -74,8 +61,7 @@ export async function createUserViaIpc(
 }
 
 /**
- * Creates a category + product in one IPC roundtrip. Useful when a test only
- * cares that "some product exists with N stock at price P".
+ * Creates a product (and the category if missing) in one IPC round-trip.
  */
 export async function createProductViaIpc(
   window: Page,
@@ -89,7 +75,7 @@ export async function createProductViaIpc(
 ): Promise<{ id: number; name: string }> {
   return window.evaluate(async (p) => {
     const categories = (await window.api.products.categories()) as { id: number; name: string }[]
-    const categoryName = p.categoryName ?? 'Test Cat'
+    const categoryName = p.categoryName ?? 'Vacuno' // a seeded category
     let categoryId = categories.find((c) => c.name === categoryName)?.id
     if (categoryId == null) {
       const created = (await window.api.products.createCategory(categoryName)) as { id: number }
@@ -99,6 +85,7 @@ export async function createProductViaIpc(
       name: p.name,
       price: p.price,
       stock: p.stock,
+      min_stock: 0,
       category_id: categoryId,
       price_type: p.priceType ?? 'unit',
       active: true
