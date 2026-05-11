@@ -134,23 +134,25 @@ export function getSaleById(id: number) {
   return sale
 }
 
-export function getAllSales(opts: {
-  from?: string
-  to?: string
-  paymentMethod?: string
-  userId?: number
-  page?: number
-  perPage?: number
-} = {}) {
+export function getAllSales(
+  opts: {
+    from?: string
+    to?: string
+    paymentMethod?: string
+    userId?: number
+    page?: number
+    perPage?: number
+  } = {}
+) {
   const db = getDb()
   const params: unknown[] = []
   const conditions: string[] = []
   if (opts.from) {
-    conditions.push("date(s.created_at) >= date(?)")
+    conditions.push('date(s.created_at) >= date(?)')
     params.push(opts.from)
   }
   if (opts.to) {
-    conditions.push("date(s.created_at) <= date(?)")
+    conditions.push('date(s.created_at) <= date(?)')
     params.push(opts.to)
   }
   if (opts.paymentMethod) {
@@ -164,9 +166,7 @@ export function getAllSales(opts: {
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
   const total = (
-    db
-      .prepare(`SELECT COUNT(*) as c FROM sales s ${where}`)
-      .get(...params) as { c: number }
+    db.prepare(`SELECT COUNT(*) as c FROM sales s ${where}`).get(...params) as { c: number }
   ).c
 
   const isPaginated = opts.page !== undefined

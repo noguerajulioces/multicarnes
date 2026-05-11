@@ -37,9 +37,7 @@ test.describe('Sales — list & filters', () => {
           await window.api.sales.create({
             registerId: a.registerId,
             userId: a.userId,
-            items: [
-              { productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }
-            ],
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }],
             subtotal: 10_000,
             discount: 0,
             total: 10_000,
@@ -50,9 +48,7 @@ test.describe('Sales — list & filters', () => {
             registerId: a.registerId,
             userId: a.userId,
             customerId: a.customerId,
-            items: [
-              { productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }
-            ],
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }],
             subtotal: 10_000,
             discount: 0,
             total: 10_000,
@@ -73,14 +69,12 @@ test.describe('Sales — list & filters', () => {
 
       const cashOnly = (await ipc(
         window,
-        async ([from, to, method]) =>
-          window.api.reports.salesByPeriod(from, to, method),
+        async ([from, to, method]) => window.api.reports.salesByPeriod(from, to, method),
         [today, tomorrow, 'cash'] as const
       )) as SaleRow[]
       const creditOnly = (await ipc(
         window,
-        async ([from, to, method]) =>
-          window.api.reports.salesByPeriod(from, to, method),
+        async ([from, to, method]) => window.api.reports.salesByPeriod(from, to, method),
         [today, tomorrow, 'credit'] as const
       )) as SaleRow[]
 
@@ -111,9 +105,7 @@ test.describe('Sales — list & filters', () => {
           await window.api.sales.create({
             registerId: a.registerId,
             userId: a.userId,
-            items: [
-              { productId: a.productId, quantity: 1, unitPrice: 5_000, subtotal: 5_000 }
-            ],
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 5_000, subtotal: 5_000 }],
             subtotal: 5_000,
             discount: 0,
             total: 5_000,
@@ -158,9 +150,7 @@ test.describe('Sales — list & filters', () => {
             await window.api.sales.create({
               registerId: a.registerId,
               userId: a.userId,
-              items: [
-                { productId: a.productId, quantity: 1, unitPrice: 1_000, subtotal: 1_000 }
-              ],
+              items: [{ productId: a.productId, quantity: 1, unitPrice: 1_000, subtotal: 1_000 }],
               subtotal: 1_000,
               discount: 0,
               total: 1_000,

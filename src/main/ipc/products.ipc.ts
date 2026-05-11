@@ -41,13 +41,17 @@ export function registerProductsIpc(): string[] {
     }
   )
 
-  registerAuthorized('products:getById', getRule('products:getById'), async (_e, ctx, id: number) => {
-    const product = await productsQuery.getProductById(id)
-    if (ctx.role === 'cajero' && product) {
-      return stripCostFields(product as Record<string, unknown>)
+  registerAuthorized(
+    'products:getById',
+    getRule('products:getById'),
+    async (_e, ctx, id: number) => {
+      const product = await productsQuery.getProductById(id)
+      if (ctx.role === 'cajero' && product) {
+        return stripCostFields(product as Record<string, unknown>)
+      }
+      return product
     }
-    return product
-  })
+  )
 
   registerAuthorized(
     'products:getByBarcode',
@@ -90,8 +94,7 @@ export function registerProductsIpc(): string[] {
   registerAuthorized(
     'products:movements',
     getRule('products:movements'),
-    (_e, _c, productId: number, limit?: number) =>
-      productsQuery.getStockMovements(productId, limit)
+    (_e, _c, productId: number, limit?: number) => productsQuery.getStockMovements(productId, limit)
   )
   registerAuthorized(
     'products:recentSales',

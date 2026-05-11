@@ -44,10 +44,9 @@ export async function launchApp(): Promise<LaunchedApp> {
   // creates the "Administrador" user, so the login screen lands on user
   // selection ("Seleccione su usuario"). If a future build removes the seed,
   // the recovery form text is also accepted.
-  await window.waitForSelector(
-    'text=/Seleccione su usuario|Configurar primer administrador/i',
-    { timeout: 30_000 }
-  )
+  await window.waitForSelector('text=/Seleccione su usuario|Configurar primer administrador/i', {
+    timeout: 30_000
+  })
 
   return {
     app,
@@ -94,11 +93,7 @@ async function waitForMainWindow(app: ElectronApplication): Promise<Page> {
  *   const id   = await ipc(window, (arg) => window.api.heldTickets.remove(arg), ticketId)
  */
 export function ipc<T>(window: Page, fn: () => T | Promise<T>): Promise<T>
-export function ipc<T, Arg>(
-  window: Page,
-  fn: (arg: Arg) => T | Promise<T>,
-  arg: Arg
-): Promise<T>
+export function ipc<T, Arg>(window: Page, fn: (arg: Arg) => T | Promise<T>, arg: Arg): Promise<T>
 export function ipc<T, Arg>(
   window: Page,
   fn: ((arg: Arg) => T | Promise<T>) | (() => T | Promise<T>),

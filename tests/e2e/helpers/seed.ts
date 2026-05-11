@@ -38,9 +38,7 @@ export async function loginAsSeedAdmin(window: Page): Promise<SeededUser> {
   const list = (await window.evaluate(() => window.api.users.getAll())) as SeededUser[]
   const admin = list.find((u) => u.name === SEED_ADMIN.name)
   if (!admin) {
-    throw new Error(
-      `loginAsSeedAdmin: expected user "${SEED_ADMIN.name}" not found after login`
-    )
+    throw new Error(`loginAsSeedAdmin: expected user "${SEED_ADMIN.name}" not found after login`)
   }
   return admin
 }

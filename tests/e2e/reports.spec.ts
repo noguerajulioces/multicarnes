@@ -77,9 +77,7 @@ test.describe('Reports', () => {
             await window.api.sales.create({
               registerId: a.registerId,
               userId: a.userId,
-              items: [
-                { productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }
-              ],
+              items: [{ productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }],
               subtotal: 10_000,
               discount: 0,
               total: 10_000,
@@ -132,9 +130,7 @@ test.describe('Reports', () => {
             await window.api.sales.create({
               registerId: a.registerId,
               userId: a.userId,
-              items: [
-                { productId: a.aId, quantity: 1, unitPrice: 20_000, subtotal: 20_000 }
-              ],
+              items: [{ productId: a.aId, quantity: 1, unitPrice: 20_000, subtotal: 20_000 }],
               subtotal: 20_000,
               discount: 0,
               total: 20_000,
@@ -183,12 +179,9 @@ test.describe('Reports', () => {
   // -----------------
   // report-11-4 (P3) — export Excel save dialog is too fragile to assert
   // -----------------
-  test.fixme(
-    'report-11-4 — export to Excel triggers a save dialog (fragile, native dialog)',
-    async () => {
-      // Excel export uses xlsx in the renderer (Principle V.b) and ends with
-      // either a Blob download or a native save dialog. Native dialogs aren't
-      // drivable by Playwright; this stays as manual QA.
-    }
-  )
+  test.fixme('report-11-4 — export to Excel triggers a save dialog (fragile, native dialog)', async () => {
+    // Excel export uses xlsx in the renderer (Principle V.b) and ends with
+    // either a Blob download or a native save dialog. Native dialogs aren't
+    // drivable by Playwright; this stays as manual QA.
+  })
 })

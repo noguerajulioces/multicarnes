@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
-import {
-  loginAsSeedAdmin,
-  createUserViaIpc,
-  openCashRegisterViaIpc
-} from './helpers/seed'
+import { loginAsSeedAdmin, createUserViaIpc, openCashRegisterViaIpc } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 
 interface CashRegister {
@@ -190,14 +186,11 @@ test.describe('Cash register', () => {
   // -----------------
   // cash-7-5 (P3) — stale close requires a note (FIXME — needs time travel)
   // -----------------
-  test.fixme(
-    'cash-7-5 — stale-close (>24h) requires a note',
-    async () => {
-      // Needs a way to backdate `opened_at` on the register. Either:
-      //   - run a direct SQL UPDATE via a test-mode IPC, or
-      //   - extend the seed helper to accept a specific opened_at value.
-      // Will land once one of those exists; meanwhile the UI guard is
-      // covered by the manual quickstart.
-    }
-  )
+  test.fixme('cash-7-5 — stale-close (>24h) requires a note', async () => {
+    // Needs a way to backdate `opened_at` on the register. Either:
+    //   - run a direct SQL UPDATE via a test-mode IPC, or
+    //   - extend the seed helper to accept a specific opened_at value.
+    // Will land once one of those exists; meanwhile the UI guard is
+    // covered by the manual quickstart.
+  })
 })

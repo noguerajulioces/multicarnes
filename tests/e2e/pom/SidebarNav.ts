@@ -16,9 +16,7 @@ export class SidebarNav {
   async goToSales(): Promise<void> {
     // The POS landing is sometimes labelled "Ventas" (POS) and sometimes
     // "Punto de venta" depending on copy iterations. Use whichever is visible.
-    const link = this.page
-      .getByRole('link', { name: /Ventas|Punto de venta|POS/i })
-      .first()
+    const link = this.page.getByRole('link', { name: /Ventas|Punto de venta|POS/i }).first()
     await link.click()
   }
 

@@ -123,22 +123,28 @@ test.describe('Sales — POS happy path', () => {
       const customer = await createCustomerViaIpc(window, { name: 'Customer Credit' })
       const register = await openCashRegisterViaIpc(window, admin.id, 0)
 
-      const sale = await window.evaluate(async (a) => {
-        const result = (await window.api.sales.create({
-          registerId: a.registerId,
-          userId: a.userId,
-          customerId: a.customerId,
-          items: [
-            { productId: a.productId, quantity: 1, unitPrice: 25_000, subtotal: 25_000 }
-          ],
-          subtotal: 25_000,
-          discount: 0,
-          total: 25_000,
-          paymentMethod: 'credit',
-          payments: [{ method: 'credit', amount: 25_000 }]
-        })) as SaleCreated
-        return result
-      }, { registerId: register.id, userId: admin.id, customerId: customer.id, productId: product.id })
+      const sale = await window.evaluate(
+        async (a) => {
+          const result = (await window.api.sales.create({
+            registerId: a.registerId,
+            userId: a.userId,
+            customerId: a.customerId,
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 25_000, subtotal: 25_000 }],
+            subtotal: 25_000,
+            discount: 0,
+            total: 25_000,
+            paymentMethod: 'credit',
+            payments: [{ method: 'credit', amount: 25_000 }]
+          })) as SaleCreated
+          return result
+        },
+        {
+          registerId: register.id,
+          userId: admin.id,
+          customerId: customer.id,
+          productId: product.id
+        }
+      )
 
       expect(sale.payment_method).toBe('credit')
 
@@ -169,25 +175,31 @@ test.describe('Sales — POS happy path', () => {
       const customer = await createCustomerViaIpc(window, { name: 'Mixed Customer' })
       const register = await openCashRegisterViaIpc(window, admin.id, 0)
 
-      const sale = await window.evaluate(async (a) => {
-        const result = (await window.api.sales.create({
-          registerId: a.registerId,
-          userId: a.userId,
-          customerId: a.customerId,
-          items: [
-            { productId: a.productId, quantity: 1, unitPrice: 100_000, subtotal: 100_000 }
-          ],
-          subtotal: 100_000,
-          discount: 0,
-          total: 100_000,
-          paymentMethod: 'mixed',
-          payments: [
-            { method: 'cash', amount: 50_000 },
-            { method: 'credit', amount: 50_000 }
-          ]
-        })) as SaleCreated & { payments?: { method: string; amount: number }[] }
-        return result
-      }, { registerId: register.id, userId: admin.id, customerId: customer.id, productId: product.id })
+      const sale = await window.evaluate(
+        async (a) => {
+          const result = (await window.api.sales.create({
+            registerId: a.registerId,
+            userId: a.userId,
+            customerId: a.customerId,
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 100_000, subtotal: 100_000 }],
+            subtotal: 100_000,
+            discount: 0,
+            total: 100_000,
+            paymentMethod: 'mixed',
+            payments: [
+              { method: 'cash', amount: 50_000 },
+              { method: 'credit', amount: 50_000 }
+            ]
+          })) as SaleCreated & { payments?: { method: string; amount: number }[] }
+          return result
+        },
+        {
+          registerId: register.id,
+          userId: admin.id,
+          customerId: customer.id,
+          productId: product.id
+        }
+      )
 
       expect(sale.payment_method).toBe('mixed')
 
@@ -233,9 +245,7 @@ test.describe('Sales — POS happy path', () => {
             await window.api.sales.create({
               registerId: 999, // synthetic, no register exists
               userId: a.userId,
-              items: [
-                { productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }
-              ],
+              items: [{ productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }],
               subtotal: 10_000,
               discount: 0,
               total: 10_000,

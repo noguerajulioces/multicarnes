@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { launchApp, ipc } from './helpers/electron'
+import { launchApp } from './helpers/electron'
 import { loginAsSeedAdmin, createUserViaIpc, SEED_ADMIN } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 import { SidebarNav } from './pom/SidebarNav'

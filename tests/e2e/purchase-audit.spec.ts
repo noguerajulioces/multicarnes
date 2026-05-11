@@ -1,13 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
-import {
-  loginAsSeedAdmin,
-  SEED_ADMIN,
-  createUserViaIpc,
-  createProductViaIpc
-} from './helpers/seed'
+import { loginAsSeedAdmin, SEED_ADMIN, createUserViaIpc, createProductViaIpc } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
-
 
 interface StockAdjustmentRow {
   id: number
@@ -28,7 +22,6 @@ interface StockAdjustmentRow {
  */
 
 test.describe('Purchase reception audit attribution (US2 of 002)', () => {
-
   test('purchase-10-1 — receiver, not creator, is recorded on stock_adjustments', async () => {
     const { window, cleanup } = await launchApp()
     try {
@@ -47,39 +40,54 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
       })
 
       // Admin creates a purchase order for 5 units of the product.
-      const order = await ipc(window, async ([productId, userId]) => {
-        const result = (await window.api.purchases.create({
-          supplierId: null,
-          userId,
-          items: [{ productId, quantity: 5, unitCost: 40_000, subtotal: 200_000 }],
-          total: 200_000,
-          notes: 'e2e PO'
-        })) as { id: number }
-        return result
-      }, [product.id, admin.id] as const)
+      const order = await ipc(
+        window,
+        async ([productId, userId]) => {
+          const result = (await window.api.purchases.create({
+            supplierId: null,
+            userId,
+            items: [{ productId, quantity: 5, unitCost: 40_000, subtotal: 200_000 }],
+            total: 200_000,
+            notes: 'e2e PO'
+          })) as { id: number }
+          return result
+        },
+        [product.id, admin.id] as const
+      )
 
       const login = new LoginPage(window)
       await login.logout()
       await login.loginAs('Supervisor One', '222222')
 
       // Supervisor receives the order.
-      await ipc(window, async (id) => {
-        await window.api.purchases.receive(id)
-      }, order.id)
+      await ipc(
+        window,
+        async (id) => {
+          await window.api.purchases.receive(id)
+        },
+        order.id
+      )
 
       // Read back the audit rows for this product. The most recent ones
       // are the reception's rows.
-      const movements = await ipc(window, async (productId) => {
-        const today = new Date().toISOString().slice(0, 10)
-        const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
-        const rows = await window.api.reports.stockMovements(today, tomorrow, productId)
-        return rows as StockAdjustmentRow[]
-      }, product.id)
+      const movements = await ipc(
+        window,
+        async (productId) => {
+          const today = new Date().toISOString().slice(0, 10)
+          const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+          const rows = await window.api.reports.stockMovements(today, tomorrow, productId)
+          return rows as StockAdjustmentRow[]
+        },
+        product.id
+      )
 
       const receptionRow = movements.find((m) =>
         m.reason?.includes(`Recepción compra #${order.id}`)
       )
-      expect(receptionRow, `Stock adjustment row for reception #${order.id} not found`).toBeDefined()
+      expect(
+        receptionRow,
+        `Stock adjustment row for reception #${order.id} not found`
+      ).toBeDefined()
       expect(receptionRow!.user_id, 'audit must attribute to the receiver, not the creator').toBe(
         supervisor.id
       )
@@ -106,19 +114,27 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
         priceType: 'kg'
       })
 
-      const order = await ipc(window, async ([productId, userId]) => {
-        return (await window.api.purchases.create({
-          supplierId: null,
-          userId,
-          items: [{ productId, quantity: 3, unitCost: 30_000, subtotal: 90_000 }],
-          total: 90_000
-        })) as { id: number }
-      }, [product.id, admin.id] as const)
+      const order = await ipc(
+        window,
+        async ([productId, userId]) => {
+          return (await window.api.purchases.create({
+            supplierId: null,
+            userId,
+            items: [{ productId, quantity: 3, unitCost: 30_000, subtotal: 90_000 }],
+            total: 90_000
+          })) as { id: number }
+        },
+        [product.id, admin.id] as const
+      )
 
       // Admin deactivates the supervisor BEFORE login.
-      await ipc(window, async (supId) => {
-        await window.api.users.update(supId, { active: false })
-      }, supervisor.id)
+      await ipc(
+        window,
+        async (supId) => {
+          await window.api.users.update(supId, { active: false })
+        },
+        supervisor.id
+      )
 
       const login = new LoginPage(window)
       await login.logout()
@@ -130,14 +146,18 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
 
       // Sanity: admin (still active) can receive successfully.
       await login.loginAs(SEED_ADMIN.name, SEED_ADMIN.pin)
-      const ok = await ipc(window, async (id) => {
-        try {
-          await window.api.purchases.receive(id)
-          return true
-        } catch {
-          return false
-        }
-      }, order.id)
+      const ok = await ipc(
+        window,
+        async (id) => {
+          try {
+            await window.api.purchases.receive(id)
+            return true
+          } catch {
+            return false
+          }
+        },
+        order.id
+      )
       expect(ok).toBe(true)
       void admin
     } finally {
@@ -164,20 +184,16 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
           return (await window.api.purchases.create({
             supplierId: null,
             userId,
-            items: [
-              { productId, quantity: 1, unitCost: 5_000, subtotal: 5_000 }
-            ],
+            items: [{ productId, quantity: 1, unitCost: 5_000, subtotal: 5_000 }],
             total: 5_000
           })) as { id: number }
         },
         [product.id, admin.id] as const
       )
 
-      const cancelled = (await ipc(
-        window,
-        (id) => window.api.purchases.cancel(id),
-        order.id
-      )) as { status: string }
+      const cancelled = (await ipc(window, (id) => window.api.purchases.cancel(id), order.id)) as {
+        status: string
+      }
       expect(cancelled.status).toBe('cancelled')
     } finally {
       await cleanup()
@@ -209,13 +225,10 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
   // -----------------
   // purchase-10-5 (P3) — same product twice
   // -----------------
-  test.fixme(
-    'purchase-10-5 — adding the same product twice to a PO is prevented (renderer-level guard)',
-    async () => {
-      // The renderer's NuevaCompraPage prevents adding the same product twice
-      // via a state check on the items list. There is no IPC-level invariant
-      // to assert (the create handler accepts duplicates) — this test needs
-      // a NuevaCompraPage POM to drive the form. Leaves as fixme.
-    }
-  )
+  test.fixme('purchase-10-5 — adding the same product twice to a PO is prevented (renderer-level guard)', async () => {
+    // The renderer's NuevaCompraPage prevents adding the same product twice
+    // via a state check on the items list. There is no IPC-level invariant
+    // to assert (the create handler accepts duplicates) — this test needs
+    // a NuevaCompraPage POM to drive the form. Leaves as fixme.
+  })
 })

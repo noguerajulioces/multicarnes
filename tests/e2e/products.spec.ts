@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
-import {
-  loginAsSeedAdmin,
-  createUserViaIpc,
-  createProductViaIpc
-} from './helpers/seed'
+import { loginAsSeedAdmin, createUserViaIpc, createProductViaIpc } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 
 interface ProductFull {
@@ -125,12 +121,7 @@ test.describe('Products', () => {
         window,
         async ([id, userId]) => {
           try {
-            await window.api.products.adjustStock(
-              id as number,
-              999,
-              'Sneaky',
-              userId as number
-            )
+            await window.api.products.adjustStock(id as number, 999, 'Sneaky', userId as number)
             return { ok: true }
           } catch (err) {
             return { ok: false, message: err instanceof Error ? err.message : String(err) }

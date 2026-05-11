@@ -138,7 +138,12 @@ export default function VentasListadoPage() {
 
   const handleExportPDF = async (): Promise<void> => {
     const all = await fetchAllForExport()
-    exportToPDF(prepareExport(all), exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
+    exportToPDF(
+      prepareExport(all),
+      exportColumns,
+      `ventas_${from}_${to}`,
+      `Ventas (${from} a ${to})`
+    )
   }
 
   const hasData = data.length > 0
@@ -301,12 +306,7 @@ export default function VentasListadoPage() {
               </tfoot>
             </table>
           </div>
-          <Pagination
-            page={page}
-            perPage={PER_PAGE}
-            total={total}
-            onPageChange={onPageChange}
-          />
+          <Pagination page={page} perPage={PER_PAGE} total={total} onPageChange={onPageChange} />
         </Card>
       )}
 

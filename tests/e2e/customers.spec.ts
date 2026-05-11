@@ -84,9 +84,7 @@ test.describe('Customers', () => {
             registerId: a.registerId,
             userId: a.userId,
             customerId: a.customerId,
-            items: [
-              { productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }
-            ],
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 10_000, subtotal: 10_000 }],
             subtotal: 10_000,
             discount: 0,
             total: 10_000,
@@ -102,11 +100,10 @@ test.describe('Customers', () => {
         }
       )
 
-      const result = (await ipc(
-        window,
-        (id) => window.api.customers.delete(id),
-        customer.id
-      )) as { ok: boolean; error?: string }
+      const result = (await ipc(window, (id) => window.api.customers.delete(id), customer.id)) as {
+        ok: boolean
+        error?: string
+      }
       expect(result.ok, 'delete must be rejected when customer has sales').toBe(false)
     } finally {
       await cleanup()
@@ -135,9 +132,7 @@ test.describe('Customers', () => {
             registerId: a.registerId,
             userId: a.userId,
             customerId: a.customerId,
-            items: [
-              { productId: a.productId, quantity: 1, unitPrice: 100_000, subtotal: 100_000 }
-            ],
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 100_000, subtotal: 100_000 }],
             subtotal: 100_000,
             discount: 0,
             total: 100_000,
@@ -201,9 +196,7 @@ test.describe('Customers', () => {
             registerId: a.registerId,
             userId: a.userId,
             customerId: a.customerId,
-            items: [
-              { productId: a.productId, quantity: 1, unitPrice: 50_000, subtotal: 50_000 }
-            ],
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 50_000, subtotal: 50_000 }],
             subtotal: 50_000,
             discount: 0,
             total: 50_000,

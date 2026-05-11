@@ -3,7 +3,6 @@ import { launchApp, ipc } from './helpers/electron'
 import { loginAsSeedAdmin, createUserViaIpc, SEED_ADMIN } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 
-
 /**
  * Black-box checks of the IPC authorization guard. Each test fires a single
  * privileged operation from a cashier session and asserts:
@@ -21,7 +20,10 @@ interface AuditEntry {
   resolved_user_id: number | null
 }
 
-async function listAuditEntries(window: import('@playwright/test').Page, operation: string): Promise<AuditEntry[]> {
+async function listAuditEntries(
+  window: import('@playwright/test').Page,
+  operation: string
+): Promise<AuditEntry[]> {
   return window.evaluate(async (op) => {
     const res = await window.api.auth.listAuditEntries({ operation: op })
     return (res?.entries ?? []) as AuditEntry[]
@@ -29,7 +31,6 @@ async function listAuditEntries(window: import('@playwright/test').Page, operati
 }
 
 test.describe('IPC authorization guard', () => {
-
   // -----------------
   // authz-2-1 — cashier cannot create a user (P1)
   // -----------------
@@ -63,7 +64,10 @@ test.describe('IPC authorization guard', () => {
 
       const audits = await listAuditEntries(window, 'users:create')
       const blocked = audits.find((a) => a.outcome === 'blocked-insufficient-role')
-      expect(blocked, 'a blocked-insufficient-role audit row must exist for users:create').toBeDefined()
+      expect(
+        blocked,
+        'a blocked-insufficient-role audit row must exist for users:create'
+      ).toBeDefined()
       void cashier
     } finally {
       await cleanup()

@@ -18,10 +18,7 @@ export function registerCustomersIpc(): string[] {
     'customers:update',
     getRule('customers:update'),
     (_e, _c, id: number, data: unknown) =>
-      customersQuery.updateCustomer(
-        id,
-        data as Parameters<typeof customersQuery.updateCustomer>[1]
-      )
+      customersQuery.updateCustomer(id, data as Parameters<typeof customersQuery.updateCustomer>[1])
   )
   registerAuthorized(
     'customers:addPayment',

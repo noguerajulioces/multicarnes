@@ -18,9 +18,9 @@ export class LoginPage {
 
   /** Asserts the recovery (first-admin) form is visible. */
   async assertOnRecoveryForm(): Promise<void> {
-    await expect(
-      this.page.getByText(/Configurar primer administrador/i)
-    ).toBeVisible({ timeout: 15_000 })
+    await expect(this.page.getByText(/Configurar primer administrador/i)).toBeVisible({
+      timeout: 15_000
+    })
   }
 
   /**
@@ -54,7 +54,10 @@ export class LoginPage {
     await expect(this.page.getByText(/Seleccione su usuario/i)).toBeVisible({
       timeout: 15_000
     })
-    await this.page.getByRole('button', { name: new RegExp(name, 'i') }).first().click()
+    await this.page
+      .getByRole('button', { name: new RegExp(name, 'i') })
+      .first()
+      .click()
   }
 
   /**

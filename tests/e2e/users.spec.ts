@@ -81,11 +81,7 @@ test.describe('Users management', () => {
         pin: '222222'
       })
 
-      await ipc(
-        window,
-        (id) => window.api.users.update(id, { active: false }),
-        cashier.id
-      )
+      await ipc(window, (id) => window.api.users.update(id, { active: false }), cashier.id)
 
       const active = (await ipc(window, () => window.api.users.getActive())) as UserRow[]
       expect(active.find((u) => u.id === cashier.id)).toBeUndefined()

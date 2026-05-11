@@ -3,7 +3,6 @@ import { launchApp, ipc } from './helpers/electron'
 import { loginAsSeedAdmin, createUserViaIpc } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 
-
 /**
  * Tests for US1 of feature 002 — held tickets are scoped per cashier.
  *
@@ -23,7 +22,6 @@ interface HeldTicketRow {
 }
 
 test.describe('Held tickets — per-cashier privacy (US1 of 002)', () => {
-
   test('held-3-1 / held-3-2 — cashier B sees zero of cashier A tickets; A sees them after re-login', async () => {
     const { window, cleanup } = await launchApp()
     try {
@@ -81,9 +79,7 @@ test.describe('Held tickets — per-cashier privacy (US1 of 002)', () => {
       await login.logout()
       await login.loginAs('Caja A', '222222')
 
-      const aListAfter = (await ipc(window, () =>
-        window.api.heldTickets.list()
-      )) as HeldTicketRow[]
+      const aListAfter = (await ipc(window, () => window.api.heldTickets.list())) as HeldTicketRow[]
       expect(aListAfter, 'Cashier A tickets must persist across logout').toHaveLength(2)
       const labels = aListAfter.map((t) => t.label).sort()
       expect(labels).toEqual(['Cliente Juan', 'Reposición'])
@@ -112,14 +108,18 @@ test.describe('Held tickets — per-cashier privacy (US1 of 002)', () => {
       await login.loginAs('Caja A', '222222')
 
       const ticketId = `attack-${Date.now()}`
-      await ipc(window, async (id) => {
-        await window.api.heldTickets.add({
-          id,
-          label: 'Attack target',
-          payload: '[]',
-          discount: 0
-        })
-      }, ticketId)
+      await ipc(
+        window,
+        async (id) => {
+          await window.api.heldTickets.add({
+            id,
+            label: 'Attack target',
+            payload: '[]',
+            discount: 0
+          })
+        },
+        ticketId
+      )
 
       await login.logout()
       await login.loginAs('Caja B', '333333')
@@ -144,7 +144,10 @@ test.describe('Held tickets — per-cashier privacy (US1 of 002)', () => {
       await login.logout()
       await login.loginAs('Caja A', '222222')
       const aList = (await ipc(window, () => window.api.heldTickets.list())) as HeldTicketRow[]
-      expect(aList.find((t) => t.id === ticketId), 'A ticket must remain after a failed cross-user remove').toBeTruthy()
+      expect(
+        aList.find((t) => t.id === ticketId),
+        'A ticket must remain after a failed cross-user remove'
+      ).toBeTruthy()
 
       // Touch the test that we're verifying the right invariants (these
       // variables are referenced in comments / assertions above; the linter

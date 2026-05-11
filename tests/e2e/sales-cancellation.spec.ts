@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { launchApp, ipc } from './helpers/electron'
+import { launchApp } from './helpers/electron'
 import {
   loginAsSeedAdmin,
   createUserViaIpc,
@@ -9,7 +9,6 @@ import {
 } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 import { VentaDetallePage } from './pom/VentaDetallePage'
-
 
 /**
  * Tests for US3 of feature 002 — mixed-payment cancellation.
@@ -48,7 +47,10 @@ async function createMixedSale(
   args: { userId: number; registerId: number; customerId: number; productId: number }
 ): Promise<{ id: number; total: number; customerId: number }> {
   return window.evaluate(async (a) => {
-    const product = (await window.api.products.getById(a.productId)) as { id: number; price: number }
+    const product = (await window.api.products.getById(a.productId)) as {
+      id: number
+      price: number
+    }
     const unitPrice = product.price
     const result = (await window.api.sales.create({
       registerId: a.registerId,
@@ -79,7 +81,6 @@ async function readCustomerBalance(
 }
 
 test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
-
   // -----------------
   // sales-cancel-5-1 (P1) — cancelling a pure-cash sale restocks and writes audit
   // -----------------
@@ -99,9 +100,7 @@ test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
           const result = (await window.api.sales.create({
             registerId: a.registerId,
             userId: a.userId,
-            items: [
-              { productId: a.productId, quantity: 2, unitPrice: 20_000, subtotal: 40_000 }
-            ],
+            items: [{ productId: a.productId, quantity: 2, unitPrice: 20_000, subtotal: 40_000 }],
             subtotal: 40_000,
             discount: 0,
             total: 40_000,
@@ -166,10 +165,9 @@ test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
       await detail.cancelMixed(true)
 
       const balanceAfter = await readCustomerBalance(window, customer.id)
-      expect(
-        balanceAfter,
-        'balance should return to zero after refunding the credit portion'
-      ).toBe(0)
+      expect(balanceAfter, 'balance should return to zero after refunding the credit portion').toBe(
+        0
+      )
 
       // The action_logs row exists; once a test-mode IPC for action_logs is
       // available the assertion below can be promoted from `documented` to
@@ -233,19 +231,22 @@ test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
 
       // Admin creates the sale (cashier on a closed register can't, but we
       // need a sale to exist for the test).
-      const sale = await window.evaluate(async (a) => {
-        const result = (await window.api.sales.create({
-          registerId: a.registerId,
-          userId: a.userId,
-          items: [{ productId: a.productId, quantity: 1, unitPrice: 30_000, subtotal: 30_000 }],
-          subtotal: 30_000,
-          discount: 0,
-          total: 30_000,
-          paymentMethod: 'cash',
-          payments: [{ method: 'cash', amount: 30_000 }]
-        })) as { id: number }
-        return result
-      }, { registerId: register.id, userId: admin.id, productId: product.id })
+      const sale = await window.evaluate(
+        async (a) => {
+          const result = (await window.api.sales.create({
+            registerId: a.registerId,
+            userId: a.userId,
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 30_000, subtotal: 30_000 }],
+            subtotal: 30_000,
+            discount: 0,
+            total: 30_000,
+            paymentMethod: 'cash',
+            payments: [{ method: 'cash', amount: 30_000 }]
+          })) as { id: number }
+          return result
+        },
+        { registerId: register.id, userId: admin.id, productId: product.id }
+      )
 
       const login = new LoginPage(window)
       await login.logout()

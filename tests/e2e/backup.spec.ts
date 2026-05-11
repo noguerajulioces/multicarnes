@@ -34,14 +34,11 @@ test.describe('Backup', () => {
   // -----------------
   // backup-13-2 (P2) — restore confirmation FIXME (native file dialog)
   // -----------------
-  test.fixme(
-    'backup-13-2 — restore confirmation gates the destructive action',
-    async () => {
-      // Restore goes through Electron's file picker dialog. Native dialogs
-      // are not drivable by Playwright; this stays as manual QA until a
-      // test-mode IPC that accepts a pre-chosen path is added.
-    }
-  )
+  test.fixme('backup-13-2 — restore confirmation gates the destructive action', async () => {
+    // Restore goes through Electron's file picker dialog. Native dialogs
+    // are not drivable by Playwright; this stays as manual QA until a
+    // test-mode IPC that accepts a pre-chosen path is added.
+  })
 
   // -----------------
   // backup-13-3 (P3) — cashier blocked from backup channels
