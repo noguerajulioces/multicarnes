@@ -100,11 +100,20 @@ export class LoginPage {
   /**
    * Click "Cerrar sesión" from anywhere in the app and wait for the login
    * screen to reappear.
+   *
+   * The sidebar's logout handler triggers a synchronous zustand reset plus a
+   * hash navigation (`#/login`). On Windows CI the HashRouter remount + the
+   * LoginPage useEffect IPC fan-out (users.getActive, auth.recoveryNeeded,
+   * settings.getAll) can take several seconds when the suite has been
+   * running for a while. We first wait for the URL to settle on /login,
+   * then for the user-selection header — both with the same 20 s ceiling
+   * the playwright.config.ts comment warns about.
    */
   async logout(): Promise<void> {
     await this.page.getByRole('button', { name: /Cerrar sesión/i }).click()
+    await this.page.waitForURL(/#\/login$/, { timeout: 20_000 })
     await expect(this.page.getByText(/Seleccione su usuario/i)).toBeVisible({
-      timeout: 10_000
+      timeout: 20_000
     })
   }
 }
