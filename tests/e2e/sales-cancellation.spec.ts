@@ -5,7 +5,8 @@ import {
   createUserViaIpc,
   createProductViaIpc,
   createCustomerViaIpc,
-  openCashRegisterViaIpc
+  openCashRegisterViaIpc,
+  closeCashRegisterViaIpc
 } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 import { VentaDetallePage } from './pom/VentaDetallePage'
@@ -247,6 +248,10 @@ test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
         },
         { registerId: register.id, userId: admin.id, productId: product.id }
       )
+
+      // 004-logout-cash-close: an open register on the signed-in user blocks
+      // the logout flow with a modal. Close admin's register before switching.
+      await closeCashRegisterViaIpc(window, register.id, 30_000, admin.id)
 
       const login = new LoginPage(window)
       await login.logout()

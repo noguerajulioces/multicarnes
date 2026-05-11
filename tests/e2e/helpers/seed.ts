@@ -127,3 +127,23 @@ export async function openCashRegisterViaIpc(
     [userId, openingAmount]
   )
 }
+
+/**
+ * Closes a cash register via IPC. Needed in tests that open a register and
+ * then log the same user out — feature 004-logout-cash-close blocks the
+ * logout flow with a modal while the signed-in user still owns an open
+ * register, so the register must be closed first.
+ */
+export async function closeCashRegisterViaIpc(
+  window: Page,
+  registerId: number,
+  closingAmount: number,
+  userId: number
+): Promise<void> {
+  await window.evaluate(
+    async ([id, amount, uid]) => {
+      await window.api.cash.close(id as number, amount as number, '', uid as number)
+    },
+    [registerId, closingAmount, userId]
+  )
+}
