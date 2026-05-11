@@ -177,11 +177,28 @@ test.describe('Reports', () => {
   })
 
   // -----------------
-  // report-11-4 (P3) — export Excel save dialog is too fragile to assert
+  // report-11-4 (P3) — Excel export
   // -----------------
-  test.fixme('report-11-4 — export to Excel triggers a save dialog (fragile, native dialog)', async () => {
-    // Excel export uses xlsx in the renderer (Principle V.b) and ends with
-    // either a Blob download or a native save dialog. Native dialogs aren't
-    // drivable by Playwright; this stays as manual QA.
-  })
+  test.fixme(
+    'report-11-4 — Excel export triggers a file download (xlsx.writeFile in renderer)',
+    async () => {
+      // xlsx.writeFile in Electron's renderer process detects
+      // process.versions.node and writes to disk via Node `fs` instead of
+      // emitting a Chromium download. Playwright's page.waitForEvent('download')
+      // therefore never fires — it only sees Chromium-mediated downloads.
+      //
+      // Options to land this test eventually:
+      //   - Replace XLSX.writeFile in the renderer with a Blob + anchor.click
+      //     fallback when running under e2e (gated by a build-time env var) so
+      //     the Chromium download path is exercised.
+      //   - Move the export to a main-process IPC and assert on the file the
+      //     handler writes (requires moving xlsx out of the renderer, which
+      //     conflicts with Principle V.b).
+      //   - Spy on window.api.* / xlsx via page.evaluate to verify the call
+      //     happened — weakest assertion, mock-y.
+      //
+      // None of these is worth doing for a P3 today. Manual QA covers the
+      // export.
+    }
+  )
 })
