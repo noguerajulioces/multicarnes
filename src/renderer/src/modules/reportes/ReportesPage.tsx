@@ -975,43 +975,42 @@ export default function ReportesPage() {
                     difference: number
                   }[]
                 ).map((r, i) => {
-                  const isHighlighted =
-                    highlightRegisterId != null && r.id === highlightRegisterId
+                  const isHighlighted = highlightRegisterId != null && r.id === highlightRegisterId
                   return (
-                  <tr
-                    key={r.id ?? i}
-                    id={r.id ? `register-row-${r.id}` : undefined}
-                    className={cn(
-                      trCls,
-                      isHighlighted && 'bg-brand-light/30 ring-2 ring-brand/40'
-                    )}
-                  >
-                    <td className={`${tdCls} text-text-muted tabular-nums`}>
-                      {formatDateTime(r.opened_at)}
-                    </td>
-                    <td className={`${tdCls} text-text-muted tabular-nums`}>
-                      {formatDateTime(r.closed_at)}
-                    </td>
-                    <td className={`${tdCls} font-medium`}>{r.user_name}</td>
-                    <td className={`${tdCls} text-right tabular-nums`}>
-                      {formatGs(r.expected_amount)}
-                    </td>
-                    <td className={`${tdCls} text-right tabular-nums`}>
-                      {formatGs(r.closing_amount)}
-                    </td>
-                    <td
-                      className={`${tdCls} text-right font-medium tabular-nums ${
-                        r.difference < 0
-                          ? 'text-danger-700'
-                          : r.difference > 0
-                            ? 'text-success-700'
-                            : ''
-                      }`}
+                    <tr
+                      key={r.id ?? i}
+                      id={r.id ? `register-row-${r.id}` : undefined}
+                      className={cn(
+                        trCls,
+                        isHighlighted && 'bg-brand-light/30 ring-2 ring-brand/40'
+                      )}
                     >
-                      {r.difference >= 0 ? '+' : ''}
-                      {formatGs(r.difference)}
-                    </td>
-                  </tr>
+                      <td className={`${tdCls} text-text-muted tabular-nums`}>
+                        {formatDateTime(r.opened_at)}
+                      </td>
+                      <td className={`${tdCls} text-text-muted tabular-nums`}>
+                        {formatDateTime(r.closed_at)}
+                      </td>
+                      <td className={`${tdCls} font-medium`}>{r.user_name}</td>
+                      <td className={`${tdCls} text-right tabular-nums`}>
+                        {formatGs(r.expected_amount)}
+                      </td>
+                      <td className={`${tdCls} text-right tabular-nums`}>
+                        {formatGs(r.closing_amount)}
+                      </td>
+                      <td
+                        className={`${tdCls} text-right font-medium tabular-nums ${
+                          r.difference < 0
+                            ? 'text-danger-700'
+                            : r.difference > 0
+                              ? 'text-success-700'
+                              : ''
+                        }`}
+                      >
+                        {r.difference >= 0 ? '+' : ''}
+                        {formatGs(r.difference)}
+                      </td>
+                    </tr>
                   )
                 })}
               </tbody>
