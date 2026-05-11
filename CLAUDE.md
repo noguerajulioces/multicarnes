@@ -1,14 +1,21 @@
 <!-- SPECKIT START -->
-Active feature: **002-review-fixes** — three correctness fixes surfaced
-by the round-2 code review (held tickets per-cashier, purchase reception
-audit attribution, mixed-payment cancellation UX) plus two medium-severity
-fold-ins (cancelPurchaseOrder transaction, recovery-mode atomicity).
+Active feature: **003-cash-movements-history** — new "Movimientos de Caja"
+page with server-side pagination, role-aware filters, append-only voiding,
+and Excel export. Backed by an additive `cash_movements` migration (v7)
+that broadens the `type` CHECK and adds a `void_of` linkage, plus a one-time
+backfill of synthetic opening/closing rows from existing `cash_registers`.
 
-Plan: [specs/002-review-fixes/plan.md](specs/002-review-fixes/plan.md).
-Spec: [specs/002-review-fixes/spec.md](specs/002-review-fixes/spec.md).
+Plan: [specs/003-cash-movements-history/plan.md](specs/003-cash-movements-history/plan.md).
+Spec: [specs/003-cash-movements-history/spec.md](specs/003-cash-movements-history/spec.md).
 
-Prior feature (landed): **001-ipc-authorization** — server-side authorization
-for privileged operations (US1–US5 + Round-2 gap-analysis P2/P3/P5/P6/P7/P8/P9
+Prior feature (landed): **002-review-fixes** — three correctness fixes
+surfaced by the round-2 code review (held tickets per-cashier, purchase
+reception audit attribution, mixed-payment cancellation UX) plus two
+medium-severity fold-ins (cancelPurchaseOrder transaction, recovery-mode
+atomicity). Reference: [specs/002-review-fixes/](specs/002-review-fixes/).
+
+Earlier feature (landed): **001-ipc-authorization** — server-side
+authorization for privileged operations (US1–US5 + Round-2 P2/P3/P5/P6/P7/P8/P9
 cleanups). All implementation tasks landed; manual quickstart Tests 1–9 are
 deferred until QA can run them against a live build.
 Reference: [specs/001-ipc-authorization/](specs/001-ipc-authorization/).

@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { CashMovementListOpts } from '../shared/types'
 
 const api = {
   // Users
@@ -78,6 +79,11 @@ const api = {
     getMovements: (registerId: number) => ipcRenderer.invoke('cash:getMovements', registerId),
     getSummary: (registerId: number) => ipcRenderer.invoke('cash:getSummary', registerId),
     getAll: () => ipcRenderer.invoke('cash:getAll')
+  },
+  // Cash movements history (003-cash-movements-history)
+  cashMovements: {
+    list: (opts: CashMovementListOpts) => ipcRenderer.invoke('cashMovements:list', opts),
+    void: (originalId: number) => ipcRenderer.invoke('cashMovements:void', originalId)
   },
   // Purchases & Suppliers
   suppliers: {

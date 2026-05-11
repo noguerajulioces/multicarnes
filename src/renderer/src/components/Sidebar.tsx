@@ -15,6 +15,7 @@ import {
   UserCheck,
   Building2,
   HardDrive,
+  History,
   ChevronLeft,
   ChevronRight,
   type LucideIcon
@@ -56,7 +57,15 @@ const navSections: NavSection[] = [
         icon: Receipt,
         roles: ['admin', 'supervisor', 'cajero']
       },
-      { to: '/caja', label: 'Caja', icon: DollarSign, roles: ['admin', 'supervisor', 'cajero'] }
+      { to: '/caja', label: 'Caja', icon: DollarSign, roles: ['admin', 'supervisor', 'cajero'] },
+      {
+        to: '/movimientos-caja',
+        label: 'Mov. de Caja',
+        icon: History,
+        // 003-cash-movements-history US2 (T025): cashier sees only their own
+        // movements (scoping enforced server-side in listMovements).
+        roles: ['admin', 'supervisor', 'cajero']
+      }
     ]
   },
   {

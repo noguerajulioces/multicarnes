@@ -9,6 +9,7 @@ import { registerProductsIpc } from './ipc/products.ipc'
 import { registerSalesIpc } from './ipc/sales.ipc'
 import { registerCustomersIpc } from './ipc/customers.ipc'
 import { registerCashIpc } from './ipc/cash.ipc'
+import { registerCashMovementsIpc } from './ipc/cash-movements.ipc'
 import { registerPurchasesIpc } from './ipc/purchases.ipc'
 import { registerReportsIpc } from './ipc/reports.ipc'
 import { registerBackupIpc } from './ipc/backup.ipc'
@@ -192,6 +193,7 @@ app.whenReady().then(() => {
   registerSalesIpc()
   registerCustomersIpc()
   registerCashIpc()
+  registerCashMovementsIpc()
   registerPurchasesIpc()
   registerReportsIpc()
   registerBackupIpc()

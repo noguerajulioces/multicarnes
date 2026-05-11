@@ -4,6 +4,7 @@ export type PaymentMethod = 'cash' | 'credit' | 'transfer' | 'mixed'
 export type SaleStatus = 'completed' | 'cancelled'
 export type OrderStatus = 'pending' | 'received' | 'cancelled'
 export type MovementType = 'income' | 'expense'
+export type CashMovementType = 'income' | 'expense' | 'opening' | 'closing' | 'void'
 
 export interface User {
   id: number
@@ -94,6 +95,41 @@ export interface CashMovement {
   amount: number
   description: string
   created_at: string
+}
+
+// 003-cash-movements-history: timeline row with apertura/cierre/void as
+// first-class types and the void linkage computed at read time.
+export interface CashMovementRow {
+  id: number
+  registerId: number
+  userId: number
+  userName: string
+  type: CashMovementType
+  amount: number
+  description: string
+  createdAt: string
+  isVoided: boolean
+  voidedBy: number | null
+  voidOf: number | null
+  registerStatus: 'open' | 'closed'
+}
+
+export interface CashMovementListOpts {
+  from?: string
+  to?: string
+  types?: CashMovementType[]
+  userId?: number
+  registerId?: number
+  search?: string
+  page?: number
+  perPage?: number
+}
+
+export interface CashMovementListResult {
+  items: CashMovementRow[]
+  total: number
+  page: number
+  perPage: number
 }
 
 export interface Sale {

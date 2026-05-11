@@ -17,7 +17,10 @@ import type {
   ProductSalesStats,
   ProductLastPurchase,
   Paginated,
-  PageOpts
+  PageOpts,
+  CashMovementListOpts,
+  CashMovementListResult,
+  CashMovementRow
 } from '../shared/types'
 
 interface ApiUsers {
@@ -122,6 +125,11 @@ interface ApiCash {
   getMovements(registerId: number): Promise<CashMovement[]>
   getSummary(registerId: number): Promise<unknown>
   getAll(): Promise<CashRegister[]>
+}
+
+interface ApiCashMovements {
+  list(opts: CashMovementListOpts): Promise<CashMovementListResult>
+  void(originalId: number): Promise<CashMovementRow>
 }
 
 interface ApiSuppliers {
@@ -274,6 +282,7 @@ declare global {
       sales: ApiSales
       customers: ApiCustomers
       cash: ApiCash
+      cashMovements: ApiCashMovements
       suppliers: ApiSuppliers
       purchases: ApiPurchases
       reports: ApiReports

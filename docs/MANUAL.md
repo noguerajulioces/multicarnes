@@ -259,6 +259,79 @@ Mientras la caja está abierta, la pantalla muestra en vivo:
   de la base de datos.
 - Si hay productos con stock bajo, aparece una **notificación del sistema**.
 
+### 6.4 Historial de Movimientos de Caja
+
+**Quién puede:** todos los roles. Los cajeros ven **solo sus propios
+movimientos**; admin y supervisor ven todo.
+
+#### Cómo llegar
+
+- Menú lateral → **Mov. de Caja**.
+
+#### Qué muestra
+
+Una tabla con cada movimiento de caja a lo largo del tiempo, no solo los
+de la caja abierta. Cada fila puede ser:
+
+- **Apertura** (azul) — monto con el que se abrió esa caja.
+- **Ingreso** (verde) — ingreso manual registrado durante la operación.
+- **Egreso** (naranja) — gasto manual.
+- **Cierre** (azul) — monto contado al cerrar.
+- **Anulación** (gris) — fila inversa creada cuando se anula un ingreso o
+  egreso (ver más abajo).
+
+> 📌 Las **ventas en efectivo no aparecen acá**. Para esas usá el
+> **Historial de ventas** (sección 8).
+
+#### Filtros
+
+- **Desde / Hasta** — rango de fechas (por defecto, hoy).
+- **Cajero** — admin/supervisor pueden filtrar por cajero; el cajero queda
+  fijo en su propio nombre.
+- **Caja** — filtrar por una sesión específica de caja (apertura/cierre).
+- **Tipo** — multi-selección de ingreso / egreso / apertura / cierre / anulación.
+- **Buscar en descripción** — texto libre, no distingue mayúsculas.
+- **Por página** — 10, 25, 50 o 100 filas.
+
+> 📌 Cualquier cambio de filtro vuelve la lista a la página 1.
+
+#### Saltar al cierre original
+
+Hacé clic en el número de **Caja** (`#42` por ejemplo) en cualquier fila para
+ir directo al detalle del cierre en **Reportes → Cierres Caja**. Si la caja
+todavía está abierta, te lleva a la página **Caja** en su lugar.
+
+#### Anular un movimiento (admin/supervisor)
+
+Si un cajero registró un ingreso o egreso por error, podés anularlo:
+
+1. Encontrá la fila en la lista.
+2. Hacé clic en **Anular** (columna Acciones).
+3. Confirmá.
+
+Resultado:
+
+- El movimiento original **no se borra** — queda marcado como **Anulado**
+  (monto tachado + badge gris).
+- Se crea un movimiento nuevo de tipo **Anulación** con el mismo monto, y la
+  descripción prefijada `[ANULACIÓN]`.
+- El balance de la caja se corrige automáticamente.
+
+> ⚠️ **Aperturas y cierres no se anulan desde acá** — son montos del sistema.
+> Si hay un error en el cierre, tenés que corregirlo desde Reportes.
+> Tampoco se puede "anular una anulación".
+
+#### Exportar a Excel
+
+El botón **Excel** (arriba a la derecha) descarga un `.xlsx` con **todas las
+filas que coinciden con los filtros actuales**, no solo la página visible.
+
+- Nombre del archivo: `movimientos-caja_DESDE_HASTA.xlsx`.
+- Si el rango filtrado tiene más de 10.000 filas, el sistema te avisa antes
+  de generar el archivo y te ofrece estrechar las fechas.
+
+[Screenshot: página "Mov. de Caja" con filtros y tabla cargada]
+
 ---
 
 ## 7. Ventas (POS)

@@ -8,6 +8,7 @@ import CierreCajaPage from './modules/caja/CierreCajaPage'
 import PosScreen from './modules/ventas/PosScreen'
 import VentasListadoPage from './modules/ventas-listado/VentasListadoPage'
 import VentaDetallePage from './modules/ventas-listado/VentaDetallePage'
+import MovimientosCajaPage from './modules/movimientos-caja/MovimientosCajaPage'
 import ProductosPage from './modules/productos/ProductosPage'
 import ProductoFormPage from './modules/productos/ProductoFormPage'
 import ProductoDetallePage from './modules/productos/ProductoDetallePage'
@@ -34,6 +35,7 @@ export default function AppRouter() {
           <Route path="/ventas" element={<VentasListadoPage />} />
           <Route path="/ventas/:id" element={<VentaDetallePage />} />
           <Route path="/caja" element={<CajaPage />} />
+          <Route path="/movimientos-caja" element={<MovimientosCajaPage />} />
           <Route path="/caja/apertura" element={<AperturaCajaPage />} />
           <Route path="/caja/cierre" element={<CierreCajaPage />} />
           <Route path="/productos" element={<ProductosPage />} />

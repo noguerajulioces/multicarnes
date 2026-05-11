@@ -125,7 +125,13 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   'held:list': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'held:add': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'held:remove': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
-  'held:clear': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] }
+  'held:clear': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+
+  // Cash movements history (003-cash-movements-history). Cashier scoping for
+  // :list is enforced inside the handler/query (FR-015, FR-017); the matrix
+  // lets all three roles through. Void is admin/supervisor only (FR-018).
+  'cashMovements:list': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+  'cashMovements:void': { kind: 'privileged', roles: ['admin', 'supervisor'] }
 }
 
 export function getRule(channel: string): AuthRule {
