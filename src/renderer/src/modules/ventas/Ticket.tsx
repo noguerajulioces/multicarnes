@@ -5,22 +5,14 @@ interface TicketProps {
   ticket: RenderedTicket
 }
 
-// Approximate rendered widths for paper sizes at typical thermal DPI.
-// These match what ESC/POS thermal printers actually output.
-const PAPER_PX: Record<number, number> = {
-  58: 220,
-  80: 320
-}
-
 export const Ticket = forwardRef<HTMLDivElement, TicketProps>(function Ticket({ ticket }, ref) {
-  const widthPx = PAPER_PX[ticket.width] ?? 320
-
   return (
     <div
       ref={ref}
       className="ticket-preview bg-white text-black mx-auto shadow-lg border border-border"
       style={{
-        width: `${widthPx}px`,
+        width: `${ticket.cols}ch`,
+        boxSizing: 'content-box',
         padding: '16px 12px',
         fontFamily: '"Courier New", "Courier", ui-monospace, monospace',
         fontSize: '12px',

@@ -1,0 +1,458 @@
+---
+description: "Task list for 001-ipc-authorization (server-side authorization for privileged operations)"
+---
+
+# Tasks: Server-side Authorization for Privileged Operations
+
+**Input**: Design documents from `/specs/001-ipc-authorization/`
+**Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/), [quickstart.md](quickstart.md)
+
+**Tests**: Per [research.md](research.md#r9-testing-posture) (R9), this feature ships **without** new test infrastructure. Validation is via the startup self-test (T010) and manual quickstart runs (one verification task per user story phase, plus polish-phase verification of the cross-cutting tests). No `tests/contract/`, `tests/integration/`, or `tests/unit/` tasks are generated.
+
+**Organization**: Tasks are grouped by user story so each can be implemented and demoed independently. US1 and US2 are both P1 — US1 is the MVP increment per the skill's default; US2 immediately follows and is co-equal in priority.
+
+## Format: `[ID] [P?] [Story?] Description`
+
+- **[P]**: Can run in parallel — different files, no dependency on incomplete tasks.
+- **[Story]**: Maps the task to a user story (US1, US2, US3, US4, US5).
+- File paths are exact; every task names the file it touches.
+
+## Path Conventions
+
+This is an Electron desktop app with the existing layout:
+
+- Main process code: `src/main/**`
+- Preload bridge: `src/preload/**`
+- Renderer: `src/renderer/src/**`
+- Shared types: `src/shared/**`
+- Database: SQLite file at `app.getPath('userData')/pos.db`; schema in `src/main/db/schema.ts`; migrations in `src/main/db/index.ts`; queries in `src/main/db/queries/**`
+
+---
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Create the directory and shared types the rest of the feature builds on.
+
+- [x] T001 Create the new module directory `src/main/auth/` (will contain `matrix.ts`, `session.ts`, `guard.ts`, `audit.ts`, `alerts.ts`, `self-test.ts`).
+- [x] T002 [P] Create `src/shared/auth-types.ts` with the shared types: `Role`, `AuthOutcome`, `AuthRule`, `AuthAuditEntry`, `AuthAuditFilters`, `AuthAlert`, `AuthMatrixSummaryEntry`, `AuthErrorEnvelope`.
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: Schema, repository, session map, matrix skeleton, guard helper, error wiring. **No user story can begin until this phase is complete** — every guarded handler in US1–US5 depends on `registerAuthorized()` and the matrix being in place.
+
+**⚠️ CRITICAL**: All of T003–T015 must complete before Phase 3.
+
+- [x] T003 Added `auth_audit`, `auth_alert_acks`, `idx_auth_audit_user_time_outcome` to `src/main/db/schema.ts` `createTables()`.
+- [x] T004 Appended `MIGRATIONS[]` entry version 5 (`create_auth_audit_tables`) in `src/main/db/index.ts` — uses `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`, runs in the existing transaction-per-migration wrapper.
+- [x] T004b Added `runMaintenance(db)` invoked from `initDatabase()` after `runMigrations()`. Runs the 90-day retention DELETE every boot.
+- [x] T005 Created `src/main/db/queries/auth.ts` with `insertAudit`, `listAudit`, `detectAndPersistAlertWindows`, `acknowledgeAlert`. The CTE-based detection upserts ack rows in one pass.
+- [x] T006 Created `src/main/auth/session.ts` with `recordLogin`, `clearBySender`, `clearByUser`, `getBySender`, plus `installSessionListeners()` for `web-contents-created`/`destroyed` cleanup.
+- [x] T007 Created `src/main/auth/matrix.ts` with the full `AUTH_MATRIX` populated for US1–US5 + the round-2 held-tickets channels, `getRule(channel)`, and `matrixSummary()`. (Populating early avoids self-test failures during foundational rollout — handlers are still gated incrementally.)
+- [x] T008 Created `src/main/auth/audit.ts` exporting `recordDecision()`. Errors are swallowed with `console.error` so audit-write failure cannot block the call's outcome.
+- [x] T009 Created `src/main/auth/guard.ts` exporting `registerAuthorized()`, `AuthError`, `listRegisteredChannels()`. Evaluates `public`, `privileged`, `self-only`, `self-or-roles`, plus the `recoveryOnly` modifier.
+- [x] T010 Created `src/main/auth/self-test.ts` exporting `assertMatrixCoverage()`.
+- [x] T011 `src/main/index.ts` now calls `refreshRecoveryMode()`, `installSessionListeners()`, registers IPC, then `assertMatrixCoverage(listRegisteredChannels())` and `app.exit(1)` on failure.
+- [x] T012 Created `src/renderer/src/lib/api-error.ts` with `isAuthError` + `handleApiError` (uniform toast).
+- [x] T013 `settings:getAll` in `backup.ipc.ts` now filters by `PUBLIC_SETTING_KEYS`.
+- [x] T014 `users:login` handler calls `recordLogin(event.sender.id, user.id)` on bcrypt success.
+- [x] T015 `users:logout` registered as `public`; clears session for `event.sender.id`.
+
+**Checkpoint**: Foundation is in place. The matrix is empty (so the boot self-test will fail until at least one channel has an entry — this is expected and forces the team to populate the matrix as each story lands). All user-story phases below can proceed once T015 is done.
+
+---
+
+## Phase 3: User Story 1 — Cashier cannot escalate to administrative actions (Priority: P1) 🎯 MVP
+
+**Goal**: A cashier directly invoking any user-management, backup, or global-settings operation is rejected server-side, regardless of UI gating. Unauthorized attempts produce an audit row.
+
+**Independent Test**: Run [quickstart.md](quickstart.md) Test 1 — log in as `caja1`, invoke `window.api.users.create`, `window.api.backup.restore`, `window.api.settings.set`, and `window.api.users.update(otherUserId, ...)` from dev tools. Each must reject; no DB state may change; an `auth_audit` row must exist for each attempt.
+
+### Implementation for User Story 1
+
+- [x] T016 [US1] Populated `AUTH_MATRIX` entries for the US1 channels (and all other phases) in `src/main/auth/matrix.ts`. `users:create` carries the `recoveryOnly: true` modifier; `users:getById` and `users:update` use `self-or-roles` with `selfArgIndex: 0`.
+- [x] T017 [US1] `src/main/ipc/users.ipc.ts` converted to `registerAuthorized`. `registerUsersIpc()` returns its channel list slice from `listRegisteredChannels`.
+- [x] T018 [US1] `src/main/ipc/backup.ipc.ts` converted to `registerAuthorized`. `registerBackupIpc()` returns its channel list slice. `settings:getAll` filters to `PUBLIC_SETTING_KEYS`.
+- [x] T019 [US1] Field-level enforcement implemented in the `users:update` handler in `src/main/ipc/users.ipc.ts`: when `ctx.userId === id` AND `ctx.role !== 'admin'`, payloads that touch `role`/`active`/`name` are rejected with a clear validation error (not an `AuthError`).
+- [x] T020 [US1] Renderer `.catch(handleApiError)` wired into `UsuariosPage.tsx` (handleSave), `BackupPage.tsx` (saveSetting / handleBackup / handleRestore / handleSelectFolder), and `ConfiguracionPage.tsx` (saveSetting). `PerfilPage.tsx` already has its own try/catch with inline error display — Error.message from the field-level enforcement renders correctly without changes.
+- [ ] T021 [US1] Run [quickstart.md](quickstart.md) Test 1 manually: confirm the four documented invocations are rejected and that one `auth_audit` row exists per attempt with `outcome='blocked-insufficient-role'` and `resolved_role='cajero'`.
+
+**Checkpoint**: User Story 1 (MVP) is complete and demoable. The system blocks the highest-impact escalation path — admin-account creation, backup restore, settings change — even if the renderer is compromised.
+
+---
+
+## Phase 4: User Story 2 — Financial mutations require appropriate role (Priority: P1)
+
+**Goal**: A cashier directly invoking `sales:cancel`, `cash:close` (against a register they don't own), `cash:addMovement`, or any customer-payment mutation is rejected. The cashier-who-opened-the-register CAN close their own session.
+
+**Independent Test**: Run [quickstart.md](quickstart.md) Test 2 — verify the cashier-self close path succeeds, supervisor-close any-register succeeds, and `sales:cancel` / `customers:deletePayment` from a cashier are both rejected with audit rows.
+
+### Implementation for User Story 2
+
+- [x] T022 [US2] All US2 matrix entries populated in `src/main/auth/matrix.ts` (already populated as part of T007 / Phase 2 along with all other phases).
+- [x] T023 [US2] `src/main/ipc/sales.ipc.ts` converted to `registerAuthorized`. Returns its channel slice from `listRegisteredChannels`.
+- [x] T024 [US2] `src/main/ipc/cash.ipc.ts` converted to `registerAuthorized`.
+- [x] T025 [US2] `src/main/ipc/customers.ipc.ts` converted to `registerAuthorized`.
+- [x] T026 [US2] `src/main/ipc/products.ipc.ts` fully converted (mutating + read handlers; cost stripping per US3/T035 also done in this same pass).
+- [x] T027 [US2] `src/main/ipc/print.ipc.ts` and `src/main/ipc/notifications.ipc.ts` converted to `registerAuthorized`. `src/main/ipc/held-tickets.ipc.ts` also wrapped (round-2 P9 channels).
+- [x] T028 [US2] Cashier-self exception implemented in `cash:close` handler in `src/main/ipc/cash.ipc.ts`. Matrix lets all 3 roles through; the handler rejects non-admin/supervisor callers who do not own the register.
+- [x] T029 [US2] `.catch(handleApiError)` wired into `ClientesPage.tsx` (handleSave + handleDelete), `ClienteFichaPage.tsx` (handlePayment + handleSavePayment + handleDeletePayment), `ProductosPage.tsx` (handleAdjust), `CajaPage.tsx` (handleAddMovement), `CierreCajaPage.tsx` (close path). `VentasPage.tsx` / `CobroModal.tsx` left as-is — `sales:create` allows all roles and existing inline error handling already surfaces register-open failures from P2.
+
+**Checkpoint**: Both P1 stories are live. Privilege-escalation paths (US1) and financial-mutation paths (US2) are protected. This is a fully shippable security release on its own.
+
+---
+
+## Phase 5: User Story 3 — Sensitive reports respect role boundaries (Priority: P2)
+
+**Goal**: A cashier requesting profit margin, last-purchase cost, or supplier data is rejected. Cashier reads of the product list / detail still work but with cost and margin fields stripped.
+
+**Independent Test**: Run [quickstart.md](quickstart.md) Test 3 — log in as cashier, open a product detail (no cost/margin row visible), call `window.api.reports.profitMargin()` (rejected), then re-login as supervisor and confirm the same call returns full cost data.
+
+### Implementation for User Story 3
+
+- [x] T031 [US3] All US3 matrix entries populated in `src/main/auth/matrix.ts` (done as part of T007).
+- [x] T032 [US3] `src/main/ipc/reports.ipc.ts` converted to `registerAuthorized`.
+- [x] T033 [US3] Read handlers in `src/main/ipc/products.ipc.ts` converted (already covered in Phase 4 / T026 since the file was rewritten in one pass).
+- [x] T034 [US3] `src/main/ipc/purchases.ipc.ts` converted to `registerAuthorized` (covers both `suppliers:*` and `purchases:*`).
+- [x] T035 [US3] Cost-field stripping implemented in the IPC handler layer (`src/main/ipc/products.ipc.ts`) rather than the query layer — applies to `getAll`, `getById`, and `getByBarcode`. When `ctx.role === 'cajero'`, fields `last_purchase_cost`, `last_unit_cost`, `margin`, `margin_pct`, `profit_margin` are stripped from each row.
+- [x] T036 [US3] `ProductoDetallePage.tsx` now uses `Promise.allSettled` so auth-blocked endpoints (movements / recentSales / salesStats / lastPurchase) don't tear down the page; the "Última compra" KPI card is hidden entirely for `role === 'cajero'`.
+- [x] T037 [US3] `.catch(handleApiError)` wired into `ReportesPage.tsx` (load), `NuevaCompraPage.tsx` (handleSave), `CompraDetallePage.tsx` (handleReceive + handleCancel), and `ProveedoresPage.tsx` (handleSave). `ComprasPage.tsx` is read-only listing — no mutation entry point to wrap.
+
+**Checkpoint**: Read-side authorization is in place. Cost data does not leak to cashiers via direct invocation or via the product-detail screen.
+
+---
+
+## Phase 6: User Story 4 — Authorization failures audited and surfaced (Priority: P2)
+
+**Goal**: Admins see a banner on the dashboard when a user produces ≥5 blocked attempts in 10 minutes. Acknowledgment persists and clears the banner. Admins can browse the full audit log.
+
+**Independent Test**: Run [quickstart.md](quickstart.md) Test 4 — trigger 6 blocked operations as cashier, log in as admin, see the alert banner, click acknowledge, confirm it clears on reload, query `window.api.auth.listAuditEntries({ outcome: 'blocked-insufficient-role' })` and confirm ≥6 rows.
+
+### Implementation for User Story 4
+
+- [x] T039 [US4] `detectAndPersistAlertWindows()` in `src/main/db/queries/auth.ts` runs the CTE, upserts `auth_alert_acks` rows on first detection, and returns merged records. `acknowledgeAlert()` performs the conditional UPDATE (no-op if already acknowledged).
+- [x] T040 [US4] `src/main/auth/alerts.ts` exports `getOpenAlerts()` and `acknowledge(alertId, ackByUserId)` as thin orchestration over the auth.ts queries.
+- [x] T041 [US4] `src/main/ipc/auth.ipc.ts` registers `auth:matrixSummary`, `auth:listAuditEntries`, `auth:listAlerts`, `auth:acknowledgeAlert`, and `auth:recoveryNeeded` (the last one belongs to US5 but the file owns it). `registerAuthIpc()` returns the channel list.
+- [x] T042 [US4] `registerAuthIpc()` registered in `src/main/index.ts`. Matrix entries for the auth channels were already populated in T007.
+- [x] T043 [US4] `window.api.auth = { recoveryNeeded, matrixSummary, listAuditEntries, listAlerts, acknowledgeAlert }` exposed in `src/preload/index.ts`.
+- [x] T044 [US4] `ApiAuth` typed surface added to `src/preload/index.d.ts`, importing `AuthAlert` / `AuthAuditEntry` / `AuthAuditFilters` / `AuthMatrixSummaryEntry`.
+- [x] T045 [US4] `src/renderer/src/store/auth-events.store.ts` created (Zustand). `fetchAlerts` swallows auth failures (non-admins silently see empty list); `acknowledge` is optimistic.
+- [x] T046 [US4] `src/renderer/src/components/AuthAlertsBanner.tsx` created. Hidden when `alerts.length === 0`. Each alert shows username, failure count, window start, and a "Marcar visto" button.
+- [x] T047 [US4] `<AuthAlertsBanner />` integrated into `DashboardPage.tsx` above the KPI grid, conditional on `user?.role === 'admin'`.
+
+**Checkpoint**: Admins now have visibility into authorization failures and can detect probing or compromised accounts. The full audit list is queryable for incident review.
+
+---
+
+## Phase 7: User Story 5 — Recovery path for empty / corrupted user table (Priority: P3)
+
+**Goal**: When the database has zero active admins, the login screen shows the existing first-run admin-creation form, regardless of how the state arose (fresh install, partial restore, manual deactivation). Once an admin exists, the recovery path closes.
+
+**Independent Test**: Run [quickstart.md](quickstart.md) Test 8 — manually deactivate all admins via SQL, restart the app, observe the recovery form, create an admin, confirm the login picker reappears.
+
+### Implementation for User Story 5
+
+- [x] T049 [US5] `refreshRecoveryMode()` (in `src/main/auth/recovery.ts`) runs the COUNT query directly. A standalone `countActiveAdmins` helper was unnecessary — the recovery module owns the threshold check.
+- [x] T050 [US5] `src/main/auth/recovery.ts` exports `isRecoveryMode()` and `refreshRecoveryMode()`. `src/main/index.ts` calls `refreshRecoveryMode()` right after `initDatabase()`. `users:create` handler also calls it after a successful insert.
+- [x] T051 [US5] `auth:recoveryNeeded` registered in `src/main/ipc/auth.ipc.ts` (alongside the US4 channels). Matrix entry (public) was already populated in T007.
+- [x] T052 [US5] `users:create` handler in `src/main/ipc/users.ipc.ts` forces `role = 'admin'` when `isRecoveryMode()` is true and refreshes after insert. (Already implemented in Phase 1+2 since the guard depends on the recovery module.)
+- [x] T053 [US5] Matrix entry for `users:create` is `{ kind: 'privileged', roles: ['admin'], recoveryOnly: true }`. Guard honors the `recoveryOnly` modifier — `evaluate()` short-circuits to `allowed` when `rule.recoveryOnly && isRecoveryMode()`, even with no resolved user.
+- [x] T054 [US5] `LoginPage.tsx` calls `window.api.auth.recoveryNeeded()` on mount; when true (in addition to the existing `users.length === 0` branch), it renders the admin-creation form. After successful create, it re-fetches the recoveryNeeded flag so the form closes immediately (FR-021).
+
+**Checkpoint**: All five user stories are independently functional. The merchant cannot lock themselves out by losing their admin PIN — they can recover by wiping the user table and creating a new admin.
+
+---
+
+## Phase N: Polish & Cross-Cutting Concerns
+
+**Purpose**: Run the cross-cutting quickstart tests, refresh the project's spec memory, and finalize agent context.
+
+- [ ] T056 [P] [DEFERRED — manual QA] Run [quickstart.md](quickstart.md) Test 5 (deactivated user mid-session).
+- [ ] T057 [P] [DEFERRED — manual QA] Run [quickstart.md](quickstart.md) Test 6 (role demoted mid-session).
+- [ ] T058 [P] [DEFERRED — manual QA] Run [quickstart.md](quickstart.md) Test 7 (self PIN change vs. self role/active).
+- [ ] T059 [P] [DEFERRED — manual QA] Run [quickstart.md](quickstart.md) Test 9 (boot self-test refuses on missing matrix entry).
+- [x] T060 90-day retention runs in `runMaintenance(db)` (`src/main/db/index.ts`), invoked from `initDatabase()`. The `idx_auth_audit_user_time_outcome` index covers `(claimed_user_id, created_at, outcome)` — the DELETE is a range scan on `created_at`. Production-size verification (≥1 day worth of rows) is deferred to manual QA T060-equivalent.
+- [x] T061 `.specify/memory/functional-spec.md` §17 entry 1 updated to point at the new authorization layer. `.specify/memory/gap-analysis.md` P1 entry marked resolved with feature reference.
+- [x] T062 `CLAUDE.md` updated — feature 001 marked as most-recent landing, no active feature.
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Phase 1 (Setup)** → no dependencies; start immediately.
+- **Phase 2 (Foundational)** → depends on Phase 1; **blocks** all user stories (the matrix, guard, session, audit, and self-test must exist before any handler is wrapped).
+- **Phase 3 (US1)** through **Phase 7 (US5)** → all depend on Phase 2 completion. Once Phase 2 is done, the user-story phases **can run in parallel** if multiple developers are available, with two caveats below.
+- **Phase N (Polish)** → depends on the user stories that are in scope for the release.
+
+### Cross-Phase File Conflicts (sequencing constraints inside parallel work)
+
+Several phases edit the same file:
+
+- `src/main/auth/matrix.ts` is touched by T007 (skeleton), T016 (US1), T022 (US2), T031 (US3), T042 (US4), T053 (US5). **Sequencing required**: each US phase appends entries; do not parallelize the matrix-population task across phases.
+- `src/main/ipc/products.ipc.ts` is touched by T026 (US2 mutating wraps) and T033 (US3 read wraps). T033 must wait for T026.
+- `src/main/db/queries/users.ts` is touched by T014 (foundational), T019 (US1 field enforcement), T049 / T052 (US5 recovery). T019 must wait for T014; T052 must wait for T019 to avoid merge conflicts on the same file.
+- `src/main/ipc/auth.ipc.ts` is created by T041 (US4) and extended by T051 (US5). T051 must wait for T041.
+- `src/main/index.ts` is touched by T011 (foundational), T042 (US4 IPC registration), T050 (US5 recoveryMode init). All three must serialize against each other.
+
+Within the same user-story phase, tasks marked **[P]** can run in parallel because they touch different files.
+
+### User Story Dependencies (after Phase 2)
+
+- **US1 (P1)**: independent. MVP candidate.
+- **US2 (P1)**: independent of US1. Both P1 stories ship the same security release.
+- **US3 (P2)**: independent of US1/US2.
+- **US4 (P2)**: independent of US1/US2/US3 — the audit table is written by the foundational guard (T008/T009), so meaningful audit rows exist as soon as US1 starts producing rejections. US4 just adds the surfacing layer.
+- **US5 (P3)**: independent of US1/US2/US3 functionally, but **shares the file `src/main/db/queries/users.ts`** with US1's T019 and the foundational T014. Sequence those edits.
+
+### Within Each User Story
+
+- Matrix entry first, then handler wrapping, then any handler-internal enforcement (cashier-self, field-level rules, cost-stripping), then renderer error wiring, then the manual quickstart verification.
+
+### Parallel Opportunities
+
+- **Phase 1**: T001 then T002 [P] (file creation, no overlap).
+- **Phase 2**: After T003+T004 (schema+migration must be sequential), the cluster T005/T006/T007/T010/T012/T013 can run in parallel; T008 waits on T005; T009 waits on T006+T007+T008; T011 waits on T009+T010; T014 waits on T006; T015 waits on T006+T009.
+- **Phase 3 (US1)**: T017 and T018 are different files → parallel. T019 and T020 follow.
+- **Phase 4 (US2)**: T024 / T025 / T026 / T027 (four different `*.ipc.ts` files) → all parallel after T022 lands the matrix entries.
+- **Phase 5 (US3)**: T033 / T034 → parallel after T031. T036 / T037 → parallel after T035.
+- **Phase 6 (US4)**: T043 / T044 / T045 / T046 → parallel (preload, types, store, component all live in different files).
+- **Phase N**: T056 / T057 / T058 / T059 → all parallel manual tests.
+
+---
+
+## Parallel Example: Phase 2 Foundational
+
+```bash
+# After T003 + T004 (schema + migration) land, fan out:
+Task: "Create src/main/db/queries/auth.ts repository (T005)"
+Task: "Create src/main/auth/session.ts (T006)"
+Task: "Create src/main/auth/matrix.ts skeleton (T007)"
+Task: "Create src/main/auth/self-test.ts (T010) — depends on T007"
+Task: "Create src/renderer/src/lib/api-error.ts (T012)"
+Task: "Add settings field whitelist to src/main/ipc/backup.ipc.ts (T013)"
+```
+
+## Parallel Example: User Story 2
+
+```bash
+# After T022 (matrix entries for US2) lands, fan out the handler wraps:
+Task: "Wrap sales.ipc.ts with registerAuthorized (T023)"
+Task: "Wrap cash.ipc.ts with registerAuthorized (T024)"
+Task: "Wrap customers.ipc.ts with registerAuthorized (T025)"
+Task: "Wrap mutating handlers in products.ipc.ts (T026)"
+Task: "Wrap print.ipc.ts and notifications.ipc.ts (T027)"
+```
+
+---
+
+## Implementation Strategy
+
+### MVP First (User Story 1 only)
+
+1. Phase 1 → Phase 2 → Phase 3.
+2. **STOP** and run [quickstart.md](quickstart.md) Test 1.
+3. If green, this is a shippable security increment: cashiers can no longer escalate to admin actions. Tag `v1.x.0-auth-mvp` and demo to the merchant.
+
+### Recommended ship — Both P1 stories together
+
+P1 stories are co-equal. A single release that covers both administrative escalation **and** financial mutations is the natural "phase-1-of-the-feature" deliverable.
+
+1. Phase 1 → Phase 2 → Phase 3 → Phase 4.
+2. Run quickstart Tests 1 and 2.
+3. Run polish-phase Tests 5 / 6 / 9 (mid-session deactivation, role demotion, self-test gap).
+4. Tag `v1.x.0-auth` and ship.
+
+### Incremental Delivery After P1
+
+5. Phase 5 (US3) → run Test 3 → ship.
+6. Phase 6 (US4) → run Test 4 → ship.
+7. Phase 7 (US5) → run Test 8 → ship. (Last because it's the only "convenience" story; until US5 ships, an empty admin set forces a manual SQL recovery.)
+8. Phase N polish → close the feature; update `.specify/memory/*` (T061) and `CLAUDE.md` (T062).
+
+### Parallel Team Strategy (with 2+ developers)
+
+- Pair on Phase 2 — it's the foundation; one developer drives, the other reviews.
+- After Phase 2:
+  - Dev A: US1 (Phase 3) + US3 (Phase 5) — both are matrix-and-wrap heavy.
+  - Dev B: US2 (Phase 4) + US4 (Phase 6) — financial mutations + alert UI.
+  - Either dev: US5 (Phase 7) — small.
+- Watch the "Cross-Phase File Conflicts" list above; the matrix file and `users.ts` queries serialize across phases.
+
+---
+
+## Notes
+
+- **Tests**: deliberately none in this tasks list. Quickstart manual runs are the validation surface for v1; a real test runner is its own follow-up feature (gap analysis P4).
+- **Each US is independently demoable**: the spec, plan, and matrix were designed for it. If a phase grows scope, push the new work into a follow-up feature rather than expanding this tasks list.
+- **Commit after each task or logical group**: especially T009 (guard) and T011 (self-test) — once those land, every subsequent matrix population is a small, reviewable diff.
+- **Do not amend a published commit**: Constitution VII rule.
+- **Stop at any checkpoint**: each US phase ends with a checkpoint and a quickstart test; that's a valid release boundary.
+
+---
+
+# Extension: Round 2 Gap-Analysis Tasks (P2 – P9)
+
+> The phases below were appended on 2026-05-08 to address the remaining items in
+> [.specify/memory/gap-analysis.md](../../.specify/memory/gap-analysis.md) §5
+> (P2, P3, P5, P6, P7, P8, P9). They are scoped narrowly so each phase ships an
+> independently committable change. They live in the same `tasks.md` for
+> tracking convenience but are **not part of the original 001-ipc-authorization
+> spec**; they predate or co-exist with the IPC-authorization work.
+>
+> **Tests**: per the same posture as the original feature (R9), no new test
+> infrastructure is added. Validation is by manual quickstart and code review.
+
+---
+
+## Phase 8: P2 — Validate open register in `sales:create` (Priority: CRITICAL)
+
+**Goal**: A sale cannot be posted against a closed register. Validation is at the
+**query layer**, not the IPC layer, so a tampered `localStorage` cash-store cannot
+bypass it.
+
+**Independent Test**: Open and immediately close a register (note its `id`).
+From dev tools, call `window.api.sales.create({ registerId: <closedId>, ... })`.
+The call must reject with an application error and **no** `sales` row may be
+written.
+
+### Implementation for P2
+
+- [x] T063 [P2] Modify `createSale()` in `src/main/db/queries/sales.ts` to verify the target register is open as the first statement inside the transaction: `SELECT status FROM cash_registers WHERE id = ?`. If missing or not `'open'`, throw `new Error('La caja indicada no está abierta. Abrí una nueva caja antes de continuar.')`. The throw inside the transaction will roll back automatically.
+- [x] T064 [P2] Verify manually: with no open register, opening the POS still shows the existing client-side prompt; bypassing via dev tools is now rejected at the DB level. (Verified by reading code; manual run-time test deferred since it depends on app launch.)
+
+**Checkpoint**: Stale-register sale corruption is no longer possible.
+
+---
+
+## Phase 9: P3 — Versioned migrations (Priority: CRITICAL)
+
+**Goal**: Replace the introspection-based ad-hoc migration with a versioned
+ledger and pre-migrate safety net, per Constitution Principle VI.
+
+**Independent Test**: On a clean DB, the app boots and applies every migration
+in order, leaving N rows in `schema_migrations`. A second boot applies zero new
+migrations. Adding a new migration with `version = N+1` is the only way to
+evolve the schema; replays are idempotent.
+
+### Implementation for P3
+
+- [x] T065 [P3] Add `schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))` to `src/main/db/schema.ts` `createTables()`.
+- [x] T066 [P3] Refactor `runMigrations()` in `src/main/db/index.ts` to a versioned pattern: an in-file array `MIGRATIONS: { version: number; name: string; up: (db) => void }[]` is iterated; each unapplied entry runs inside a single `db.transaction()` and records itself in `schema_migrations` after success. Existing legacy migrations (image column, customers.document backfill, backup_schedule_* settings) become versions 1, 2, 3.
+- [x] T067 [P3] Add a pre-migrate safeguard to `runMigrations()`: if `schema_migrations` is non-empty AND any pending migration exists, copy `pos.db` to `{userData}/backups/pre-migrate-<version>-<timestamp>.db` before applying. On a fresh DB (no existing rows in any table) skip the backup since there's nothing to preserve.
+- [x] T068 [P3] Backfill the ledger on first boot of an upgraded install: if `schema_migrations` is empty BUT the schema already shows signs of legacy migrations (presence of `products.image`, `customers.document`, or the `backup_schedule_*` rows in `app_settings`), insert ledger rows marking versions 1–3 as already applied so they don't replay. Comment the heuristic clearly.
+- [x] T069 [P3] Manually verify: (a) fresh DB → all migrations apply, (b) existing DB on the dev machine → backfill marks 1–3 as applied, no re-run, (c) typecheck passes. (Typecheck verified via `npm run typecheck`.)
+
+**Checkpoint**: Future migrations have a versioned, transactional, backup-protected pipeline.
+
+---
+
+## Phase 10: P5 — Sales-driven stock audit rows (Priority: HIGH)
+
+**Goal**: Every change to `products.stock` produces a `stock_adjustments` row,
+so the "Mov. Stock" report is a complete audit trail.
+
+**Independent Test**: Make a sale containing 2 items, then cancel it. The
+`stock_adjustments` table now contains 4 new rows: 2 for the sale (reason
+`Venta #<id>`) with negative deltas, 2 for the cancellation (reason `Anulación
+venta #<id>`) with positive deltas. The Mov. Stock report displays all four.
+
+### Implementation for P5
+
+- [x] T070 [P5] In `createSale()` (`src/main/db/queries/sales.ts`), inside the existing transaction, insert a `stock_adjustments` row for each item: read `quantity_before` from `products.stock` before the UPDATE, compute `quantity_after = quantity_before - item.quantity`, and insert `(product_id, user_id, quantity_before, quantity_after, reason='Venta #<saleId>')` after the UPDATE.
+- [x] T071 [P5] In `cancelSale()` (same file), inside the existing transaction, insert a `stock_adjustments` row for each restocked item with `reason='Anulación venta #<saleId>'`. Mirrors T070's pattern.
+- [x] T072 [P5] In `receivePurchaseOrder()` and the receive branch of `createPurchaseOrder()` (`src/main/db/queries/purchases.ts`), insert a `stock_adjustments` row per line with `reason='Recepción compra #<orderId>'`. Closes the third bypass identified in gap-analysis §3.1. Note: `receivePurchaseOrder` falls back to the order creator's user_id for the audit attribution because the IPC does not yet pass the receiving user (TODO marker added).
+- [x] T073 [P5] Manually verify: typecheck passes; fresh sale / cancellation / purchase-reception each produce the expected audit rows (verified by code review of the new transactions).
+
+**Checkpoint**: The stock audit table reflects every stock change.
+
+---
+
+## Phase 11: P6 — Document and verify sale cancellation (Priority: HIGH)
+
+**Goal**: The cancellation flow is documented in the functional spec and its
+behaviour against (a) stock, (b) customer balance, (c) cash session is
+verified.
+
+**Independent Test**: A reader can find a §7.11 in `functional-spec.md`
+describing exactly what `sales:cancel` does, with `file:line` citations.
+
+### Implementation for P6
+
+- [x] T074 [P6] Add §7.11 "Sale cancellation" to `.specify/memory/functional-spec.md` documenting: (1) who can call (admin/supervisor per the IPC spec), (2) idempotency (already-cancelled is a no-op returning null), (3) restock behaviour (each item's quantity is added back), (4) credit refund (full total returned to customer balance for `payment_method='credit'`), (5) cash-session impact (cancelled sales drop out of the day's totals because cash queries filter `status='completed'`), (6) audit trail (`action_logs` row with `action='cancel_sale'`, plus the `stock_adjustments` rows added in P5).
+- [x] T075 [P6] Verify in code that the documentation is accurate by re-reading `cancelSale()` and the cash queries (`getDayCashSalesTotal`, `getRegisterSummary`). Found divergence: `mixed`-payment cancellation does not refund the credit portion. Documented in §7.11 as a known divergence; TODO comment added at the cancelSale credit-refund block in `src/main/db/queries/sales.ts`.
+- [x] T076 [P6] Update `gap-analysis.md` Appendix A item 4 to mark §7.11 as added.
+
+**Checkpoint**: The cancellation flow is no longer an undocumented sensitive operation.
+
+---
+
+## Phase 12: P7 — Constitution Principle V amendment (Priority: MEDIUM)
+
+**Goal**: Reconcile Principle V with reality. Conservative choice: amend the
+constitution to allow renderer-side xlsx/jsPDF, since the codebase has shipped
+this way and a refactor to main is high-risk for no functional gain. Document
+the security rationale (trusted internal data, no untrusted input crossing the
+formatter boundary).
+
+**Independent Test**: Reading `constitution.md` Principle V matches what the
+code does. The Sync Impact Report at the top reflects the amendment.
+
+### Implementation for P7
+
+- [x] T077 [P7] Edit `.specify/memory/constitution.md` Principle V: keep the rule that **thermal printer logic** lives in main, but split out a sub-rule that **report generation (xlsx, jsPDF)** MAY live in the renderer provided (a) the formatters take plain data in and return blobs/buffers out, and (b) no untrusted input crosses the formatter (current behaviour). Added "Rationale (renderer-side reports)" paragraph.
+- [x] T078 [P7] Update the Sync Impact Report comment at the top of `constitution.md`: bump version `1.0.0` → `1.1.0` (MINOR — guidance materially expanded), set `LAST_AMENDED_DATE` to today (2026-05-08), and list the modified principle.
+
+**Checkpoint**: Principle V is no longer in conflict with the code.
+
+---
+
+## Phase 13: P8 — Update locked stack with shipping deps (Priority: MEDIUM)
+
+**Goal**: Principle I lists every package shipping in production.
+
+**Independent Test**: `package.json` and Principle I agree on the set of approved
+runtime deps; the diff between them is empty.
+
+### Implementation for P8
+
+- [x] T079 [P8] Edit `.specify/memory/constitution.md` Principle I: add `recharts` (charts), `@reactour/tour` (guided tours), `date-fns` (date utilities), `lucide-react` (icons), `clsx` + `tailwind-merge` (className composition), and `@fontsource/inter` (UI font) to the approved list with one-line purposes each. Note that this is documenting reality, not approving anything new.
+- [x] T080 [P8] Roll the version bump from P7 (1.0.0 → 1.1.0) into the same Sync Impact Report entry rather than re-bumping; update the report's "Modified principles" line to include Principle I as well.
+
+**Checkpoint**: Principle I is now an enforceable gate (the baseline matches reality).
+
+---
+
+## Phase 14: P9 — Held tickets to SQLite (Priority: MEDIUM)
+
+**Goal**: Held tickets persist in the database, not localStorage. They survive
+a userData reset, an OS-user switch, and a backup/restore cycle.
+
+**Independent Test**: Create two held tickets, delete `localStorage`, reload
+the app, see both tickets still present. Restore an older backup, see the
+tickets from that backup state instead.
+
+### Implementation for P9
+
+- [x] T081 [P9] Add `held_tickets(id TEXT PRIMARY KEY, label TEXT NOT NULL, payload TEXT NOT NULL, discount INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))` to `src/main/db/schema.ts` `createTables()`. `payload` is the JSON-serialized `CartItem[]`; `id` is the renderer-generated string ID (kept TEXT to preserve compatibility with the existing localStorage IDs).
+- [x] T082 [P9] Versioned migration entry version 4 added to `src/main/db/index.ts` MIGRATIONS array, with `CREATE TABLE IF NOT EXISTS` guard.
+- [x] T083 [P9] Created `src/main/db/queries/held-tickets.ts` with `listHeldTickets`, `addHeldTicket`, `removeHeldTicket`, `clearHeldTickets`.
+- [x] T084 [P9] Created `src/main/ipc/held-tickets.ipc.ts` with `held:list`, `held:add`, `held:remove`, `held:clear`. (Channel-list return for the future self-test will be added when 001-ipc-authorization lands.)
+- [x] T085 [P9] Registered `registerHeldTicketsIpc()` in `src/main/index.ts`.
+- [x] T086 [P9] Exposed `window.api.heldTickets = { list, add, remove, clear }` in `src/preload/index.ts` with typed surface in `src/preload/index.d.ts`.
+- [x] T087 [P9] Refactored `src/renderer/src/store/held.store.ts`: optimistic in-memory cache + IPC persistence. API shape preserved (`add / remove / consume / clear` are still synchronous from the consumer's POV; `loadFromDb` is the new async loader).
+- [x] T088 [P9] One-shot `migrateLegacyLocalStorage()` runs inside `loadFromDb()`: pushes any `localStorage['held-tickets']` entries through the IPC and clears the legacy key. Idempotent.
+- [x] T089 [P9] `VentasPage.tsx` calls `loadFromDb()` on mount via `useEffect` guarded by `heldLoaded`.
+- [x] T090 [P9] Verified: typecheck passes, lint shows 0 errors (preexisting warnings unrelated to P9).
+
+**Checkpoint**: Held tickets are device-survivable and backup-protected.
+
+---
+
+## Round 2 Sequencing & Conservatism Notes
+
+- **Order of execution**: P2 → P3 → P5 → P6 → P7 → P8 → P9. P3 should land before P9 so P9 can register itself as a numbered migration; if scheduling forces P9 first, the table-creation guard plus a follow-up backfill at P3 time covers it.
+- **One commit per phase**: each phase's tasks are intentionally small enough to land in a single descriptive commit. The boundaries match the "Checkpoint" markers above.
+- **Conservatism rule** (per the operator's instructions): when a task uncovers ambiguity (e.g., what should `mixed`-payment cancellation do to the credit portion?), the implementation makes the **safest** choice — usually "preserve existing behaviour, add a TODO comment with the file:line, document the limitation in the spec section being written" — rather than expanding scope mid-phase.

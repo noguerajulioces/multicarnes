@@ -170,13 +170,28 @@ export function createPurchaseOrder(data: {
     const insertItem = db.prepare(
       'INSERT INTO purchase_items (order_id, product_id, quantity, unit_cost, subtotal) VALUES (?, ?, ?, ?, ?)'
     )
+    const readStock = db.prepare('SELECT stock FROM products WHERE id = ?')
+    const updateStock = db.prepare(
+      "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
+    )
+    // P5: purchase reception writes a stock_adjustments row so the audit
+    // trail is complete (previously bypassed the audit table).
+    const insertAdjustment = db.prepare(
+      'INSERT INTO stock_adjustments (product_id, user_id, quantity_before, quantity_after, reason) VALUES (?, ?, ?, ?, ?)'
+    )
 
     for (const item of data.items) {
       insertItem.run(orderId, item.productId, item.quantity, item.unitCost, item.subtotal)
       if (data.receive) {
-        db.prepare(
-          "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
-        ).run(item.quantity, item.productId)
+        const before = (readStock.get(item.productId) as { stock: number } | undefined)?.stock ?? 0
+        updateStock.run(item.quantity, item.productId)
+        insertAdjustment.run(
+          item.productId,
+          data.userId,
+          before,
+          before + item.quantity,
+          `Recepción compra #${orderId}`
+        )
       }
     }
     return getPurchaseOrderById(orderId)
@@ -184,17 +199,40 @@ export function createPurchaseOrder(data: {
   return txn()
 }
 
-export function receivePurchaseOrder(id: number) {
+export function receivePurchaseOrder(id: number, userId: number) {
   const db = getDb()
   const txn = db.transaction(() => {
+    // Defense-in-depth: the auth guard already validated the caller, but the
+    // repository refuses to write stock_adjustments rows attributed to a
+    // missing or inactive user (002-review-fixes FR-007).
+    const userOk = db.prepare('SELECT 1 FROM users WHERE id = ? AND active = 1').get(userId) as
+      | { 1: number }
+      | undefined
+    if (!userOk) {
+      throw new Error('receivePurchaseOrder: userId must reference an active user')
+    }
+
     const items = db.prepare('SELECT * FROM purchase_items WHERE order_id = ?').all(id) as {
       product_id: number
       quantity: number
     }[]
+    const readStock = db.prepare('SELECT stock FROM products WHERE id = ?')
+    const updateStock = db.prepare(
+      "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
+    )
+    const insertAdjustment = db.prepare(
+      'INSERT INTO stock_adjustments (product_id, user_id, quantity_before, quantity_after, reason) VALUES (?, ?, ?, ?, ?)'
+    )
     for (const item of items) {
-      db.prepare(
-        "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
-      ).run(item.quantity, item.product_id)
+      const before = (readStock.get(item.product_id) as { stock: number } | undefined)?.stock ?? 0
+      updateStock.run(item.quantity, item.product_id)
+      insertAdjustment.run(
+        item.product_id,
+        userId,
+        before,
+        before + item.quantity,
+        `Recepción compra #${id}`
+      )
     }
     db.prepare(
       "UPDATE purchase_orders SET status = 'received', received_at = datetime('now','localtime') WHERE id = ?"
@@ -205,6 +243,10 @@ export function receivePurchaseOrder(id: number) {
 }
 
 export function cancelPurchaseOrder(id: number) {
-  getDb().prepare("UPDATE purchase_orders SET status = 'cancelled' WHERE id = ?").run(id)
-  return getPurchaseOrderById(id)
+  const db = getDb()
+  const txn = db.transaction(() => {
+    db.prepare("UPDATE purchase_orders SET status = 'cancelled' WHERE id = ?").run(id)
+    return getPurchaseOrderById(id)
+  })
+  return txn()
 }

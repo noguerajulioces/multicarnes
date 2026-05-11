@@ -19,6 +19,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { clientesTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 
 const emptyForm: {
   name: string
@@ -74,10 +75,15 @@ export default function ClientesPage() {
 
   const handleSave = async (): Promise<void> => {
     if (!form.name) return
-    if (editId) {
-      await window.api.customers.update(editId, form)
-    } else {
-      await window.api.customers.create(form)
+    try {
+      if (editId) {
+        await window.api.customers.update(editId, form)
+      } else {
+        await window.api.customers.create(form)
+      }
+    } catch (err) {
+      handleApiError(err)
+      return
     }
     closeForm()
     reload()
@@ -117,12 +123,16 @@ export default function ClientesPage() {
       danger: true
     })
     if (!ok) return
-    const result = await window.api.customers.delete(c.id)
-    if (result.ok) {
-      toast.success('Cliente eliminado')
-      reload()
-    } else {
-      toast.error(result.error)
+    try {
+      const result = await window.api.customers.delete(c.id)
+      if (result.ok) {
+        toast.success('Cliente eliminado')
+        reload()
+      } else {
+        toast.error(result.error)
+      }
+    } catch (err) {
+      handleApiError(err)
     }
   }
 

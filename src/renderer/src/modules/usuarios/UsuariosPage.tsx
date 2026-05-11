@@ -14,6 +14,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { usuariosTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 
 const emptyForm = { name: '', role: 'cajero' as Role, pin: '', confirmPin: '', active: true }
 
@@ -70,16 +71,21 @@ export default function UsuariosPage() {
       return
     }
 
-    if (editId) {
-      const data: Record<string, unknown> = {
-        name: form.name,
-        role: form.role,
-        active: form.active
+    try {
+      if (editId) {
+        const data: Record<string, unknown> = {
+          name: form.name,
+          role: form.role,
+          active: form.active
+        }
+        if (form.pin) data.pin = form.pin
+        await window.api.users.update(editId, data)
+      } else {
+        await window.api.users.create({ name: form.name, role: form.role, pin: form.pin })
       }
-      if (form.pin) data.pin = form.pin
-      await window.api.users.update(editId, data)
-    } else {
-      await window.api.users.create({ name: form.name, role: form.role, pin: form.pin })
+    } catch (err) {
+      handleApiError(err)
+      return
     }
     closeForm()
     reload()

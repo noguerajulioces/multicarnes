@@ -46,6 +46,30 @@ export function createUser(data: { name: string; role: string; pin: string }) {
   return getUserById(result.lastInsertRowid as number)
 }
 
+// 002-review-fixes FR-012: re-read the active-admin count and insert the new
+// user inside a single transaction. Two simultaneous calls cannot both observe
+// "no admins" and both insert as admin — SQLite serialises overlapping write
+// transactions on the main process, so the second call sees the first's row.
+//
+// Replaces the racy pre-check + createUser + refreshRecoveryMode pattern in
+// users.ipc.ts (created in feature 001 before this invariant was tightened).
+export function createUserAtomicRecoveryCheck(data: { name: string; role: string; pin: string }) {
+  assertValidPin(data.pin)
+  const pinHash = bcrypt.hashSync(data.pin, 10)
+  const db = getDb()
+  const txn = db.transaction(() => {
+    const row = db
+      .prepare("SELECT COUNT(*) AS c FROM users WHERE active = 1 AND role = 'admin'")
+      .get() as { c: number }
+    const effectiveRole = row.c === 0 ? 'admin' : data.role
+    const result = db
+      .prepare('INSERT INTO users (name, role, pin_hash) VALUES (?, ?, ?)')
+      .run(data.name, effectiveRole, pinHash)
+    return getUserById(result.lastInsertRowid as number)
+  })
+  return txn()
+}
+
 export function updateUser(
   id: number,
   data: { name?: string; role?: string; pin?: string; active?: boolean }

@@ -174,9 +174,9 @@ export function deleteCustomer(id: number): { ok: true } | { ok: false; error: s
       error: 'No se puede eliminar: el cliente tiene saldo pendiente. Saldalo primero.'
     }
   }
-  const sales = db
-    .prepare('SELECT COUNT(*) as c FROM sales WHERE customer_id = ?')
-    .get(id) as { c: number }
+  const sales = db.prepare('SELECT COUNT(*) as c FROM sales WHERE customer_id = ?').get(id) as {
+    c: number
+  }
   if (sales.c > 0) {
     return {
       ok: false,

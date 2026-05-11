@@ -20,6 +20,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaTourSteps, cajaManagerTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 
 export default function CajaPage() {
   const user = useAuthStore((s) => s.user)
@@ -55,7 +56,12 @@ export default function CajaPage() {
 
   const handleAddMovement = async (): Promise<void> => {
     if (!register || !user || !modal || !movAmount || !movDesc) return
-    await window.api.cash.addMovement(register.id, user.id, modal.type, movAmount, movDesc)
+    try {
+      await window.api.cash.addMovement(register.id, user.id, modal.type, movAmount, movDesc)
+    } catch (err) {
+      handleApiError(err)
+      return
+    }
     setModal(null)
     setMovAmount(0)
     setMovDesc('')

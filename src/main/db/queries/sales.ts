@@ -16,6 +16,17 @@ interface CreateSaleData {
 export function createSale(data: CreateSaleData) {
   const db = getDb()
   const txn = db.transaction(() => {
+    // P2: server-side guarantee that the target register is open. The renderer
+    // already gates the POS UI on an open session, but a stale localStorage
+    // cache or a tampered renderer could otherwise post sales onto a closed
+    // register and corrupt the cash-session reconciliation report.
+    const register = db
+      .prepare('SELECT status FROM cash_registers WHERE id = ?')
+      .get(data.registerId) as { status: string } | undefined
+    if (!register || register.status !== 'open') {
+      throw new Error('La caja indicada no está abierta. Abrí una nueva caja antes de continuar.')
+    }
+
     const result = db
       .prepare(
         `
@@ -38,12 +49,27 @@ export function createSale(data: CreateSaleData) {
     const insertItem = db.prepare(
       'INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)'
     )
+    const readStock = db.prepare('SELECT stock FROM products WHERE id = ?')
     const updateStock = db.prepare(
       "UPDATE products SET stock = stock - ?, updated_at = datetime('now','localtime') WHERE id = ?"
     )
+    // P5: every sale-driven decrement writes a stock_adjustments row so the
+    // Mov. Stock report reflects the full audit trail (sales used to bypass
+    // the audit table).
+    const insertAdjustment = db.prepare(
+      'INSERT INTO stock_adjustments (product_id, user_id, quantity_before, quantity_after, reason) VALUES (?, ?, ?, ?, ?)'
+    )
     for (const item of data.items) {
       insertItem.run(saleId, item.productId, item.quantity, item.unitPrice, item.subtotal)
+      const before = (readStock.get(item.productId) as { stock: number } | undefined)?.stock ?? 0
       updateStock.run(item.quantity, item.productId)
+      insertAdjustment.run(
+        item.productId,
+        data.userId,
+        before,
+        before - item.quantity,
+        `Venta #${saleId}`
+      )
     }
 
     if (data.payments && data.payments.length > 0) {
@@ -138,7 +164,7 @@ export function getSalesByRegister(registerId: number) {
     .all(registerId)
 }
 
-export function cancelSale(id: number, userId: number) {
+export function cancelSale(id: number, userId: number, options?: { refundMixedCredit?: boolean }) {
   const db = getDb()
   const txn = db.transaction(() => {
     const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(id) as Record<string, unknown>
@@ -148,29 +174,76 @@ export function cancelSale(id: number, userId: number) {
       product_id: number
       quantity: number
     }[]
+    const readStock = db.prepare('SELECT stock FROM products WHERE id = ?')
+    const restock = db.prepare(
+      "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
+    )
+    // P5: cancellation restock writes its own stock_adjustments row so the
+    // restore is auditable alongside the original sale's adjustment.
+    const insertAdjustment = db.prepare(
+      'INSERT INTO stock_adjustments (product_id, user_id, quantity_before, quantity_after, reason) VALUES (?, ?, ?, ?, ?)'
+    )
     for (const item of items) {
-      db.prepare(
-        "UPDATE products SET stock = stock + ?, updated_at = datetime('now','localtime') WHERE id = ?"
-      ).run(item.quantity, item.product_id)
+      const before = (readStock.get(item.product_id) as { stock: number } | undefined)?.stock ?? 0
+      restock.run(item.quantity, item.product_id)
+      insertAdjustment.run(
+        item.product_id,
+        userId,
+        before,
+        before + item.quantity,
+        `Anulación venta #${id}`
+      )
     }
+
+    let detailsText = `Venta #${id} anulada`
 
     if (sale.payment_method === 'credit' && sale.customer_id) {
       db.prepare('UPDATE customers SET balance = balance + ? WHERE id = ?').run(
         sale.total,
         sale.customer_id
       )
+    } else if (sale.payment_method === 'mixed' && sale.customer_id) {
+      // 002-review-fixes US3: cancelling a mixed-payment sale surfaces an
+      // explicit choice. The caller decides whether to refund the credit
+      // portion (charged to the customer's balance at sale time); either
+      // outcome is recorded in action_logs.details so a future audit can
+      // trace what happened (FR-008/FR-009).
+      const creditRow = db
+        .prepare(
+          "SELECT COALESCE(SUM(amount), 0) AS credit FROM sale_payments WHERE sale_id = ? AND method = 'credit'"
+        )
+        .get(id) as { credit: number }
+      const creditPortion = creditRow.credit
+      if (creditPortion > 0) {
+        if (options?.refundMixedCredit) {
+          db.prepare('UPDATE customers SET balance = balance + ? WHERE id = ?').run(
+            creditPortion,
+            sale.customer_id
+          )
+          detailsText = `Venta #${id} anulada — porción crédito ${formatGs(creditPortion)} (devolución aplicada)`
+        } else {
+          detailsText = `Venta #${id} anulada — porción crédito ${formatGs(creditPortion)} (devolución NO aplicada por decisión del cajero)`
+        }
+      }
     }
 
     db.prepare("UPDATE sales SET status = 'cancelled' WHERE id = ?").run(id)
     db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
       userId,
       'cancel_sale',
-      `Venta #${id} anulada`
+      detailsText
     )
 
     return getSaleById(id)
   })
   return txn()
+}
+
+// Format a Guarani amount the same way the renderer does for ticket / audit
+// strings, so the audit row reads naturally to a Spanish-speaking merchant.
+// e.g. 50000 → "Gs. 50.000".
+function formatGs(value: number): string {
+  return `Gs. ${Math.round(value).toLocaleString('es-PY')}`
 }
 
 export function getDaySalesTotal() {

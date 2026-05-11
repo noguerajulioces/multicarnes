@@ -64,18 +64,21 @@ export default function ProductoDetallePage() {
   const [adjustSaving, setAdjustSaving] = useState(false)
 
   const loadAll = async (): Promise<void> => {
-    const [p, m, s, st, lp] = await Promise.all([
+    // Use allSettled so an auth-blocked endpoint (cajeros lose access to
+    // movements / recentSales / salesStats / lastPurchase per US3) does not
+    // tear down the whole page. The corresponding sections render empty.
+    const [p, m, s, st, lp] = await Promise.allSettled([
       window.api.products.getById(productId),
       window.api.products.movements(productId, 50),
       window.api.products.recentSales(productId, 20),
       window.api.products.salesStats(productId),
       window.api.products.lastPurchase(productId)
     ])
-    setProduct(p)
-    setMovements(m)
-    setSales(s)
-    setStats(st)
-    setLastPurchase(lp)
+    setProduct(p.status === 'fulfilled' ? p.value : null)
+    setMovements(m.status === 'fulfilled' ? m.value : [])
+    setSales(s.status === 'fulfilled' ? s.value : [])
+    setStats(st.status === 'fulfilled' ? st.value : null)
+    setLastPurchase(lp.status === 'fulfilled' ? lp.value : null)
     setLoading(false)
   }
 
@@ -245,7 +248,10 @@ export default function ProductoDetallePage() {
         </CardBody>
       </Card>
 
-      <div data-tour="producto-detalle-kpis" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div
+        data-tour="producto-detalle-kpis"
+        className={`grid grid-cols-2 ${user?.role === 'cajero' ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4`}
+      >
         <KpiCard
           gradient="blue"
           icon={<Wallet size={20} />}
@@ -267,19 +273,21 @@ export default function ProductoDetallePage() {
           value={`${stats?.units_7d ?? 0} ${stockUnit}`}
           hint={formatGs(stats?.total_7d ?? 0)}
         />
-        <KpiCard
-          gradient="teal"
-          icon={<Truck size={20} />}
-          label="Última compra"
-          value={lastPurchase ? formatGs(lastPurchase.unit_cost) : '—'}
-          hint={
-            lastPurchase
-              ? margin !== null
-                ? `Margen: ${margin.toFixed(0)}%`
-                : formatDateTime(lastPurchase.created_at)
-              : 'Sin compras registradas'
-          }
-        />
+        {user?.role !== 'cajero' && (
+          <KpiCard
+            gradient="teal"
+            icon={<Truck size={20} />}
+            label="Última compra"
+            value={lastPurchase ? formatGs(lastPurchase.unit_cost) : '—'}
+            hint={
+              lastPurchase
+                ? margin !== null
+                  ? `Margen: ${margin.toFixed(0)}%`
+                  : formatDateTime(lastPurchase.created_at)
+                : 'Sin compras registradas'
+            }
+          />
+        )}
       </div>
 
       <Card

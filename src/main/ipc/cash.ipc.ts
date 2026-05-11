@@ -1,26 +1,69 @@
-import { ipcMain } from 'electron'
 import * as cashQuery from '../db/queries/cash'
+import { registerAuthorized, listRegisteredChannels } from '../auth/guard'
+import { getRule } from '../auth/matrix'
 
-export function registerCashIpc(): void {
-  ipcMain.handle('cash:open', (_, userId: number, openingAmount: number) =>
-    cashQuery.openCashRegister(userId, openingAmount)
+export function registerCashIpc(): string[] {
+  const before = listRegisteredChannels().length
+
+  registerAuthorized(
+    'cash:open',
+    getRule('cash:open'),
+    (_event, _ctx, userId: number, openingAmount: number) =>
+      cashQuery.openCashRegister(userId, openingAmount)
   )
-  ipcMain.handle('cash:getCurrent', () => cashQuery.getCurrentCashRegister())
-  ipcMain.handle(
+
+  registerAuthorized('cash:getCurrent', getRule('cash:getCurrent'), () =>
+    cashQuery.getCurrentCashRegister()
+  )
+
+  // T028: cashier-self exception. Matrix lets all 3 roles through; the handler
+  // tightens to "admin/supervisor OR cashier-who-opened-this-register".
+  registerAuthorized(
     'cash:close',
-    (_, id: number, closingAmount: number, notes?: string, userId?: number) =>
-      cashQuery.closeCashRegister(id, closingAmount, notes, userId)
+    getRule('cash:close'),
+    (_event, ctx, id: number, closingAmount: number, notes?: string, userId?: number) => {
+      if (ctx.role !== 'admin' && ctx.role !== 'supervisor') {
+        const register = cashQuery.getCashRegisterById(id) as { user_id: number } | undefined
+        if (!register || register.user_id !== ctx.userId) {
+          throw new Error('Solo podés cerrar la caja que abriste vos.')
+        }
+      }
+      return cashQuery.closeCashRegister(
+        id,
+        closingAmount,
+        notes,
+        userId ?? ctx.userId ?? undefined
+      )
+    }
   )
-  ipcMain.handle(
+
+  registerAuthorized(
     'cash:addMovement',
-    (_, registerId: number, userId: number, type: string, amount: number, description: string) =>
-      cashQuery.addCashMovement(registerId, userId, type, amount, description)
+    getRule('cash:addMovement'),
+    (
+      _event,
+      _ctx,
+      registerId: number,
+      userId: number,
+      type: string,
+      amount: number,
+      description: string
+    ) => cashQuery.addCashMovement(registerId, userId, type, amount, description)
   )
-  ipcMain.handle('cash:getMovements', (_, registerId: number) =>
-    cashQuery.getCashMovements(registerId)
+
+  registerAuthorized(
+    'cash:getMovements',
+    getRule('cash:getMovements'),
+    (_event, _ctx, registerId: number) => cashQuery.getCashMovements(registerId)
   )
-  ipcMain.handle('cash:getSummary', (_, registerId: number) =>
-    cashQuery.getCashRegisterSummary(registerId)
+
+  registerAuthorized(
+    'cash:getSummary',
+    getRule('cash:getSummary'),
+    (_event, _ctx, registerId: number) => cashQuery.getCashRegisterSummary(registerId)
   )
-  ipcMain.handle('cash:getAll', () => cashQuery.getAllCashRegisters())
+
+  registerAuthorized('cash:getAll', getRule('cash:getAll'), () => cashQuery.getAllCashRegisters())
+
+  return listRegisteredChannels().slice(before)
 }

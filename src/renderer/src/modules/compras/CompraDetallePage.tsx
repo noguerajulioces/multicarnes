@@ -17,6 +17,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { compraDetalleTourSteps, compraDetallePendingTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 import type { OrderStatus, PurchaseOrder } from '@shared/types'
 
 const statusTone: Record<OrderStatus, 'warning' | 'success' | 'danger'> = {
@@ -47,9 +48,13 @@ export default function CompraDetallePage() {
 
   const handleReceive = async (): Promise<void> => {
     setLoading(true)
-    await window.api.purchases.receive(Number(id))
-    toast.success('Orden marcada como recibida')
-    loadOrder()
+    try {
+      await window.api.purchases.receive(Number(id))
+      toast.success('Orden marcada como recibida')
+      loadOrder()
+    } catch (err) {
+      handleApiError(err)
+    }
     setLoading(false)
   }
 
@@ -63,9 +68,13 @@ export default function CompraDetallePage() {
     })
     if (!ok) return
     setLoading(true)
-    await window.api.purchases.cancel(Number(id))
-    toast.info('Orden cancelada')
-    loadOrder()
+    try {
+      await window.api.purchases.cancel(Number(id))
+      toast.info('Orden cancelada')
+      loadOrder()
+    } catch (err) {
+      handleApiError(err)
+    }
     setLoading(false)
   }
 

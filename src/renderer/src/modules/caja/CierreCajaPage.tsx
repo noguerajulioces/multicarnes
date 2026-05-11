@@ -8,6 +8,7 @@ import { toast } from '../../lib/toast'
 import { MoneyInput, TourButton } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaCierreTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 
 export default function CierreCajaPage() {
   const { register, setRegister } = useCashStore()
@@ -78,7 +79,7 @@ export default function CierreCajaPage() {
 
       navigate('/dashboard')
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error al cerrar caja')
+      handleApiError(err)
     }
     setLoading(false)
   }
@@ -142,9 +143,7 @@ export default function CierreCajaPage() {
               style={{ boxShadow: 'var(--shadow-card-soft)' }}
             >
               <p className="text-xs text-text-muted mb-1">Efectivo esperado</p>
-              <p className="text-2xl font-bold text-text-main tabular-nums">
-                {formatGs(expected)}
-              </p>
+              <p className="text-2xl font-bold text-text-main tabular-nums">{formatGs(expected)}</p>
             </div>
 
             <div data-tour="caja-cierre-counted">

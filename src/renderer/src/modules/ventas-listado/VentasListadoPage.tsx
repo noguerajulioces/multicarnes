@@ -98,7 +98,12 @@ export default function VentasListadoPage() {
     })
 
   const handleExportExcel = (): void => {
-    exportToExcel(prepareExport(), exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
+    exportToExcel(
+      prepareExport(),
+      exportColumns,
+      `ventas_${from}_${to}`,
+      `Ventas (${from} a ${to})`
+    )
   }
 
   const handleExportPDF = (): void => {

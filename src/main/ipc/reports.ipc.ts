@@ -1,25 +1,47 @@
-import { ipcMain } from 'electron'
 import * as reportsQuery from '../db/queries/reports'
+import { registerAuthorized, listRegisteredChannels } from '../auth/guard'
+import { getRule } from '../auth/matrix'
 
-export function registerReportsIpc(): void {
-  ipcMain.handle(
+export function registerReportsIpc(): string[] {
+  const before = listRegisteredChannels().length
+
+  registerAuthorized(
     'reports:salesByPeriod',
-    (_, from: string, to: string, method?: string, userId?: number) =>
+    getRule('reports:salesByPeriod'),
+    (_e, _c, from: string, to: string, method?: string, userId?: number) =>
       reportsQuery.salesByPeriod(from, to, method, userId)
   )
-  ipcMain.handle('reports:topProducts', (_, from: string, to: string, categoryId?: number) =>
-    reportsQuery.topProducts(from, to, categoryId)
+  registerAuthorized(
+    'reports:topProducts',
+    getRule('reports:topProducts'),
+    (_e, _c, from: string, to: string, categoryId?: number) =>
+      reportsQuery.topProducts(from, to, categoryId)
   )
-  ipcMain.handle('reports:profitMargin', () => reportsQuery.profitMargin())
-  ipcMain.handle('reports:stockMovements', (_, from: string, to: string, productId?: number) =>
-    reportsQuery.stockMovements(from, to, productId)
+  registerAuthorized('reports:profitMargin', getRule('reports:profitMargin'), () =>
+    reportsQuery.profitMargin()
   )
-  ipcMain.handle('reports:cashRegisters', () => reportsQuery.cashRegisterReport())
-  ipcMain.handle('reports:pendingCredits', () => reportsQuery.pendingCredits())
-  ipcMain.handle('reports:salesSummary', (_, from: string, to: string) =>
-    reportsQuery.salesSummary(from, to)
+  registerAuthorized(
+    'reports:stockMovements',
+    getRule('reports:stockMovements'),
+    (_e, _c, from: string, to: string, productId?: number) =>
+      reportsQuery.stockMovements(from, to, productId)
   )
-  ipcMain.handle('reports:salesComparison', (_, from: string, to: string) =>
-    reportsQuery.salesComparison(from, to)
+  registerAuthorized('reports:cashRegisters', getRule('reports:cashRegisters'), () =>
+    reportsQuery.cashRegisterReport()
   )
+  registerAuthorized('reports:pendingCredits', getRule('reports:pendingCredits'), () =>
+    reportsQuery.pendingCredits()
+  )
+  registerAuthorized(
+    'reports:salesSummary',
+    getRule('reports:salesSummary'),
+    (_e, _c, from: string, to: string) => reportsQuery.salesSummary(from, to)
+  )
+  registerAuthorized(
+    'reports:salesComparison',
+    getRule('reports:salesComparison'),
+    (_e, _c, from: string, to: string) => reportsQuery.salesComparison(from, to)
+  )
+
+  return listRegisteredChannels().slice(before)
 }

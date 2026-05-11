@@ -93,9 +93,7 @@ export function closeCashRegister(
     movements.expenses
   const difference = closingAmount - expectedAmount
 
-  const todayLocal = (
-    db.prepare("SELECT date('now','localtime') as d").get() as { d: string }
-  ).d
+  const todayLocal = (db.prepare("SELECT date('now','localtime') as d").get() as { d: string }).d
   const openedDay = register.opened_at.slice(0, 10)
   const wasStale = openedDay < todayLocal
 

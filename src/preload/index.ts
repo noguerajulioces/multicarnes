@@ -7,6 +7,7 @@ const api = {
     getActive: () => ipcRenderer.invoke('users:getActive'),
     getById: (id: number) => ipcRenderer.invoke('users:getById', id),
     login: (userId: number, pin: string) => ipcRenderer.invoke('users:login', userId, pin),
+    logout: () => ipcRenderer.invoke('users:logout'),
     create: (data: unknown) => ipcRenderer.invoke('users:create', data),
     update: (id: number, data: unknown) => ipcRenderer.invoke('users:update', id, data)
   },
@@ -40,7 +41,8 @@ const api = {
     getById: (id: number) => ipcRenderer.invoke('sales:getById', id),
     getRecent: (limit?: number) => ipcRenderer.invoke('sales:getRecent', limit),
     getByRegister: (registerId: number) => ipcRenderer.invoke('sales:getByRegister', registerId),
-    cancel: (id: number, userId: number) => ipcRenderer.invoke('sales:cancel', id, userId),
+    cancel: (id: number, options?: { refundMixedCredit?: boolean }) =>
+      ipcRenderer.invoke('sales:cancel', id, options),
     dayTotal: () => ipcRenderer.invoke('sales:dayTotal')
   },
   // Customers
@@ -123,6 +125,20 @@ const api = {
   print: {
     ticket: (payload: unknown) => ipcRenderer.invoke('print:ticket', payload),
     hasConfig: () => ipcRenderer.invoke('print:hasConfig')
+  },
+  heldTickets: {
+    list: () => ipcRenderer.invoke('held:list'),
+    add: (data: { id: string; label: string; payload: string; discount: number }) =>
+      ipcRenderer.invoke('held:add', data),
+    remove: (id: string) => ipcRenderer.invoke('held:remove', id),
+    clear: () => ipcRenderer.invoke('held:clear')
+  },
+  auth: {
+    recoveryNeeded: () => ipcRenderer.invoke('auth:recoveryNeeded'),
+    matrixSummary: () => ipcRenderer.invoke('auth:matrixSummary'),
+    listAuditEntries: (filters?: unknown) => ipcRenderer.invoke('auth:listAuditEntries', filters),
+    listAlerts: () => ipcRenderer.invoke('auth:listAlerts'),
+    acknowledgeAlert: (alertId: number) => ipcRenderer.invoke('auth:acknowledgeAlert', alertId)
   },
   window: {
     minimize: () => ipcRenderer.invoke('window:minimize'),

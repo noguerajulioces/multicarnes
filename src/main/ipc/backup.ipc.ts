@@ -1,7 +1,25 @@
-import { ipcMain, dialog, app, Notification } from 'electron'
+import { dialog, app, Notification } from 'electron'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs'
 import { basename, join } from 'path'
 import { getDb } from '../db'
+import { registerAuthorized, listRegisteredChannels } from '../auth/guard'
+import { getRule } from '../auth/matrix'
+
+// Whitelist of app_settings keys that the public settings:getAll handler may
+// return. Anything not on this list is filtered out before reaching the
+// renderer; new sensitive keys default to "not exposed".
+const PUBLIC_SETTING_KEYS = new Set([
+  'business_name',
+  'business_address',
+  'business_phone',
+  'thermal_printer_name',
+  'thermal_printer_width',
+  'login_keypad_enabled',
+  'backup_path',
+  'auto_backup',
+  'backup_schedule_enabled',
+  'backup_schedule_time'
+])
 
 function getBackupDir(): string {
   const db = getDb()
@@ -73,13 +91,15 @@ function startBackupScheduler(): void {
   }, 60_000)
 }
 
-export function registerBackupIpc(): void {
+export function registerBackupIpc(): string[] {
   // Start the scheduler
   startBackupScheduler()
 
-  ipcMain.handle('backup:create', () => createBackup())
+  const before = listRegisteredChannels().length
 
-  ipcMain.handle('backup:list', () => {
+  registerAuthorized('backup:create', getRule('backup:create'), () => createBackup())
+
+  registerAuthorized('backup:list', getRule('backup:list'), () => {
     const dir = getBackupDir()
     if (!existsSync(dir)) return []
     return readdirSync(dir)
@@ -92,36 +112,51 @@ export function registerBackupIpc(): void {
       .sort((a, b) => b.date.localeCompare(a.date))
   })
 
-  ipcMain.handle('backup:restore', async (_event, filePath?: string) => {
-    let restorePath = filePath
-    if (!restorePath) {
-      const result = await dialog.showOpenDialog({
-        filters: [{ name: 'Database', extensions: ['db'] }],
-        properties: ['openFile']
-      })
-      if (result.canceled || !result.filePaths[0]) return null
-      restorePath = result.filePaths[0]
+  registerAuthorized(
+    'backup:restore',
+    getRule('backup:restore'),
+    async (_event, _ctx, filePath?: string) => {
+      let restorePath = filePath
+      if (!restorePath) {
+        const result = await dialog.showOpenDialog({
+          filters: [{ name: 'Database', extensions: ['db'] }],
+          properties: ['openFile']
+        })
+        if (result.canceled || !result.filePaths[0]) return null
+        restorePath = result.filePaths[0]
+      }
+      const dbPath = join(app.getPath('userData'), 'pos.db')
+      createBackup()
+      copyFileSync(restorePath, dbPath)
+      return restorePath
     }
-    const dbPath = join(app.getPath('userData'), 'pos.db')
-    createBackup()
-    copyFileSync(restorePath, dbPath)
-    return restorePath
-  })
+  )
 
-  ipcMain.handle('backup:selectFolder', async () => {
+  registerAuthorized('backup:selectFolder', getRule('backup:selectFolder'), async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
     if (result.canceled || !result.filePaths[0]) return null
     return result.filePaths[0]
   })
 
-  ipcMain.handle('settings:getAll', () => {
-    return getDb().prepare('SELECT * FROM app_settings').all()
+  registerAuthorized('settings:getAll', getRule('settings:getAll'), () => {
+    // Public channel: filter to display-safe keys only (T013).
+    const all = getDb().prepare('SELECT key, value FROM app_settings').all() as {
+      key: string
+      value: string
+    }[]
+    return all.filter((row) => PUBLIC_SETTING_KEYS.has(row.key))
   })
 
-  ipcMain.handle('settings:set', (_, key: string, value: string) => {
-    getDb()
-      .prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)')
-      .run(key, value)
-    return true
-  })
+  registerAuthorized(
+    'settings:set',
+    getRule('settings:set'),
+    (_event, _ctx, key: string, value: string) => {
+      getDb()
+        .prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)')
+        .run(key, value)
+      return true
+    }
+  )
+
+  return listRegisteredChannels().slice(before)
 }

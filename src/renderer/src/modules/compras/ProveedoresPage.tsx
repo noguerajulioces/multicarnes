@@ -14,6 +14,7 @@ import {
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { proveedoresTourSteps } from '../../lib/tour-steps'
+import { handleApiError } from '../../lib/api-error'
 
 const emptyForm = { name: '', phone: '', email: '', address: '' }
 const PER_PAGE = 50
@@ -40,10 +41,15 @@ export default function ProveedoresPage() {
 
   const handleSave = async (): Promise<void> => {
     if (!form.name) return
-    if (editId) {
-      await window.api.suppliers.update(editId, form)
-    } else {
-      await window.api.suppliers.create(form)
+    try {
+      if (editId) {
+        await window.api.suppliers.update(editId, form)
+      } else {
+        await window.api.suppliers.create(form)
+      }
+    } catch (err) {
+      handleApiError(err)
+      return
     }
     closeForm()
     load()

@@ -25,6 +25,7 @@ interface ApiUsers {
   getActive(): Promise<User[]>
   getById(id: number): Promise<User | null>
   login(userId: number, pin: string): Promise<User | null>
+  logout(): Promise<{ ok: true }>
   create(data: { name: string; role: string; pin: string }): Promise<User>
   update(
     id: number,
@@ -75,7 +76,7 @@ interface ApiSales {
   getById(id: number): Promise<Sale | null>
   getRecent(limit?: number): Promise<Sale[]>
   getByRegister(registerId: number): Promise<Sale[]>
-  cancel(id: number, userId: number): Promise<Sale | null>
+  cancel(id: number, options?: { refundMixedCredit?: boolean }): Promise<Sale | null>
   dayTotal(): Promise<{ total: number; count: number }>
 }
 
@@ -102,12 +103,7 @@ interface ApiCustomers {
 interface ApiCash {
   open(userId: number, openingAmount: number): Promise<CashRegister>
   getCurrent(): Promise<CashRegister | null>
-  close(
-    id: number,
-    closingAmount: number,
-    notes?: string,
-    userId?: number
-  ): Promise<CashRegister>
+  close(id: number, closingAmount: number, notes?: string, userId?: number): Promise<CashRegister>
   addMovement(
     registerId: number,
     userId: number,
@@ -217,6 +213,43 @@ interface ApiPrint {
   hasConfig(): Promise<boolean>
 }
 
+interface HeldTicketRow {
+  id: string
+  label: string
+  payload: string
+  discount: number
+  created_at: string
+}
+
+interface ApiHeldTickets {
+  list(): Promise<HeldTicketRow[]>
+  add(data: {
+    id: string
+    label: string
+    payload: string
+    discount: number
+  }): Promise<HeldTicketRow>
+  remove(id: string): Promise<void>
+  clear(): Promise<void>
+}
+
+import type {
+  AuthAlert,
+  AuthAuditEntry,
+  AuthAuditFilters,
+  AuthMatrixSummaryEntry
+} from '../shared/auth-types'
+
+interface ApiAuth {
+  recoveryNeeded(): Promise<{ recoveryNeeded: boolean }>
+  matrixSummary(): Promise<AuthMatrixSummaryEntry[]>
+  listAuditEntries(
+    filters?: AuthAuditFilters
+  ): Promise<{ entries: AuthAuditEntry[]; total: number }>
+  listAlerts(): Promise<AuthAlert[]>
+  acknowledgeAlert(alertId: number): Promise<{ ok: true }>
+}
+
 interface ApiWindow {
   minimize(): Promise<void>
   maximizeToggle(): Promise<boolean>
@@ -240,6 +273,8 @@ declare global {
       settings: ApiSettings
       notify: ApiNotify
       print: ApiPrint
+      heldTickets: ApiHeldTickets
+      auth: ApiAuth
       window: ApiWindow
     }
   }

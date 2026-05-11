@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, FileText, Printer } from 'lucide-react'
+import { ArrowLeft, Ban, FileText, Printer } from 'lucide-react'
 import type { PaymentMethod, Sale } from '@shared/types'
 import {
   Badge,
@@ -12,7 +12,12 @@ import {
   TableSkeleton
 } from '../../components/ui'
 import TicketPreviewModal from '../ventas/TicketPreviewModal'
+import MixedCancellationModal from './MixedCancellationModal'
 import { formatDateTime, formatGs } from '../../lib/utils'
+import { useAuthStore } from '../../store/auth.store'
+import { confirm } from '../../lib/confirm'
+import { handleApiError } from '../../lib/api-error'
+import { toast } from '../../lib/toast'
 
 const methodLabels: Record<string, string> = {
   cash: 'Efectivo',
@@ -34,6 +39,10 @@ export default function VentaDetallePage(): React.ReactElement {
   const [sale, setSale] = useState<Sale | null>(null)
   const [loading, setLoading] = useState(true)
   const [showTicket, setShowTicket] = useState(false)
+  const [showMixedModal, setShowMixedModal] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const role = useAuthStore((s) => s.user?.role)
+  const canCancel = role === 'admin' || role === 'supervisor'
 
   useEffect(() => {
     const saleId = Number(id)
@@ -60,6 +69,52 @@ export default function VentaDetallePage(): React.ReactElement {
     navigate('/ventas')
   }
 
+  const finalizeCancel = async (refundMixedCredit?: boolean): Promise<void> => {
+    if (!sale) return
+    setCancelling(true)
+    try {
+      const updated = await window.api.sales.cancel(
+        sale.id,
+        refundMixedCredit !== undefined ? { refundMixedCredit } : undefined
+      )
+      if (updated) {
+        setSale(updated)
+        toast.success(`Venta #${sale.id} anulada`)
+      }
+    } catch (err) {
+      handleApiError(err)
+    } finally {
+      setCancelling(false)
+      setShowMixedModal(false)
+    }
+  }
+
+  const onCancelClick = async (): Promise<void> => {
+    if (!sale || sale.status === 'cancelled') return
+    if (sale.payment_method === 'mixed') {
+      setShowMixedModal(true)
+      return
+    }
+    const ok = await confirm({
+      title: 'Anular venta',
+      message: `¿Anular la venta #${sale.id}? Esta acción no se puede deshacer.`,
+      confirmLabel: 'Anular',
+      danger: true
+    })
+    if (ok) await finalizeCancel()
+  }
+
+  const mixedPortions = ((): { cash: number; credit: number } => {
+    if (!sale || sale.payment_method !== 'mixed') return { cash: 0, credit: 0 }
+    let credit = 0
+    let other = 0
+    for (const p of sale.payments ?? []) {
+      if (p.method === 'credit') credit += p.amount
+      else other += p.amount
+    }
+    return { cash: other, credit }
+  })()
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -71,6 +126,18 @@ export default function VentaDetallePage(): React.ReactElement {
               <ArrowLeft size={16} />
               Volver
             </Button>
+            {canCancel && sale && sale.status !== 'cancelled' && (
+              <Button
+                variant="danger"
+                onClick={onCancelClick}
+                disabled={cancelling}
+                className="rounded-xl"
+                title="Anular esta venta"
+              >
+                <Ban size={16} />
+                {cancelling ? 'Anulando…' : 'Anular'}
+              </Button>
+            )}
             <Button
               onClick={() => setShowTicket(true)}
               disabled={!sale}
@@ -113,6 +180,17 @@ export default function VentaDetallePage(): React.ReactElement {
 
       {showTicket && sale && (
         <TicketPreviewModal sale={sale} onClose={() => setShowTicket(false)} closeLabel="Cerrar" />
+      )}
+
+      {sale && sale.payment_method === 'mixed' && (
+        <MixedCancellationModal
+          open={showMixedModal}
+          cashPortion={mixedPortions.cash}
+          creditPortion={mixedPortions.credit}
+          customerName={sale.customer_name || 'el cliente'}
+          onCancel={() => setShowMixedModal(false)}
+          onConfirm={(refund) => finalizeCancel(refund)}
+        />
       )}
     </div>
   )
@@ -179,9 +257,7 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
                     <td className="px-4 py-3 text-right tabular-nums">
                       {it.quantity.toLocaleString('es-PY', { maximumFractionDigits: 3 })}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {formatGs(it.unit_price)}
-                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">{formatGs(it.unit_price)}</td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums">
                       {formatGs(it.subtotal)}
                     </td>

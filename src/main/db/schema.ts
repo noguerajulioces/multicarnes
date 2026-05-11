@@ -157,5 +157,47 @@ export function createTables(db: Database.Database): void {
       key   TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version    INTEGER PRIMARY KEY,
+      name       TEXT NOT NULL,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS held_tickets (
+      id         TEXT PRIMARY KEY,
+      label      TEXT NOT NULL,
+      payload    TEXT NOT NULL,
+      discount   INTEGER NOT NULL DEFAULT 0,
+      user_id    INTEGER NULL REFERENCES users(id),
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS auth_audit (
+      id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+      operation          TEXT    NOT NULL,
+      claimed_user_id    INTEGER,
+      resolved_user_id   INTEGER,
+      resolved_role      TEXT,
+      outcome            TEXT    NOT NULL CHECK(outcome IN
+                           ('allowed',
+                            'blocked-no-user',
+                            'blocked-inactive',
+                            'blocked-insufficient-role')),
+      sender_id          INTEGER,
+      created_at         TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_auth_audit_user_time_outcome
+      ON auth_audit(claimed_user_id, created_at, outcome);
+
+    CREATE TABLE IF NOT EXISTS auth_alert_acks (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id          INTEGER NOT NULL REFERENCES users(id),
+      window_start     TEXT    NOT NULL,
+      acknowledged_at  TEXT,
+      acknowledged_by  INTEGER REFERENCES users(id),
+      UNIQUE(user_id, window_start)
+    );
   `)
 }
