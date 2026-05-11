@@ -53,6 +53,24 @@ export function getCurrentCashRegister() {
   )
 }
 
+// 004-logout-cash-close: per-user lookup for the logout guard. Scoped to a
+// specific user id so the logout-guard check cannot leak across users (FR-006).
+export function getOpenCashRegisterByUserId(userId: number) {
+  return (
+    getDb()
+      .prepare(
+        `
+    SELECT cr.*, u.name as user_name
+    FROM cash_registers cr
+    LEFT JOIN users u ON cr.user_id = u.id
+    WHERE cr.user_id = ? AND cr.status = 'open'
+    LIMIT 1
+  `
+      )
+      .get(userId) || null
+  )
+}
+
 export function closeCashRegister(
   id: number,
   closingAmount: number,

@@ -67,6 +67,7 @@ const api = {
     open: (userId: number, openingAmount: number) =>
       ipcRenderer.invoke('cash:open', userId, openingAmount),
     getCurrent: () => ipcRenderer.invoke('cash:getCurrent'),
+    getMyOpenRegister: () => ipcRenderer.invoke('cash:getMyOpenRegister'),
     close: (id: number, closingAmount: number, notes?: string, userId?: number) =>
       ipcRenderer.invoke('cash:close', id, closingAmount, notes, userId),
     addMovement: (
