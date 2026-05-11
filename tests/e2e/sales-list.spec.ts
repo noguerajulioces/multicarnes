@@ -138,14 +138,66 @@ test.describe('Sales — list & filters', () => {
   })
 
   // -----------------
-  // sales-list-6-3 (P3) — pagination FIXME
+  // sales-list-6-3 (P3) — pagination
   // -----------------
-  test.fixme(
-    'sales-list-6-3 — pagination shows correct page counts',
-    async () => {
-      // sales.getRecent / sales.getAll do not currently expose paging in a
-      // way that's straightforward to assert via IPC; the renderer page does
-      // it. Coverage to land alongside a SalesListPage POM later.
+  test('sales-list-6-3 — sales.getAll paginates with total + page + perPage', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      const admin = await loginAsSeedAdmin(window)
+      const product = await createProductViaIpc(window, {
+        name: 'Pagination target',
+        price: 1_000,
+        stock: 1_000
+      })
+      const register = await openCashRegisterViaIpc(window, admin.id, 0)
+
+      // Seed 75 sales.
+      await window.evaluate(
+        async (a) => {
+          for (let i = 0; i < 75; i++) {
+            await window.api.sales.create({
+              registerId: a.registerId,
+              userId: a.userId,
+              items: [
+                { productId: a.productId, quantity: 1, unitPrice: 1_000, subtotal: 1_000 }
+              ],
+              subtotal: 1_000,
+              discount: 0,
+              total: 1_000,
+              paymentMethod: 'cash',
+              payments: [{ method: 'cash', amount: 1_000 }]
+            })
+          }
+        },
+        { registerId: register.id, userId: admin.id, productId: product.id }
+      )
+
+      // Page 1 of 50 → 50 items.
+      const page1 = (await ipc(
+        window,
+        async ([p, pp]) => window.api.sales.getAll({ page: p as number, perPage: pp as number }),
+        [1, 50] as const
+      )) as { items: SaleRow[]; total: number; page: number; perPage: number }
+      expect(page1.total).toBe(75)
+      expect(page1.items.length).toBe(50)
+      expect(page1.page).toBe(1)
+
+      // Page 2 of 50 → 25 remaining items.
+      const page2 = (await ipc(
+        window,
+        async ([p, pp]) => window.api.sales.getAll({ page: p as number, perPage: pp as number }),
+        [2, 50] as const
+      )) as { items: SaleRow[]; total: number; page: number; perPage: number }
+      expect(page2.items.length).toBe(25)
+      expect(page2.page).toBe(2)
+
+      // No overlap between page 1 and page 2.
+      const idsPage1 = new Set(page1.items.map((s) => s.id))
+      const idsPage2 = new Set(page2.items.map((s) => s.id))
+      const intersection = [...idsPage1].filter((id) => idsPage2.has(id))
+      expect(intersection.length).toBe(0)
+    } finally {
+      await cleanup()
     }
-  )
+  })
 })

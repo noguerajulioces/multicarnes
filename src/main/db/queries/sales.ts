@@ -134,6 +134,62 @@ export function getSaleById(id: number) {
   return sale
 }
 
+export function getAllSales(opts: {
+  from?: string
+  to?: string
+  paymentMethod?: string
+  userId?: number
+  page?: number
+  perPage?: number
+} = {}) {
+  const db = getDb()
+  const params: unknown[] = []
+  const conditions: string[] = []
+  if (opts.from) {
+    conditions.push("date(s.created_at) >= date(?)")
+    params.push(opts.from)
+  }
+  if (opts.to) {
+    conditions.push("date(s.created_at) <= date(?)")
+    params.push(opts.to)
+  }
+  if (opts.paymentMethod) {
+    conditions.push('s.payment_method = ?')
+    params.push(opts.paymentMethod)
+  }
+  if (opts.userId !== undefined) {
+    conditions.push('s.user_id = ?')
+    params.push(opts.userId)
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+
+  const total = (
+    db
+      .prepare(`SELECT COUNT(*) as c FROM sales s ${where}`)
+      .get(...params) as { c: number }
+  ).c
+
+  const isPaginated = opts.page !== undefined
+  const page = Math.max(1, opts.page ?? 1)
+  const perPage = opts.perPage ?? (isPaginated ? 50 : total)
+  const limitClause = isPaginated ? 'LIMIT ? OFFSET ?' : ''
+  const limitParams = isPaginated ? [perPage, (page - 1) * perPage] : []
+
+  const items = db
+    .prepare(
+      `SELECT s.*, c.name as customer_name, u.name as user_name
+       FROM sales s
+       LEFT JOIN customers c ON s.customer_id = c.id
+       LEFT JOIN users u ON s.user_id = u.id
+       ${where}
+       ORDER BY s.created_at DESC
+       ${limitClause}`
+    )
+    .all(...params, ...limitParams)
+
+  return { items, total, page, perPage }
+}
+
 export function getRecentSales(limit: number = 50) {
   return getDb()
     .prepare(

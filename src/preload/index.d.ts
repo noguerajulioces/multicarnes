@@ -73,6 +73,14 @@ interface ApiSales {
     payments?: { method: string; amount: number }[]
     notes?: string
   }): Promise<Sale>
+  getAll(
+    opts?: {
+      from?: string
+      to?: string
+      paymentMethod?: string
+      userId?: number
+    } & PageOpts
+  ): Promise<Paginated<Sale>>
   getById(id: number): Promise<Sale | null>
   getRecent(limit?: number): Promise<Sale[]>
   getByRegister(registerId: number): Promise<Sale[]>

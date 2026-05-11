@@ -8,6 +8,9 @@ export function registerSalesIpc(): string[] {
   registerAuthorized('sales:create', getRule('sales:create'), (_event, _ctx, data: unknown) =>
     salesQuery.createSale(data as Parameters<typeof salesQuery.createSale>[0])
   )
+  registerAuthorized('sales:getAll', getRule('sales:getAll'), (_event, _ctx, opts: unknown) =>
+    salesQuery.getAllSales(opts as Parameters<typeof salesQuery.getAllSales>[0])
+  )
   registerAuthorized('sales:getById', getRule('sales:getById'), (_event, _ctx, id: number) =>
     salesQuery.getSaleById(id)
   )

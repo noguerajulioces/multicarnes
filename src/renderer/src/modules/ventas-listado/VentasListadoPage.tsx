@@ -10,6 +10,7 @@ import {
   EmptyState,
   Input,
   PageHeader,
+  Pagination,
   TableSkeleton
 } from '../../components/ui'
 import type { PaymentMethod, Sale } from '@shared/types'
@@ -44,20 +45,31 @@ const thCls = 'px-4 py-3 font-medium'
 const trCls = 'border-t border-border hover:bg-surface-muted/40 transition-colors cursor-pointer'
 const tdCls = 'px-4 py-3'
 
+const PER_PAGE = 50
+
 export default function VentasListadoPage() {
   const navigate = useNavigate()
   const [from, setFrom] = useState(firstDayOfMonthStr())
   const [to, setTo] = useState(todayStr())
   const [data, setData] = useState<Sale[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [printSale, setPrintSale] = useState<Sale | null>(null)
   const [printingId, setPrintingId] = useState<number | null>(null)
 
-  const load = async (): Promise<void> => {
+  const load = async (targetPage: number = page): Promise<void> => {
     setLoading(true)
     try {
-      const sales = await window.api.reports.salesByPeriod(from, to)
-      setData(sales as Sale[])
+      const result = await window.api.sales.getAll({
+        from,
+        to,
+        page: targetPage,
+        perPage: PER_PAGE
+      })
+      setData(result.items)
+      setTotal(result.total)
+      setPage(result.page)
     } catch {
       /* ignore */
     }
@@ -65,9 +77,18 @@ export default function VentasListadoPage() {
   }
 
   useEffect(() => {
-    load()
+    load(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const onPageChange = (next: number): void => {
+    void load(next)
+  }
+
+  const onConsultar = (): void => {
+    // Reset to page 1 whenever the date range changes.
+    void load(1)
+  }
 
   const goToDetail = (id: number): void => {
     navigate(`/ventas/${id}`)
@@ -83,8 +104,8 @@ export default function VentasListadoPage() {
     }
   }
 
-  const prepareExport = (): Record<string, unknown>[] =>
-    data.map((s) => {
+  const prepareExport = (rows: Sale[]): Record<string, unknown>[] =>
+    rows.map((s) => {
       const isCredit = s.payment_method === 'credit'
       const creditPaid = isCredit && s.customer_balance != null && s.customer_balance >= 0
       return {
@@ -97,17 +118,27 @@ export default function VentasListadoPage() {
       }
     })
 
-  const handleExportExcel = (): void => {
+  // Export fetches the full period (no pagination) so the file always
+  // reflects the whole date range the user is looking at, not just the
+  // current page.
+  const fetchAllForExport = async (): Promise<Sale[]> => {
+    const result = await window.api.sales.getAll({ from, to })
+    return result.items
+  }
+
+  const handleExportExcel = async (): Promise<void> => {
+    const all = await fetchAllForExport()
     exportToExcel(
-      prepareExport(),
+      prepareExport(all),
       exportColumns,
       `ventas_${from}_${to}`,
       `Ventas (${from} a ${to})`
     )
   }
 
-  const handleExportPDF = (): void => {
-    exportToPDF(prepareExport(), exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
+  const handleExportPDF = async (): Promise<void> => {
+    const all = await fetchAllForExport()
+    exportToPDF(prepareExport(all), exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
   }
 
   const hasData = data.length > 0
@@ -147,7 +178,7 @@ export default function VentasListadoPage() {
                 className="w-44"
               />
             </div>
-            <Button onClick={load} disabled={loading} className="rounded-xl">
+            <Button onClick={onConsultar} disabled={loading} className="rounded-xl">
               <Search size={16} />
               {loading ? 'Cargando...' : 'Consultar'}
             </Button>
@@ -260,7 +291,7 @@ export default function VentasListadoPage() {
               <tfoot>
                 <tr className="border-t-2 border-border bg-surface-muted/40">
                   <td colSpan={3} className="px-4 py-3 font-medium text-text-muted">
-                    Total: {data.length} ventas
+                    Página actual: {data.length} de {total} ventas
                   </td>
                   <td className="px-4 py-3 text-right text-lg font-bold text-brand tabular-nums">
                     {formatGs(data.reduce((s, v) => s + v.total, 0))}
@@ -270,6 +301,12 @@ export default function VentasListadoPage() {
               </tfoot>
             </table>
           </div>
+          <Pagination
+            page={page}
+            perPage={PER_PAGE}
+            total={total}
+            onPageChange={onPageChange}
+          />
         </Card>
       )}
 
