@@ -83,7 +83,21 @@ async function waitForMainWindow(app: ElectronApplication): Promise<Page> {
  *
  * Example:
  *   const list = await ipc(window, () => window.api.heldTickets.list())
+ *   const id   = await ipc(window, (arg) => window.api.heldTickets.remove(arg), ticketId)
  */
-export async function ipc<T>(window: Page, fn: () => T | Promise<T>): Promise<T> {
-  return window.evaluate(fn)
+export function ipc<T>(window: Page, fn: () => T | Promise<T>): Promise<T>
+export function ipc<T, Arg>(
+  window: Page,
+  fn: (arg: Arg) => T | Promise<T>,
+  arg: Arg
+): Promise<T>
+export function ipc<T, Arg>(
+  window: Page,
+  fn: ((arg: Arg) => T | Promise<T>) | (() => T | Promise<T>),
+  arg?: Arg
+): Promise<T> {
+  if (arg === undefined) {
+    return window.evaluate(fn as () => T | Promise<T>)
+  }
+  return window.evaluate(fn as (arg: Arg) => T | Promise<T>, arg as Arg)
 }
