@@ -2,6 +2,40 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.2.0](https://github.com/noguerajulioces/multicarnes/compare/v1.1.0...v1.2.0) (2026-05-11)
+
+### Features
+
+* **auth:** foundational guard + US1 server-side authorization (T001-T020) ([2777705](https://github.com/noguerajulioces/multicarnes/commit/2777705144df80c6f18e74246d29a18594ce4138))
+* **auth:** US2 server-side authorization for financial mutations (T022-T029) ([51c33fc](https://github.com/noguerajulioces/multicarnes/commit/51c33fc2fe3caa103980d4c00bbc73aef757c42f))
+* **auth:** US3 cost-data gating for cashiers (T031-T037) ([3561d00](https://github.com/noguerajulioces/multicarnes/commit/3561d00895a0b4f017b2fd955d11e649090f627c))
+* **auth:** US4 audit + alerts surfacing on dashboard (T039-T047) ([458e514](https://github.com/noguerajulioces/multicarnes/commit/458e514ef0a60502a3974362f1935c35f1d32d3b))
+* **auth:** US5 recovery path on the login screen (T049-T054) ([10893c1](https://github.com/noguerajulioces/multicarnes/commit/10893c1899ac85e843c8076883aeb59cf3f7635c))
+* **db:** versioned migrations with schema_migrations ledger (P3) ([8e08406](https://github.com/noguerajulioces/multicarnes/commit/8e084060e40a44cafeb691ab9f0280ae8848d8eb))
+* enhance ticket rendering with emphasized parts for better layout ([398b97d](https://github.com/noguerajulioces/multicarnes/commit/398b97dcf9b7fb12f6765f07c5eeca8a8e4f546c))
+* **held-tickets:** persist held tickets in SQLite instead of localStorage (P9) ([f4a1575](https://github.com/noguerajulioces/multicarnes/commit/f4a1575f6e39182a32bbbcaf3bcb5f68188df3b7))
+* **round-2:** scope held tickets per cashier, fix purchase audit attribution, mixed-payment cancellation prompt ([e45810f](https://github.com/noguerajulioces/multicarnes/commit/e45810f8acf3a7d8ffec653ccc91140d716910b7))
+* **sales:** validate cash register is open before creating a sale (P2) ([a8b8562](https://github.com/noguerajulioces/multicarnes/commit/a8b85629a656a0a705150047a47927311682156d))
+* **stock:** write stock_adjustments rows for sales and purchase receptions (P5) ([9f84daa](https://github.com/noguerajulioces/multicarnes/commit/9f84daae140deed2130fee29d53baa12f74d1469))
+* **updater:** in-app auto-update via electron-updater + GitHub Releases ([cce732c](https://github.com/noguerajulioces/multicarnes/commit/cce732c7a9900b3b6c434cad46442a53a0402a18))
+* **ventas:** server-side pagination for /ventas listing ([4382877](https://github.com/noguerajulioces/multicarnes/commit/43828770aa87d35d6c9602fc022b6ee0294d5fdb))
+
+### Bug Fixes
+
+* **e2e:** update Excel export test description and rationale for manual QA ([619e099](https://github.com/noguerajulioces/multicarnes/commit/619e0995e73bf87f8f74f629805a7fc8e2376468))
+* **main:** guard splash + main-window timers against destroyed window ([5c5643c](https://github.com/noguerajulioces/multicarnes/commit/5c5643c2f9b13b53d282ed6a7fa2faf9047facb1))
+
+### Refactoring
+
+* **ticket:** update ticket width calculation to use character units ([cbde6bb](https://github.com/noguerajulioces/multicarnes/commit/cbde6bb41aa6ad3ea658ff0e4fc1a02bdf90708d))
+
+### Documentation
+
+* close out 001-ipc-authorization Polish phase (T060-T062) ([0945986](https://github.com/noguerajulioces/multicarnes/commit/0945986207b9c384fa27f2c3842d1428c16cb82b))
+* **constitution:** track P7+P8 progress on tasks.md (constitution updates landed in .specify/, gitignored) ([1765d26](https://github.com/noguerajulioces/multicarnes/commit/1765d2627bd8630b8a650bd66ca10754d4be603e))
+* **sales:** flag mixed-credit cancellation divergence and update task progress (P6) ([aa9d31f](https://github.com/noguerajulioces/multicarnes/commit/aa9d31fa09a164c30ac0739c21fe4c44881c90aa))
+* **specs:** add 001-ipc-authorization spec and round-2 gap-analysis tasks ([e33eaeb](https://github.com/noguerajulioces/multicarnes/commit/e33eaeb57b9d8efe7e8fb0b9281ef1596d5315c4))
+
 ## 1.1.0 (2026-05-04)
 
 ### Features
