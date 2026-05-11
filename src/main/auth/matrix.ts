@@ -43,6 +43,9 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   // Cash (US2)
   'cash:open': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'cash:getCurrent': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+  // 004-logout-cash-close: returns the caller's own open register (if any).
+  // Scoped to ctx.userId in the handler — clients cannot probe other users.
+  'cash:getMyOpenRegister': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   // cash:close lets all 3 roles through the guard; the handler tightens to
   // "admin/supervisor OR cashier-who-opened-this-register" (T028).
   'cash:close': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },

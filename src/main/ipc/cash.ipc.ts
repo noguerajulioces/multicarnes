@@ -16,6 +16,16 @@ export function registerCashIpc(): string[] {
     cashQuery.getCurrentCashRegister()
   )
 
+  // 004-logout-cash-close: logout guard reads the caller's own open register,
+  // if any. User id comes from ctx (the authenticated session), never from
+  // the client, so callers cannot probe other users' registers.
+  registerAuthorized('cash:getMyOpenRegister', getRule('cash:getMyOpenRegister'), (_event, ctx) => {
+    // Defensive: the privileged guard already rejects unauthenticated callers,
+    // so ctx.userId should be set here. Belt-and-suspenders for the type.
+    if (ctx.userId == null) return null
+    return cashQuery.getOpenCashRegisterByUserId(ctx.userId)
+  })
+
   // T028: cashier-self exception. Matrix lets all 3 roles through; the handler
   // tightens to "admin/supervisor OR cashier-who-opened-this-register".
   registerAuthorized(
