@@ -125,6 +125,9 @@ export default function LoginPage() {
           <img src={logo} alt="Multicarnes" className="w-20 h-20 object-contain mx-auto mb-3" />
           <h1 className="text-2xl font-bold text-text-main tracking-tight">Multicarnes S.R.L.</h1>
           <p className="text-text-muted text-sm mt-0.5">Sistema de Punto de Venta</p>
+          <p className="text-text-muted text-[11px] mt-1 font-mono opacity-70">
+            v{__APP_VERSION__}
+          </p>
         </div>
 
         {isFirstRun ? (
