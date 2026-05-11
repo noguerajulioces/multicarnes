@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   formatGs,
   formatDate,
@@ -274,14 +275,54 @@ const thCls = 'px-4 py-3 font-medium'
 const trCls = 'border-t border-border hover:bg-surface-muted/40 transition-colors'
 const tdCls = 'px-4 py-3'
 
+const VALID_TABS: readonly Tab[] = [
+  'resumen',
+  'comparativo',
+  'fiados',
+  'productos',
+  'margen',
+  'stock',
+  'caja'
+]
+
+function parseTabParam(raw: string | null): Tab | null {
+  if (!raw) return null
+  // 003-cash-movements-history US4 (T032): accept 'cierres' as an alias of
+  // 'caja' for callers that don't know the internal tab key.
+  if (raw === 'cierres') return 'caja'
+  return (VALID_TABS as readonly string[]).includes(raw) ? (raw as Tab) : null
+}
+
 export default function ReportesPage() {
-  const [tab, setTab] = useState<Tab>('resumen')
+  const [searchParams] = useSearchParams()
+  const initialTab = parseTabParam(searchParams.get('tab')) ?? 'resumen'
+  const [tab, setTab] = useState<Tab>(initialTab)
+  // US4 (T032): when arriving from /movimientos-caja, scroll to the matching
+  // register row after the data loads. Stored once and consumed on first match.
+  const [highlightRegisterId, setHighlightRegisterId] = useState<number | null>(() => {
+    const raw = searchParams.get('registerId')
+    if (!raw) return null
+    const n = Number(raw)
+    return Number.isFinite(n) && n > 0 ? n : null
+  })
   const [from, setFrom] = useState(firstDayOfMonthStr())
   const [to, setTo] = useState(todayStr())
   const [data, setData] = useState<unknown[]>([])
   const [summary, setSummary] = useState<SalesSummaryResult | null>(null)
   const [comparison, setComparison] = useState<SalesComparisonResult | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // US4 (T032): when arriving with ?registerId=X, scroll to the matching
+  // row in the Cierres Caja tab once data loads, then clear the highlight
+  // sentinel after a moment so subsequent navigations don't re-trigger.
+  useEffect(() => {
+    if (highlightRegisterId == null || tab !== 'caja' || loading) return
+    const el = document.getElementById(`register-row-${highlightRegisterId}`)
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const t = window.setTimeout(() => setHighlightRegisterId(null), 4000)
+    return () => window.clearTimeout(t)
+  }, [highlightRegisterId, tab, loading, data])
 
   const needsDateRange = tab !== 'margen' && tab !== 'caja' && tab !== 'fiados'
 
@@ -925,6 +966,7 @@ export default function ReportesPage() {
               <tbody>
                 {(
                   data as {
+                    id?: number
                     opened_at: string
                     closed_at: string
                     user_name: string
@@ -932,35 +974,45 @@ export default function ReportesPage() {
                     closing_amount: number
                     difference: number
                   }[]
-                ).map((r, i) => (
-                  <tr key={i} className={trCls}>
-                    <td className={`${tdCls} text-text-muted tabular-nums`}>
-                      {formatDateTime(r.opened_at)}
-                    </td>
-                    <td className={`${tdCls} text-text-muted tabular-nums`}>
-                      {formatDateTime(r.closed_at)}
-                    </td>
-                    <td className={`${tdCls} font-medium`}>{r.user_name}</td>
-                    <td className={`${tdCls} text-right tabular-nums`}>
-                      {formatGs(r.expected_amount)}
-                    </td>
-                    <td className={`${tdCls} text-right tabular-nums`}>
-                      {formatGs(r.closing_amount)}
-                    </td>
-                    <td
-                      className={`${tdCls} text-right font-medium tabular-nums ${
-                        r.difference < 0
-                          ? 'text-danger-700'
-                          : r.difference > 0
-                            ? 'text-success-700'
-                            : ''
-                      }`}
+                ).map((r, i) => {
+                  const isHighlighted = highlightRegisterId != null && r.id === highlightRegisterId
+                  return (
+                    <tr
+                      key={r.id ?? i}
+                      id={r.id ? `register-row-${r.id}` : undefined}
+                      className={cn(
+                        trCls,
+                        isHighlighted && 'bg-brand-light/30 ring-2 ring-brand/40'
+                      )}
                     >
-                      {r.difference >= 0 ? '+' : ''}
-                      {formatGs(r.difference)}
-                    </td>
-                  </tr>
-                ))}
+                      <td className={`${tdCls} text-text-muted tabular-nums`}>
+                        {formatDateTime(r.opened_at)}
+                      </td>
+                      <td className={`${tdCls} text-text-muted tabular-nums`}>
+                        {formatDateTime(r.closed_at)}
+                      </td>
+                      <td className={`${tdCls} font-medium`}>{r.user_name}</td>
+                      <td className={`${tdCls} text-right tabular-nums`}>
+                        {formatGs(r.expected_amount)}
+                      </td>
+                      <td className={`${tdCls} text-right tabular-nums`}>
+                        {formatGs(r.closing_amount)}
+                      </td>
+                      <td
+                        className={`${tdCls} text-right font-medium tabular-nums ${
+                          r.difference < 0
+                            ? 'text-danger-700'
+                            : r.difference > 0
+                              ? 'text-success-700'
+                              : ''
+                        }`}
+                      >
+                        {r.difference >= 0 ? '+' : ''}
+                        {formatGs(r.difference)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

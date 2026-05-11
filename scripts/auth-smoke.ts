@@ -23,6 +23,8 @@ import { createTables } from '../src/main/db/schema'
 import { setDbForTesting } from '../src/main/db'
 import * as usersQuery from '../src/main/db/queries/users'
 import * as authQuery from '../src/main/db/queries/auth'
+import * as cashQuery from '../src/main/db/queries/cash'
+import * as cashMovementsQuery from '../src/main/db/queries/cash-movements'
 import * as recovery from '../src/main/auth/recovery'
 import { AUTH_MATRIX, getRule } from '../src/main/auth/matrix'
 import type { AuthRule, AuthOutcome, Role } from '../src/shared/auth-types'
@@ -401,6 +403,122 @@ function main(): void {
   // Restore the original admin so any later test sections see a clean state.
   usersQuery.updateUser(adminUser.id, { active: true })
   recovery.refreshRecoveryMode()
+
+  // -------------------------------------------------------------------------
+  // Section 10: cash movements void invariants
+  // (003-cash-movements-history FR-015, FR-017, FR-019, FR-021, FR-022,
+  //  FR-023, FR-025; T033)
+  // -------------------------------------------------------------------------
+  // Seed a cashier user for the role-scoping checks.
+  const cashier = usersQuery.createUser({
+    name: 'Smoke-Cajera',
+    role: 'cajero',
+    pin: '666666'
+  }) as SeedUser
+
+  // Open a cash register owned by the cashier and add one income + one expense.
+  // openCashRegister emits the synthetic 'opening' row internally (T010).
+  const register = cashQuery.openCashRegister(cashier.id, 100000) as { id: number }
+
+  const income = cashQuery.addCashMovement(
+    register.id,
+    cashier.id,
+    'income',
+    50000,
+    'Aporte de prueba'
+  ) as { id: number }
+
+  const expense = cashQuery.addCashMovement(
+    register.id,
+    cashier.id,
+    'expense',
+    20000,
+    'Gasto de prueba'
+  ) as { id: number }
+
+  // FR-015 / FR-017: cashier scoping cannot be bypassed by spoofing userId.
+  const spoofedAsAdmin = cashMovementsQuery.listMovements(
+    { userId: adminUser.id, perPage: 100 },
+    { callerUserId: cashier.id, callerRole: 'cajero' }
+  )
+  const allOwnedByCashier = spoofedAsAdmin.items.every((r) => r.userId === cashier.id)
+  check('FR-015/FR-017: cashier scoping forces user_id to caller', allOwnedByCashier)
+
+  // Admin should see the cashier's rows (sanity).
+  const adminView = cashMovementsQuery.listMovements(
+    { registerId: register.id, perPage: 100 },
+    { callerUserId: adminUser.id, callerRole: 'admin' }
+  )
+  check(
+    'admin can see cashier rows when filtering by register',
+    adminView.items.some((r) => r.id === income.id)
+  )
+
+  // FR-019 / FR-021: one void → exactly one inverse, original preserved.
+  const inverse = cashMovementsQuery.voidMovement(expense.id, adminUser.id)
+  check('FR-019: void creates an inverse row of type void', inverse.type === 'void')
+  check('FR-019: inverse linkage points to original', inverse.voidOf === expense.id)
+
+  const originalAfter = cashMovementsQuery.getMovementById(expense.id)
+  check('FR-021: original survives the void', originalAfter !== null)
+  check(
+    'FR-019/FR-024: original now reports isVoided=true',
+    originalAfter !== null &&
+      originalAfter.isVoided === true &&
+      originalAfter.voidedBy === inverse.id
+  )
+
+  // FR-025: a second void on the same original is rejected.
+  let secondVoidRejected = false
+  try {
+    cashMovementsQuery.voidMovement(expense.id, adminUser.id)
+  } catch (err) {
+    secondVoidRejected = err instanceof Error && err.message.includes('ya fue anulado')
+  }
+  check('FR-025: second void on same original is rejected', secondVoidRejected)
+
+  // FR-022: voiding an opening row is rejected.
+  const openingRow = cashMovementsQuery.listMovements(
+    { registerId: register.id, types: ['opening'], perPage: 10 },
+    { callerUserId: adminUser.id, callerRole: 'admin' }
+  ).items[0]
+  let openingVoidRejected = false
+  try {
+    cashMovementsQuery.voidMovement(openingRow.id, adminUser.id)
+  } catch (err) {
+    openingVoidRejected =
+      err instanceof Error && err.message.includes('aperturas y cierres no se anulan')
+  }
+  check('FR-022: voiding an opening row is rejected', openingVoidRejected)
+
+  // FR-023: voiding a void row is rejected.
+  let voidVoidRejected = false
+  try {
+    cashMovementsQuery.voidMovement(inverse.id, adminUser.id)
+  } catch (err) {
+    voidVoidRejected =
+      err instanceof Error && err.message.includes('No se puede anular una anulación')
+  }
+  check('FR-023: voiding a void row is rejected', voidVoidRejected)
+
+  // FR-033: action_logs has the void detail.
+  const voidLog = db
+    .prepare(
+      "SELECT details FROM action_logs WHERE action = 'void_cash_movement' ORDER BY id DESC LIMIT 1"
+    )
+    .get() as { details: string } | undefined
+  check('FR-033: void writes an action_log entry', voidLog != null)
+  if (voidLog) {
+    try {
+      const parsed = JSON.parse(voidLog.details) as { original_id?: number; inverse_id?: number }
+      check(
+        'FR-033: action_log details carry original_id + inverse_id',
+        parsed.original_id === expense.id && parsed.inverse_id === inverse.id
+      )
+    } catch {
+      check('FR-033: action_log details parse as JSON', false)
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Summary

@@ -16,6 +16,16 @@ export function registerCashIpc(): string[] {
     cashQuery.getCurrentCashRegister()
   )
 
+  // 004-logout-cash-close: logout guard reads the caller's own open register,
+  // if any. User id comes from ctx (the authenticated session), never from
+  // the client, so callers cannot probe other users' registers.
+  registerAuthorized('cash:getMyOpenRegister', getRule('cash:getMyOpenRegister'), (_event, ctx) => {
+    // Defensive: the privileged guard already rejects unauthenticated callers,
+    // so ctx.userId should be set here. Belt-and-suspenders for the type.
+    if (ctx.userId == null) return null
+    return cashQuery.getOpenCashRegisterByUserId(ctx.userId)
+  })
+
   // T028: cashier-self exception. Matrix lets all 3 roles through; the handler
   // tightens to "admin/supervisor OR cashier-who-opened-this-register".
   registerAuthorized(
@@ -37,18 +47,31 @@ export function registerCashIpc(): string[] {
     }
   )
 
+  // Cashier-self exception (mirrors cash:close at lines 21-38).
+  // Matrix lets all 3 roles through; the handler tightens to
+  // "admin/supervisor OR cashier-who-opened-this-register".
   registerAuthorized(
     'cash:addMovement',
     getRule('cash:addMovement'),
     (
       _event,
-      _ctx,
+      ctx,
       registerId: number,
       userId: number,
       type: string,
       amount: number,
       description: string
-    ) => cashQuery.addCashMovement(registerId, userId, type, amount, description)
+    ) => {
+      if (ctx.role !== 'admin' && ctx.role !== 'supervisor') {
+        const register = cashQuery.getCashRegisterById(registerId) as
+          | { user_id: number }
+          | undefined
+        if (!register || register.user_id !== ctx.userId) {
+          throw new Error('Solo podés registrar movimientos en la caja que abriste vos.')
+        }
+      }
+      return cashQuery.addCashMovement(registerId, userId, type, amount, description)
+    }
   )
 
   registerAuthorized(

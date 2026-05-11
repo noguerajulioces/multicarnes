@@ -43,10 +43,15 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   // Cash (US2)
   'cash:open': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'cash:getCurrent': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+  // 004-logout-cash-close: returns the caller's own open register (if any).
+  // Scoped to ctx.userId in the handler — clients cannot probe other users.
+  'cash:getMyOpenRegister': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   // cash:close lets all 3 roles through the guard; the handler tightens to
   // "admin/supervisor OR cashier-who-opened-this-register" (T028).
   'cash:close': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
-  'cash:addMovement': { kind: 'privileged', roles: ['admin', 'supervisor'] },
+  // Matrix lets all 3 roles through; the handler tightens to
+  // "admin/supervisor OR cashier-who-opened-this-register".
+  'cash:addMovement': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'cash:getMovements': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'cash:getSummary': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'cash:getAll': { kind: 'privileged', roles: ['admin', 'supervisor'] },
@@ -125,7 +130,13 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   'held:list': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'held:add': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'held:remove': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
-  'held:clear': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] }
+  'held:clear': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+
+  // Cash movements history (003-cash-movements-history). Cashier scoping for
+  // :list is enforced inside the handler/query (FR-015, FR-017); the matrix
+  // lets all three roles through. Void is admin/supervisor only (FR-018).
+  'cashMovements:list': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+  'cashMovements:void': { kind: 'privileged', roles: ['admin', 'supervisor'] }
 }
 
 export function getRule(channel: string): AuthRule {

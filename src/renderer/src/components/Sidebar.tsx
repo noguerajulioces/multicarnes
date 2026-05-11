@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
+import { useLogoutGuard } from '../hooks/use-logout-guard'
+import { LogoutBlockedModal } from './LogoutBlockedModal'
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -15,6 +17,7 @@ import {
   UserCheck,
   Building2,
   HardDrive,
+  History,
   ChevronLeft,
   ChevronRight,
   type LucideIcon
@@ -56,7 +59,15 @@ const navSections: NavSection[] = [
         icon: Receipt,
         roles: ['admin', 'supervisor', 'cajero']
       },
-      { to: '/caja', label: 'Caja', icon: DollarSign, roles: ['admin', 'supervisor', 'cajero'] }
+      { to: '/caja', label: 'Caja', icon: DollarSign, roles: ['admin', 'supervisor', 'cajero'] },
+      {
+        to: '/movimientos-caja',
+        label: 'Mov. de Caja',
+        icon: History,
+        // 003-cash-movements-history US2 (T025): cashier sees only their own
+        // movements (scoping enforced server-side in listMovements).
+        roles: ['admin', 'supervisor', 'cajero']
+      }
     ]
   },
   {
@@ -85,11 +96,18 @@ const navSections: NavSection[] = [
 const STORAGE_KEY = 'sidebar-collapsed'
 
 export default function Sidebar() {
-  const { user, logout } = useAuthStore()
+  const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
   const location = useLocation()
   const profileActive = location.pathname === '/perfil'
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(STORAGE_KEY) === '1')
+  // 004-logout-cash-close: one hook instance shared by both logout buttons
+  // (expanded and collapsed). Both buttons route through requestLogout so the
+  // open-register check fires regardless of which one the user clicks.
+  const logoutGuard = useLogoutGuard()
+  const handleLogout = (): void => {
+    void logoutGuard.requestLogout()
+  }
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0')
@@ -205,10 +223,7 @@ export default function Sidebar() {
               </div>
             </button>
             <button
-              onClick={() => {
-                logout()
-                window.location.hash = '#/login'
-              }}
+              onClick={handleLogout}
               title="Cerrar sesión"
               aria-label="Cerrar sesión"
               className="p-2 rounded-lg hover:bg-white/15 text-white/85 hover:text-white shrink-0 transition-colors"
@@ -231,10 +246,7 @@ export default function Sidebar() {
               {initials}
             </button>
             <button
-              onClick={() => {
-                logout()
-                window.location.hash = '#/login'
-              }}
+              onClick={handleLogout}
               title={`Cerrar sesión (${user?.name ?? ''})`}
               className="flex items-center justify-center hover:bg-white/15 p-1.5 rounded-lg text-white/85 hover:text-white transition-colors"
             >
@@ -244,6 +256,12 @@ export default function Sidebar() {
         )}
       </div>
 
+      <LogoutBlockedModal
+        state={logoutGuard.state}
+        onClose={logoutGuard.dismiss}
+        onProceed={logoutGuard.proceedToClose}
+        onRetry={() => void logoutGuard.retry()}
+      />
       {/* Version */}
       <div
         className="border-t border-white/15 px-3 py-1.5 text-[10px] text-white/55 text-center font-mono tracking-wide select-none"

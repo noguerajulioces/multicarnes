@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useCashStore } from '../store/cash.store'
 import { useAuthStore } from '../store/auth.store'
+import { useLogoutGuard } from '../hooks/use-logout-guard'
+import { LogoutBlockedModal } from './LogoutBlockedModal'
 
 const routeLabels: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -90,10 +92,10 @@ export default function Header() {
 
 function UserAvatar(): React.ReactElement | null {
   const user = useAuthStore((s) => s.user)
-  const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
   const ref = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
+  const logoutGuard = useLogoutGuard()
 
   useEffect(() => {
     if (!open) return
@@ -112,10 +114,11 @@ function UserAvatar(): React.ReactElement | null {
     .map((p) => p.charAt(0).toUpperCase())
     .join('')
 
+  // 004-logout-cash-close: route logout through useLogoutGuard. The hook owns
+  // the auth-store teardown and the #/login navigation on the allow path.
   const handleLogout = (): void => {
     setOpen(false)
-    logout()
-    window.location.hash = '#/login'
+    void logoutGuard.requestLogout()
   }
 
   return (
@@ -164,6 +167,12 @@ function UserAvatar(): React.ReactElement | null {
           </button>
         </div>
       )}
+      <LogoutBlockedModal
+        state={logoutGuard.state}
+        onClose={logoutGuard.dismiss}
+        onProceed={logoutGuard.proceedToClose}
+        onRetry={() => void logoutGuard.retry()}
+      />
     </div>
   )
 }

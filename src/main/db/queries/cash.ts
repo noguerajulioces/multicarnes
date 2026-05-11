@@ -5,10 +5,23 @@ export function openCashRegister(userId: number, openingAmount: number) {
   const existing = db.prepare("SELECT id FROM cash_registers WHERE status = 'open'").get()
   if (existing) throw new Error('Ya hay una caja abierta')
 
-  const result = db
-    .prepare('INSERT INTO cash_registers (user_id, opening_amount) VALUES (?, ?)')
-    .run(userId, openingAmount)
-  return getCashRegisterById(result.lastInsertRowid as number)
+  const registerId = db.transaction((): number => {
+    const result = db
+      .prepare('INSERT INTO cash_registers (user_id, opening_amount) VALUES (?, ?)')
+      .run(userId, openingAmount)
+    const id = result.lastInsertRowid as number
+
+    // 003-cash-movements-history T010: emit synthetic opening row so the
+    // history page sees the session-start balance.
+    db.prepare(
+      `INSERT INTO cash_movements (register_id, user_id, type, amount, description)
+       VALUES (?, ?, 'opening', ?, 'Apertura de caja')`
+    ).run(id, userId, openingAmount)
+
+    return id
+  })()
+
+  return getCashRegisterById(registerId)
 }
 
 export function getCashRegisterById(id: number) {
@@ -40,6 +53,24 @@ export function getCurrentCashRegister() {
   )
 }
 
+// 004-logout-cash-close: per-user lookup for the logout guard. Scoped to a
+// specific user id so the logout-guard check cannot leak across users (FR-006).
+export function getOpenCashRegisterByUserId(userId: number) {
+  return (
+    getDb()
+      .prepare(
+        `
+    SELECT cr.*, u.name as user_name
+    FROM cash_registers cr
+    LEFT JOIN users u ON cr.user_id = u.id
+    WHERE cr.user_id = ? AND cr.status = 'open'
+    LIMIT 1
+  `
+      )
+      .get(userId) || null
+  )
+}
+
 export function closeCashRegister(
   id: number,
   closingAmount: number,
@@ -48,7 +79,7 @@ export function closeCashRegister(
 ) {
   const db = getDb()
   const register = getCashRegisterById(id) as
-    | { opening_amount: number; opened_at: string; user_name?: string }
+    | { opening_amount: number; opened_at: string; user_id: number; user_name?: string }
     | undefined
   if (!register) throw new Error('Caja no encontrada')
 
@@ -74,13 +105,22 @@ export function closeCashRegister(
     )
     .get(id) as { total: number }
 
+  // 003-cash-movements-history T012: voided originals contribute zero.
+  // A 'void' row itself is not counted as income or expense (it stands in
+  // for cancelling its original).
   const movements = db
     .prepare(
       `
     SELECT
-      COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as incomes,
-      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expenses
-    FROM cash_movements WHERE register_id = ?
+      COALESCE(SUM(CASE
+        WHEN cm.type = 'income'
+          AND NOT EXISTS (SELECT 1 FROM cash_movements v WHERE v.void_of = cm.id)
+        THEN cm.amount ELSE 0 END), 0) as incomes,
+      COALESCE(SUM(CASE
+        WHEN cm.type = 'expense'
+          AND NOT EXISTS (SELECT 1 FROM cash_movements v WHERE v.void_of = cm.id)
+        THEN cm.amount ELSE 0 END), 0) as expenses
+    FROM cash_movements cm WHERE cm.register_id = ?
   `
     )
     .get(id) as { incomes: number; expenses: number }
@@ -97,30 +137,46 @@ export function closeCashRegister(
   const openedDay = register.opened_at.slice(0, 10)
   const wasStale = openedDay < todayLocal
 
-  db.prepare(
+  // 003-cash-movements-history T011: wrap the close UPDATE, the synthetic
+  // 'closing' row, and the optional force_close audit log in one transaction
+  // so the history and the canonical cash_registers row never disagree.
+  db.transaction(() => {
+    db.prepare(
+      `
+      UPDATE cash_registers
+      SET closed_at = datetime('now','localtime'), closing_amount = ?, expected_amount = ?,
+          difference = ?, notes = ?, status = 'closed'
+      WHERE id = ?
     `
-    UPDATE cash_registers
-    SET closed_at = datetime('now','localtime'), closing_amount = ?, expected_amount = ?,
-        difference = ?, notes = ?, status = 'closed'
-    WHERE id = ?
-  `
-  ).run(closingAmount, expectedAmount, difference, notes || null, id)
+    ).run(closingAmount, expectedAmount, difference, notes || null, id)
 
-  if (wasStale && userId) {
-    const days = Math.max(
-      1,
-      Math.round(
-        (Date.parse(todayLocal + 'T00:00:00') - Date.parse(openedDay + 'T00:00:00')) / 86_400_000
+    // Emit the synthetic 'closing' row. Description mirrors the migration
+    // backfill so the read-side label is consistent across legacy + new rows.
+    let closingDesc = 'Cierre de caja'
+    if (difference > 0) closingDesc = `Cierre de caja (sobrante ${difference})`
+    else if (difference < 0) closingDesc = `Cierre de caja (faltante ${Math.abs(difference)})`
+
+    db.prepare(
+      `INSERT INTO cash_movements (register_id, user_id, type, amount, description)
+       VALUES (?, ?, 'closing', ?, ?)`
+    ).run(id, userId ?? register.user_id ?? null, closingAmount, closingDesc)
+
+    if (wasStale && userId) {
+      const days = Math.max(
+        1,
+        Math.round(
+          (Date.parse(todayLocal + 'T00:00:00') - Date.parse(openedDay + 'T00:00:00')) / 86_400_000
+        )
       )
-    )
-    db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
-      userId,
-      'force_close_register',
-      `Caja #${id} (abierta el ${openedDay}) cerrada con ${days} día${
-        days === 1 ? '' : 's'
-      } de retraso`
-    )
-  }
+      db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
+        userId,
+        'force_close_register',
+        `Caja #${id} (abierta el ${openedDay}) cerrada con ${days} día${
+          days === 1 ? '' : 's'
+        } de retraso`
+      )
+    }
+  })()
 
   return getCashRegisterById(id)
 }
@@ -178,13 +234,20 @@ export function getCashRegisterSummary(registerId: number) {
     )
     .get(registerId) as { total: number }
 
+  // 003-cash-movements-history T012: voided originals contribute zero.
   const movements = db
     .prepare(
       `
     SELECT
-      COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) as incomes,
-      COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as expenses
-    FROM cash_movements WHERE register_id = ?
+      COALESCE(SUM(CASE
+        WHEN cm.type = 'income'
+          AND NOT EXISTS (SELECT 1 FROM cash_movements v WHERE v.void_of = cm.id)
+        THEN cm.amount ELSE 0 END), 0) as incomes,
+      COALESCE(SUM(CASE
+        WHEN cm.type = 'expense'
+          AND NOT EXISTS (SELECT 1 FROM cash_movements v WHERE v.void_of = cm.id)
+        THEN cm.amount ELSE 0 END), 0) as expenses
+    FROM cash_movements cm WHERE cm.register_id = ?
   `
     )
     .get(registerId) as { incomes: number; expenses: number }

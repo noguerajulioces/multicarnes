@@ -135,6 +135,80 @@ const MIGRATIONS: Migration[] = [
         db.exec('ALTER TABLE held_tickets ADD COLUMN user_id INTEGER NULL REFERENCES users(id)')
       }
     }
+  },
+  {
+    version: 7,
+    name: 'cash_movements_broaden_and_void',
+    up: (db) => {
+      // 003-cash-movements-history: broaden the type CHECK to allow
+      // opening/closing/void rows, add void_of FK for the append-only void
+      // linkage, and backfill synthetic opening/closing rows from existing
+      // cash_registers so the new history page is useful for past sessions.
+      const cols = db.prepare('PRAGMA table_info(cash_movements)').all() as { name: string }[]
+      const hasVoidOf = !!cols.find((c) => c.name === 'void_of')
+
+      const tableSql = (
+        db
+          .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='cash_movements'")
+          .get() as { sql: string }
+      ).sql
+      const hasBroadenedCheck = tableSql.includes("'opening'") && tableSql.includes("'void'")
+
+      if (!(hasVoidOf && hasBroadenedCheck)) {
+        // SQLite can't ALTER or DROP a CHECK; copy through a new table.
+        db.exec(`
+          CREATE TABLE cash_movements_new (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            register_id INTEGER NOT NULL REFERENCES cash_registers(id),
+            user_id     INTEGER NOT NULL REFERENCES users(id),
+            type        TEXT NOT NULL CHECK(type IN ('income','expense','opening','closing','void')),
+            amount      INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            void_of     INTEGER NULL REFERENCES cash_movements(id),
+            created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+          );
+          INSERT INTO cash_movements_new
+            (id, register_id, user_id, type, amount, description, void_of, created_at)
+          SELECT id, register_id, user_id, type, amount, description, NULL, created_at
+          FROM cash_movements;
+          DROP TABLE cash_movements;
+          ALTER TABLE cash_movements_new RENAME TO cash_movements;
+        `)
+      }
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_cash_movements_register_created
+          ON cash_movements(register_id, created_at DESC);
+      `)
+
+      // Backfill — NOT EXISTS guards make this safe on re-run.
+      db.exec(`
+        INSERT INTO cash_movements (register_id, user_id, type, amount, description, created_at)
+        SELECT cr.id, cr.user_id, 'opening', cr.opening_amount, 'Apertura de caja', cr.opened_at
+        FROM cash_registers cr
+        WHERE NOT EXISTS (
+          SELECT 1 FROM cash_movements cm
+          WHERE cm.register_id = cr.id AND cm.type = 'opening'
+        );
+
+        INSERT INTO cash_movements (register_id, user_id, type, amount, description, created_at)
+        SELECT
+          cr.id, cr.user_id, 'closing', cr.closing_amount,
+          CASE
+            WHEN cr.difference = 0 OR cr.difference IS NULL THEN 'Cierre de caja'
+            WHEN cr.difference > 0 THEN 'Cierre de caja (sobrante ' || cr.difference || ')'
+            ELSE 'Cierre de caja (faltante ' || ABS(cr.difference) || ')'
+          END,
+          cr.closed_at
+        FROM cash_registers cr
+        WHERE cr.status = 'closed'
+          AND cr.closing_amount IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM cash_movements cm
+            WHERE cm.register_id = cr.id AND cm.type = 'closing'
+          );
+      `)
+    }
   }
 ]
 

@@ -70,11 +70,15 @@ export function createTables(db: Database.Database): void {
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
       register_id INTEGER NOT NULL REFERENCES cash_registers(id),
       user_id     INTEGER NOT NULL REFERENCES users(id),
-      type        TEXT NOT NULL CHECK(type IN ('income','expense')),
+      type        TEXT NOT NULL CHECK(type IN ('income','expense','opening','closing','void')),
       amount      INTEGER NOT NULL,
       description TEXT NOT NULL,
+      void_of     INTEGER NULL REFERENCES cash_movements(id),
       created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
+
+    CREATE INDEX IF NOT EXISTS idx_cash_movements_register_created
+      ON cash_movements(register_id, created_at DESC);
 
     CREATE TABLE IF NOT EXISTS sales (
       id             INTEGER PRIMARY KEY AUTOINCREMENT,
