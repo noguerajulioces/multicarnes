@@ -27,8 +27,16 @@ npx playwright install --with-deps
 ## CI
 
 The `e2e.yml` workflow runs `npm run build` then `npx playwright test`
-under `xvfb-run` on `ubuntu-latest`. Failures upload the HTML report as
-an artifact (`playwright-report`).
+on **`windows-latest`** — the deployment target for this POS. Mac/Linux
+developers can run the same suite locally for fast iteration, but the
+authoritative pass/fail signal is the Windows run.
+
+Failures upload the HTML report (`playwright-report`) and the per-test
+traces (`playwright-traces`) as artifacts. Open a trace with:
+
+```bash
+npx playwright show-trace <trace.zip>
+```
 
 ## Project conventions
 

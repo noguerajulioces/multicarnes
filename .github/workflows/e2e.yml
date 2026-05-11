@@ -1,5 +1,9 @@
 name: E2E (Playwright + Electron)
 
+# The POS is deployed on Windows, so the e2e suite runs on windows-latest
+# to validate the actual target environment. Mac developers can run the same
+# suite locally; CI is the authoritative pass/fail signal for Windows.
+
 on:
   push:
     branches: [main]
@@ -12,9 +16,9 @@ concurrency:
 
 jobs:
   e2e:
-    name: Playwright suite (Linux)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    name: Playwright suite (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -24,29 +28,17 @@ jobs:
           cache: npm
 
       # postinstall (electron-builder install-app-deps) rebuilds better-sqlite3
-      # against Electron's ABI so the launched binary can read the DB. Do NOT
-      # add `npm rebuild better-sqlite3` here — that targets Node and breaks
-      # the Electron binding.
+      # against Electron's ABI on Windows. Do NOT add `npm rebuild better-sqlite3`
+      # — that targets Node and breaks the Electron binding.
       - run: npm ci
-
-      # Playwright needs system libs to run headed-mode Electron under xvfb
-      # (no proper headless mode in Electron). --with-deps installs them.
-      - run: npx playwright install --with-deps chromium
-
-      # System libs Electron itself needs on Linux.
-      - name: Install Electron Linux libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libgbm1 libnss3 libasound2t64 libgtk-3-0 \
-            libxss1 libxshmfence1 xvfb
 
       # electron-vite produces out/main/index.js; the e2e helper launches it.
       - run: npm run build
 
-      # xvfb-run provides a virtual display for the Electron windows.
+      # Windows Server has a real display server, so no xvfb wrapper is needed.
+      # Electron runs in headed mode and Playwright drives it via CDP.
       - name: Run Playwright tests
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" npx playwright test
+        run: npx playwright test
         env:
           CI: 'true'
 
