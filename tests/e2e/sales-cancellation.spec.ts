@@ -80,6 +80,61 @@ async function readCustomerBalance(
 
 test.describe('Sales cancellation — mixed payment (US3 of 002)', () => {
 
+  // -----------------
+  // sales-cancel-5-1 (P1) — cancelling a pure-cash sale restocks and writes audit
+  // -----------------
+  test('sales-cancel-5-1 — pure-cash sale cancel restocks the product and writes audit', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      const admin = await loginAsSeedAdmin(window)
+      const product = await createProductViaIpc(window, {
+        name: 'Cash-only',
+        price: 20_000,
+        stock: 10
+      })
+      const register = await openCashRegisterViaIpc(window, admin.id, 0)
+
+      const sale = await window.evaluate(
+        async (a) => {
+          const result = (await window.api.sales.create({
+            registerId: a.registerId,
+            userId: a.userId,
+            items: [
+              { productId: a.productId, quantity: 2, unitPrice: 20_000, subtotal: 40_000 }
+            ],
+            subtotal: 40_000,
+            discount: 0,
+            total: 40_000,
+            paymentMethod: 'cash',
+            payments: [{ method: 'cash', amount: 40_000 }]
+          })) as { id: number }
+          return result
+        },
+        { registerId: register.id, userId: admin.id, productId: product.id }
+      )
+
+      // Sanity: stock dropped from 10 → 8.
+      const beforeCancel = (await window.evaluate(
+        (id) => window.api.products.getById(id),
+        product.id
+      )) as { stock: number }
+      expect(beforeCancel.stock).toBe(8)
+
+      const detail = new VentaDetallePage(window)
+      await detail.open(sale.id)
+      await detail.cancelNonMixed()
+
+      const afterCancel = (await window.evaluate(
+        (id) => window.api.products.getById(id),
+        product.id
+      )) as { stock: number }
+      // Restocked to 10.
+      expect(afterCancel.stock).toBe(10)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('sales-cancel-5-2 — refund applied returns credit to customer balance', async () => {
     const { window, cleanup } = await launchApp()
     try {

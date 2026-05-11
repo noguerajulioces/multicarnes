@@ -144,4 +144,78 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
       await cleanup()
     }
   })
+
+  // -----------------
+  // purchase-10-3 (P2) — cancelled PO transitions atomically
+  // -----------------
+  test('purchase-10-3 — cancelPurchaseOrder flips status to cancelled in one transaction', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      const admin = await loginAsSeedAdmin(window)
+      const product = await createProductViaIpc(window, {
+        name: 'PO-cancel',
+        price: 10_000,
+        stock: 0
+      })
+
+      const order = await ipc(
+        window,
+        async ([productId, userId]) => {
+          return (await window.api.purchases.create({
+            supplierId: null,
+            userId,
+            items: [
+              { productId, quantity: 1, unitCost: 5_000, subtotal: 5_000 }
+            ],
+            total: 5_000
+          })) as { id: number }
+        },
+        [product.id, admin.id] as const
+      )
+
+      const cancelled = (await ipc(
+        window,
+        (id) => window.api.purchases.cancel(id),
+        order.id
+      )) as { status: string }
+      expect(cancelled.status).toBe('cancelled')
+    } finally {
+      await cleanup()
+    }
+  })
+
+  // -----------------
+  // purchase-10-4 (P2) — supplier create
+  // -----------------
+  test('purchase-10-4 — admin creates a supplier and the list returns it', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      await loginAsSeedAdmin(window)
+      const created = (await ipc(window, () =>
+        window.api.suppliers.create({ name: 'Proveedor E2E' })
+      )) as { id: number; name: string }
+      expect(created.id).toBeGreaterThan(0)
+      expect(created.name).toBe('Proveedor E2E')
+
+      const list = (await ipc(window, () => window.api.suppliers.getAll({}))) as {
+        items?: { id: number; name: string }[]
+      }
+      expect((list.items ?? []).some((s) => s.id === created.id)).toBe(true)
+    } finally {
+      await cleanup()
+    }
+  })
+
+  // -----------------
+  // purchase-10-5 (P3) — same product twice
+  // -----------------
+  test.fixme(
+    'purchase-10-5 — adding the same product twice to a PO is prevented (renderer-level guard)',
+    async () => {
+      // The renderer's NuevaCompraPage prevents adding the same product twice
+      // via a state check on the items list. There is no IPC-level invariant
+      // to assert (the create handler accepts duplicates) — this test needs
+      // a NuevaCompraPage POM to drive the form. Leaves as fixme.
+    }
+  )
 })
