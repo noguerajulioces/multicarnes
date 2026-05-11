@@ -38,6 +38,7 @@ const api = {
   // Sales
   sales: {
     create: (data: unknown) => ipcRenderer.invoke('sales:create', data),
+    getAll: (opts?: unknown) => ipcRenderer.invoke('sales:getAll', opts),
     getById: (id: number) => ipcRenderer.invoke('sales:getById', id),
     getRecent: (limit?: number) => ipcRenderer.invoke('sales:getRecent', limit),
     getByRegister: (registerId: number) => ipcRenderer.invoke('sales:getByRegister', registerId),

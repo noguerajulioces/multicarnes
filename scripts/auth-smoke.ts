@@ -57,11 +57,7 @@ function evaluateRule(
   resolved: ResolvedUserSnapshot | null
 ): AuthOutcome {
   if (rule.kind === 'public') return 'allowed'
-  if (
-    rule.kind === 'privileged' &&
-    rule.recoveryOnly &&
-    recovery.isRecoveryMode()
-  ) {
+  if (rule.kind === 'privileged' && rule.recoveryOnly && recovery.isRecoveryMode()) {
     return 'allowed'
   }
   if (resolved == null) return 'blocked-no-user'
@@ -79,9 +75,7 @@ function evaluateRule(
     return isSelf ? 'allowed' : 'blocked-insufficient-role'
   }
   // self-or-roles
-  return isSelf || rule.roles.includes(resolved.role)
-    ? 'allowed'
-    : 'blocked-insufficient-role'
+  return isSelf || rule.roles.includes(resolved.role) ? 'allowed' : 'blocked-insufficient-role'
 }
 
 interface SeedUser {
@@ -108,13 +102,31 @@ function main(): void {
   // -------------------------------------------------------------------------
   // Section 1: bcrypt path through the real users.ts query layer
   // -------------------------------------------------------------------------
-  const adminUser = usersQuery.createUser({ name: 'Admin', role: 'admin', pin: '111111' }) as SeedUser
-  const supUser = usersQuery.createUser({ name: 'Sup', role: 'supervisor', pin: '222222' }) as SeedUser
-  const cajeroUser = usersQuery.createUser({ name: 'Caja', role: 'cajero', pin: '333333' }) as SeedUser
+  const adminUser = usersQuery.createUser({
+    name: 'Admin',
+    role: 'admin',
+    pin: '111111'
+  }) as SeedUser
+  const supUser = usersQuery.createUser({
+    name: 'Sup',
+    role: 'supervisor',
+    pin: '222222'
+  }) as SeedUser
+  const cajeroUser = usersQuery.createUser({
+    name: 'Caja',
+    role: 'cajero',
+    pin: '333333'
+  }) as SeedUser
 
   check('users.createUser persists role admin', adminUser.role === 'admin')
-  check('users.loginUser succeeds with correct PIN', usersQuery.loginUser(supUser.id, '222222') != null)
-  check('users.loginUser returns null on wrong PIN', usersQuery.loginUser(supUser.id, '999999') == null)
+  check(
+    'users.loginUser succeeds with correct PIN',
+    usersQuery.loginUser(supUser.id, '222222') != null
+  )
+  check(
+    'users.loginUser returns null on wrong PIN',
+    usersQuery.loginUser(supUser.id, '999999') == null
+  )
 
   // -------------------------------------------------------------------------
   // Section 2: rule evaluation (FR-001..FR-008, FR-016)
@@ -152,7 +164,8 @@ function main(): void {
   // FR-005 / FR-009 / FR-013 role gating
   check(
     'FR-005: privileged rejects insufficient role (cajero on admin-only)',
-    evaluateRule({ kind: 'privileged', roles: ['admin'] }, [], cajeroSnap) === 'blocked-insufficient-role'
+    evaluateRule({ kind: 'privileged', roles: ['admin'] }, [], cajeroSnap) ===
+      'blocked-insufficient-role'
   )
   check(
     'FR-009: admin allowed for admin-only',
@@ -164,7 +177,8 @@ function main(): void {
   )
   check(
     'FR-013: cajero rejected for admin+supervisor',
-    evaluateRule({ kind: 'privileged', roles: ['admin', 'supervisor'] }, [], cajeroSnap) === 'blocked-insufficient-role'
+    evaluateRule({ kind: 'privileged', roles: ['admin', 'supervisor'] }, [], cajeroSnap) ===
+      'blocked-insufficient-role'
   )
 
   // FR-016 self-or-roles
@@ -200,7 +214,8 @@ function main(): void {
   )
   check(
     'self-only rejects other-targeting admin',
-    evaluateRule({ kind: 'self-only', selfArgIndex: 0 }, [supUser.id], adminSnap) === 'blocked-insufficient-role'
+    evaluateRule({ kind: 'self-only', selfArgIndex: 0 }, [supUser.id], adminSnap) ===
+      'blocked-insufficient-role'
   )
 
   // -------------------------------------------------------------------------
@@ -209,11 +224,8 @@ function main(): void {
   // recoveryOnly does NOT bypass when an admin exists
   check(
     'FR-021: recoveryOnly does not bypass when an admin exists',
-    evaluateRule(
-      { kind: 'privileged', roles: ['admin'], recoveryOnly: true },
-      [],
-      null
-    ) === 'blocked-no-user'
+    evaluateRule({ kind: 'privileged', roles: ['admin'], recoveryOnly: true }, [], null) ===
+      'blocked-no-user'
   )
 
   // Deactivate the only admin → recovery should flip
@@ -222,11 +234,8 @@ function main(): void {
   check('FR-020: recovery flips true when no active admin', recovery.isRecoveryMode())
   check(
     'FR-022: recoveryOnly bypasses guard during recovery',
-    evaluateRule(
-      { kind: 'privileged', roles: ['admin'], recoveryOnly: true },
-      [],
-      null
-    ) === 'allowed'
+    evaluateRule({ kind: 'privileged', roles: ['admin'], recoveryOnly: true }, [], null) ===
+      'allowed'
   )
 
   // Reactivate admin → recovery closes (FR-021)
@@ -303,7 +312,10 @@ function main(): void {
   }
   const alerts = authQuery.detectAndPersistAlertWindows()
   check('FR-018: alert raised after 5+ blocked / 10min', alerts.length === 1)
-  check('FR-018: alert points at the cashier', alerts.length === 1 && alerts[0].userId === cajeroUser.id)
+  check(
+    'FR-018: alert points at the cashier',
+    alerts.length === 1 && alerts[0].userId === cajeroUser.id
+  )
   check('FR-018: alert failure_count >= 5', alerts.length === 1 && alerts[0].failureCount >= 5)
 
   // Acknowledge → next call returns no open alerts
@@ -374,10 +386,7 @@ function main(): void {
     role: 'cajero',
     pin: '444444'
   }) as SeedUser
-  check(
-    'FR-012: first call in recovery mode is forced to admin',
-    recovered.role === 'admin'
-  )
+  check('FR-012: first call in recovery mode is forced to admin', recovered.role === 'admin')
 
   recovery.refreshRecoveryMode()
   check('FR-012: recovery mode closes after admin restored', !recovery.isRecoveryMode())
@@ -387,10 +396,7 @@ function main(): void {
     role: 'cajero',
     pin: '555555'
   }) as SeedUser
-  check(
-    'FR-012: second call (recovery closed) keeps requested role',
-    normal.role === 'cajero'
-  )
+  check('FR-012: second call (recovery closed) keeps requested role', normal.role === 'cajero')
 
   // Restore the original admin so any later test sections see a clean state.
   usersQuery.updateUser(adminUser.id, { active: true })

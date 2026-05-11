@@ -6,3 +6,7 @@ out
 *.log*
 electron.vite.config.*.mjs
 .claude
+
+# Playwright e2e
+playwright-report/
+test-results/

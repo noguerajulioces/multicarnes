@@ -33,6 +33,7 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
 
   // Sales (US2)
   'sales:create': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+  'sales:getAll': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'sales:getById': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'sales:getRecent': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'sales:getByRegister': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
