@@ -46,7 +46,9 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   // cash:close lets all 3 roles through the guard; the handler tightens to
   // "admin/supervisor OR cashier-who-opened-this-register" (T028).
   'cash:close': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
-  'cash:addMovement': { kind: 'privileged', roles: ['admin', 'supervisor'] },
+  // Matrix lets all 3 roles through; the handler tightens to
+  // "admin/supervisor OR cashier-who-opened-this-register".
+  'cash:addMovement': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'cash:getMovements': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'cash:getSummary': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'cash:getAll': { kind: 'privileged', roles: ['admin', 'supervisor'] },

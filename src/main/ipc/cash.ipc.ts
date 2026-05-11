@@ -37,18 +37,31 @@ export function registerCashIpc(): string[] {
     }
   )
 
+  // Cashier-self exception (mirrors cash:close at lines 21-38).
+  // Matrix lets all 3 roles through; the handler tightens to
+  // "admin/supervisor OR cashier-who-opened-this-register".
   registerAuthorized(
     'cash:addMovement',
     getRule('cash:addMovement'),
     (
       _event,
-      _ctx,
+      ctx,
       registerId: number,
       userId: number,
       type: string,
       amount: number,
       description: string
-    ) => cashQuery.addCashMovement(registerId, userId, type, amount, description)
+    ) => {
+      if (ctx.role !== 'admin' && ctx.role !== 'supervisor') {
+        const register = cashQuery.getCashRegisterById(registerId) as
+          | { user_id: number }
+          | undefined
+        if (!register || register.user_id !== ctx.userId) {
+          throw new Error('Solo podés registrar movimientos en la caja que abriste vos.')
+        }
+      }
+      return cashQuery.addCashMovement(registerId, userId, type, amount, description)
+    }
   )
 
   registerAuthorized(
