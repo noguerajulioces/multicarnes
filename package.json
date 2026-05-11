@@ -36,6 +36,8 @@
     "better-sqlite3": "^12.9.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.11.0",
     "node-thermal-printer": "^4.6.0",

@@ -20,6 +20,7 @@ import { listRegisteredChannels } from './auth/guard'
 import { assertMatrixCoverage } from './auth/self-test'
 import { installSessionListeners } from './auth/session'
 import { refreshRecoveryMode } from './auth/recovery'
+import { initAutoUpdater } from './updater'
 import { pathToFileURL } from 'url'
 
 let splashWindow: BrowserWindow | null = null
@@ -203,6 +204,8 @@ app.whenReady().then(() => {
   }
 
   createWindow()
+
+  initAutoUpdater()
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
