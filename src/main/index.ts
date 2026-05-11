@@ -100,15 +100,26 @@ function createWindow(): void {
     const elapsed = splashShownAt > 0 ? Date.now() - splashShownAt : SPLASH_MIN_MS
     const remaining = Math.max(0, SPLASH_MIN_MS - elapsed)
     setTimeout(() => {
+      // The window may have been closed (quit during splash, e2e teardown,
+      // OS-initiated kill) while this timeout was queued — accessing the
+      // BrowserWindow after destruction throws "Object has been destroyed".
+      if (mainWindow.isDestroyed()) return
       closeSplashWithFade(() => {
+        if (mainWindow.isDestroyed()) return
         mainWindow.maximize()
         mainWindow.show()
       })
     }, remaining)
   })
 
-  mainWindow.on('maximize', () => mainWindow.webContents.send('window:state', true))
-  mainWindow.on('unmaximize', () => mainWindow.webContents.send('window:state', false))
+  mainWindow.on('maximize', () => {
+    if (mainWindow.isDestroyed()) return
+    mainWindow.webContents.send('window:state', true)
+  })
+  mainWindow.on('unmaximize', () => {
+    if (mainWindow.isDestroyed()) return
+    mainWindow.webContents.send('window:state', false)
+  })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
