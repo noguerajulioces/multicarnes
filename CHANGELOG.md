@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.3.0](https://github.com/noguerajulioces/multicarnes/compare/v1.2.0...v1.3.0) (2026-05-12)
+
+### Features
+
+* **cash-movements:** add Movimientos de Caja history page (003) ([329b854](https://github.com/noguerajulioces/multicarnes/commit/329b85468edcd53f963ec531dd9bc3941bc5c9eb))
+* **cash:** block logout while user has an open cash register (004) ([e6c6633](https://github.com/noguerajulioces/multicarnes/commit/e6c6633b1983f188e1b401585046c2ce0f5f8158))
+* **version:** display application version in Sidebar and LoginPage ([bda0347](https://github.com/noguerajulioces/multicarnes/commit/bda03472747b940ad01ebb58f387dd04c0e3912b))
+
+### Bug Fixes
+
+* **cash:** cashier can register movements in their own open register ([1a395b4](https://github.com/noguerajulioces/multicarnes/commit/1a395b4cd26bc5d8f0beb8d325a956cd4158349b))
+* **e2e:** close admin register before logout in sales-cancel-5-4 ([62db979](https://github.com/noguerajulioces/multicarnes/commit/62db979f69a4bd755ba5e9c2b4614e639e39c538))
+* **e2e:** make logout POM wait robust to Windows CI slowdowns ([c333e35](https://github.com/noguerajulioces/multicarnes/commit/c333e35b775685130a1a3f11bb109ad656386794))
+* **ui:** stock precision, receipt CTA, and mixto credit in cliente ficha ([83afe9f](https://github.com/noguerajulioces/multicarnes/commit/83afe9fa18b5fa90dac87df657ecd42289bfb206))
+
+### Refactoring
+
+* **reportes:** simplify JSX structure in ReportesPage component ([558f2c5](https://github.com/noguerajulioces/multicarnes/commit/558f2c5010479382288b78b6352e83b672ed3cb4))
+
 ## [1.2.0](https://github.com/noguerajulioces/multicarnes/compare/v1.1.0...v1.2.0) (2026-05-11)
 
 ### Features
