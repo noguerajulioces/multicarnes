@@ -230,9 +230,13 @@ export function getCustomerSales(customerId: number) {
     LEFT JOIN products p ON si.product_id = p.id
     WHERE si.sale_id = ?
   `)
+  const paymentsStmt = db.prepare(`
+    SELECT * FROM sale_payments WHERE sale_id = ?
+  `)
 
   for (const sale of sales) {
     sale.items = itemsStmt.all(sale.id)
+    sale.payments = paymentsStmt.all(sale.id)
   }
 
   return sales
