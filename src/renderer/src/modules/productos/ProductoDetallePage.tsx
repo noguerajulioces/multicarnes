@@ -35,7 +35,7 @@ import { productoDetalleTourSteps } from '../../lib/tour-steps'
 import { confirm } from '../../lib/confirm'
 import { toast } from '../../lib/toast'
 import { formatGs, formatDateTime } from '../../lib/utils'
-import { priceTypeInfo } from '../../lib/price-types'
+import { priceTypeInfo, formatQty } from '../../lib/price-types'
 import { useAuthStore } from '../../store/auth.store'
 import type {
   Product,
@@ -256,8 +256,8 @@ export default function ProductoDetallePage() {
           gradient="blue"
           icon={<Wallet size={20} />}
           label="Stock actual"
-          value={`${product.stock} ${stockUnit}`}
-          hint={`Mínimo: ${product.min_stock} ${stockUnit}`}
+          value={formatQty(product.stock, product.price_type)}
+          hint={`Mínimo: ${formatQty(product.min_stock, product.price_type)}`}
         />
         <KpiCard
           gradient="green"
@@ -270,7 +270,7 @@ export default function ProductoDetallePage() {
           gradient="purple"
           icon={<ShoppingBag size={20} />}
           label="Vendido (7 días)"
-          value={`${stats?.units_7d ?? 0} ${stockUnit}`}
+          value={formatQty(stats?.units_7d ?? 0, product.price_type)}
           hint={formatGs(stats?.total_7d ?? 0)}
         />
         {user?.role !== 'cajero' && (
@@ -329,15 +329,15 @@ export default function ProductoDetallePage() {
                       {formatDateTime(m.created_at)}
                     </Td>
                     <Td className="tabular-nums">
-                      {m.quantity_before} {stockUnit}
+                      {formatQty(m.quantity_before, product.price_type)}
                     </Td>
                     <Td className="tabular-nums">
-                      {m.quantity_after} {stockUnit}
+                      {formatQty(m.quantity_after, product.price_type)}
                     </Td>
                     <Td>
                       <Badge tone={m.delta >= 0 ? 'success' : 'danger'}>
                         {m.delta >= 0 ? '+' : ''}
-                        {m.delta} {stockUnit}
+                        {formatQty(m.delta, product.price_type)}
                       </Badge>
                     </Td>
                     <Td className="max-w-xs truncate" title={m.reason}>
@@ -361,7 +361,7 @@ export default function ProductoDetallePage() {
           <h2 className="font-semibold text-text-main">Últimas ventas</h2>
           <p className="text-xs text-text-muted">
             {stats
-              ? `Últimos 30 días: ${stats.units_30d} ${stockUnit} · ${formatGs(stats.total_30d)}`
+              ? `Últimos 30 días: ${formatQty(stats.units_30d, product.price_type)} · ${formatGs(stats.total_30d)}`
               : 'Tickets más recientes que incluyeron este producto'}
           </p>
         </CardHeader>
@@ -394,9 +394,7 @@ export default function ProductoDetallePage() {
                       {formatDateTime(s.created_at)}
                     </Td>
                     <Td className="tabular-nums">#{s.sale_id}</Td>
-                    <Td className="tabular-nums">
-                      {s.quantity} {stockUnit}
-                    </Td>
+                    <Td className="tabular-nums">{formatQty(s.quantity, product.price_type)}</Td>
                     <Td className="tabular-nums">{formatGs(s.unit_price)}</Td>
                     <Td className="tabular-nums font-medium">{formatGs(s.subtotal)}</Td>
                     <Td className="text-text-muted">{s.customer_name || '—'}</Td>
@@ -429,7 +427,7 @@ export default function ProductoDetallePage() {
           <div className="text-sm text-text-muted">
             Stock actual:{' '}
             <span className="font-medium text-text-main tabular-nums">
-              {product.stock} {stockUnit}
+              {formatQty(product.stock, product.price_type)}
             </span>
           </div>
           <div>

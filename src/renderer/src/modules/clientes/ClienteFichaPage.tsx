@@ -320,25 +320,37 @@ export default function ClienteFichaPage() {
                   sales.map((s) => {
                     const isOpen = expandedSale === s.id
                     const items = s.items ?? []
+                    const creditDue =
+                      s.payment_method === 'mixed'
+                        ? (s.payments ?? []).reduce(
+                            (acc, p) => acc + (p.method === 'credit' ? p.amount : 0),
+                            0
+                          )
+                        : 0
                     return (
                       <Fragment key={s.id}>
                         <tr
                           onClick={() => setExpandedSale(isOpen ? null : s.id)}
                           className="border-b border-border last:border-0 hover:bg-surface-muted/40 cursor-pointer"
                         >
-                          <td className="py-2.5 pr-1 text-text-muted">
+                          <td className="py-2.5 pr-1 text-text-muted align-top">
                             {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           </td>
-                          <td className="py-2.5 pr-3 text-text-muted tabular-nums">
+                          <td className="py-2.5 pr-3 text-text-muted tabular-nums align-top">
                             {formatDateTime(s.created_at)}
                           </td>
-                          <td className="py-2.5 pr-3 text-right font-medium tabular-nums">
+                          <td className="py-2.5 pr-3 text-right font-medium tabular-nums align-top">
                             {formatGs(s.total)}
                           </td>
-                          <td className="py-2.5">
+                          <td className="py-2.5 align-top">
                             <Badge tone={methodTone[s.payment_method]}>
                               {methodLabel[s.payment_method]}
                             </Badge>
+                            {creditDue > 0 && (
+                              <div className="text-[11px] text-warning-700 mt-1 tabular-nums whitespace-nowrap">
+                                Fiado {formatGs(creditDue)}
+                              </div>
+                            )}
                           </td>
                         </tr>
                         {isOpen && (

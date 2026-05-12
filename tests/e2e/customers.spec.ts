@@ -252,6 +252,70 @@ test.describe('Customers', () => {
   })
 
   // -----------------
+  // customer-8-7 (P2) — getSales returns sale_payments per sale (mixed split visibility)
+  // -----------------
+  test('customer-8-7 — customers:getSales includes sale_payments so mixed-method splits are visible in the customer ficha', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      const admin = await loginAsSeedAdmin(window)
+      const customer = await createCustomerViaIpc(window, { name: 'Mixed History' })
+      const product = await createProductViaIpc(window, {
+        name: 'Mixed History Product',
+        price: 2_300,
+        stock: 10
+      })
+      const register = await openCashRegisterViaIpc(window, admin.id, 0)
+
+      // One mixed sale: 1.000 efectivo + 1.300 fiado (same shape as the bug screenshot).
+      await window.evaluate(
+        async (a) => {
+          await window.api.sales.create({
+            registerId: a.registerId,
+            userId: a.userId,
+            customerId: a.customerId,
+            items: [{ productId: a.productId, quantity: 1, unitPrice: 2_300, subtotal: 2_300 }],
+            subtotal: 2_300,
+            discount: 0,
+            total: 2_300,
+            paymentMethod: 'mixed',
+            payments: [
+              { method: 'cash', amount: 1_000 },
+              { method: 'credit', amount: 1_300 }
+            ]
+          })
+        },
+        {
+          registerId: register.id,
+          userId: admin.id,
+          customerId: customer.id,
+          productId: product.id
+        }
+      )
+
+      const sales = (await ipc(
+        window,
+        (id) => window.api.customers.getSales(id),
+        customer.id
+      )) as Array<{
+        payment_method: string
+        payments?: Array<{ method: string; amount: number }>
+      }>
+
+      expect(sales.length).toBe(1)
+      const mixedSale = sales[0]
+      expect(mixedSale.payment_method).toBe('mixed')
+      expect(mixedSale.payments, 'getSales must include the sale_payments breakdown').toBeDefined()
+
+      const cashRow = mixedSale.payments?.find((p) => p.method === 'cash')
+      const creditRow = mixedSale.payments?.find((p) => p.method === 'credit')
+      expect(cashRow?.amount).toBe(1_000)
+      expect(creditRow?.amount).toBe(1_300)
+    } finally {
+      await cleanup()
+    }
+  })
+
+  // -----------------
   // customer-8-6 (P3) — cashier blocked from customer mutation
   // -----------------
   test('customer-8-6 — cashier cannot create/update/delete customers', async () => {
