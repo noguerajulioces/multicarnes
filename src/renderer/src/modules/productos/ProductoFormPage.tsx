@@ -378,9 +378,7 @@ export default function ProductoFormPage() {
                           name="promo_type"
                           value="fixed"
                           checked={form.promo_type === 'fixed'}
-                          onChange={() =>
-                            setForm({ ...form, promo_type: 'fixed', promo_value: 0 })
-                          }
+                          onChange={() => setForm({ ...form, promo_type: 'fixed', promo_value: 0 })}
                           className="accent-brand"
                         />
                         Monto fijo (Gs.)
@@ -416,7 +414,8 @@ export default function ProductoFormPage() {
                         Debe ser menor al precio normal ({formatGs(form.price)})
                         {form.promo_value > 0 && (
                           <>
-                            {' '}— el cliente paga{' '}
+                            {' '}
+                            — el cliente paga{' '}
                             <span className="font-medium text-success-700">
                               {formatGs(form.promo_value)}
                             </span>
@@ -483,13 +482,11 @@ export default function ProductoFormPage() {
                         />
                       </div>
                     </div>
-                    {form.promo_from &&
-                      form.promo_to &&
-                      form.promo_from > form.promo_to && (
-                        <p className="text-xs text-danger-700">
-                          La fecha &apos;Desde&apos; debe ser anterior o igual a &apos;Hasta&apos;.
-                        </p>
-                      )}
+                    {form.promo_from && form.promo_to && form.promo_from > form.promo_to && (
+                      <p className="text-xs text-danger-700">
+                        La fecha &apos;Desde&apos; debe ser anterior o igual a &apos;Hasta&apos;.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

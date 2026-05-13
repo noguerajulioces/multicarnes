@@ -520,7 +520,9 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
 
                 {line.method === 'transfer' && (
                   <div>
-                    <label className="block text-xs text-text-muted mb-1">N° de comprobante *</label>
+                    <label className="block text-xs text-text-muted mb-1">
+                      N° de comprobante *
+                    </label>
                     <Input
                       value={line.reference}
                       onChange={(e) => updateMixedLine(line.id, { reference: e.target.value })}

@@ -394,9 +394,7 @@ export default function ReportesPage() {
       } else if (tab === 'caja') {
         setData(await window.api.reports.cashRegisters())
       } else if (tab === 'tarjetas') {
-        setData(
-          await window.api.reports.cardSales(from, to, cardProcessorFilter || undefined)
-        )
+        setData(await window.api.reports.cardSales(from, to, cardProcessorFilter || undefined))
       }
     } catch (err) {
       handleApiError(err)
@@ -661,9 +659,7 @@ export default function ReportesPage() {
                                 {methodLabels[r.method] || r.method}
                               </Badge>
                             </td>
-                            <td className="py-2.5 pr-3 text-right tabular-nums">
-                              {r.sales_count}
-                            </td>
+                            <td className="py-2.5 pr-3 text-right tabular-nums">{r.sales_count}</td>
                             <td className="py-2.5 text-right font-medium tabular-nums">
                               {formatGs(r.total)}
                             </td>
@@ -891,9 +887,7 @@ export default function ReportesPage() {
         </Card>
       )}
 
-      {!loading && tab === 'tarjetas' && (
-        <TarjetasReport rows={data as CardSalesRow[]} />
-      )}
+      {!loading && tab === 'tarjetas' && <TarjetasReport rows={data as CardSalesRow[]} />}
 
       {!loading && tab === 'productos' && (
         <Card

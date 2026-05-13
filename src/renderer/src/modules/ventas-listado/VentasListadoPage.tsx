@@ -265,9 +265,7 @@ export default function VentasListadoPage() {
                         {creditPaid ? (
                           <Badge tone="success">Fiado · Pagado</Badge>
                         ) : (
-                          <Badge tone={methodTone[s.payment_method]}>
-                            {methodCellLabel(s)}
-                          </Badge>
+                          <Badge tone={methodTone[s.payment_method]}>{methodCellLabel(s)}</Badge>
                         )}
                       </td>
                       <td className={`${tdCls} text-text-muted`}>{s.user_name}</td>

@@ -258,9 +258,9 @@ const MIGRATIONS: Migration[] = [
     requiresForeignKeysOff: true,
     up: (db) => {
       const salesSql = (
-        db
-          .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sales'")
-          .get() as { sql: string }
+        db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sales'").get() as {
+          sql: string
+        }
       ).sql
       const salesNeedsRebuild =
         !salesSql.includes("'card'") ||

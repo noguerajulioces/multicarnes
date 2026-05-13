@@ -192,7 +192,7 @@ export function renderTicket({
   // settlement next day.
   const methodLabel = PAYMENT_LABEL[sale.payment_method] ?? sale.payment_method
   const topProcessor = sale.payment_processor
-    ? PROCESSOR_LABEL[sale.payment_processor] ?? sale.payment_processor
+    ? (PROCESSOR_LABEL[sale.payment_processor] ?? sale.payment_processor)
     : null
   const topMethodFull = topProcessor ? `${methodLabel} (${topProcessor})` : methodLabel
   lines.push({ text: row('Pago:', topMethodFull, cols) })
@@ -202,9 +202,7 @@ export function renderTicket({
   if (sale.payment_method === 'mixed' && sale.payments) {
     for (const p of sale.payments) {
       const label = PAYMENT_LABEL[p.method] ?? p.method
-      const proc = p.processor
-        ? PROCESSOR_LABEL[p.processor] ?? p.processor
-        : null
+      const proc = p.processor ? (PROCESSOR_LABEL[p.processor] ?? p.processor) : null
       const fullLabel = proc ? `${label} (${proc})` : label
       lines.push({ text: row(`  ${fullLabel}`, fmtMoney(p.amount), cols) })
       if (p.reference) {

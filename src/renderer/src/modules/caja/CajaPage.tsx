@@ -204,9 +204,7 @@ export default function CajaPage() {
                         {formatDateTime(m.created_at)}
                       </td>
                       <td className="py-2.5 pr-3">
-                        <Badge tone={TYPE_META[m.type].tone}>
-                          {TYPE_META[m.type].label}
-                        </Badge>
+                        <Badge tone={TYPE_META[m.type].tone}>{TYPE_META[m.type].label}</Badge>
                       </td>
                       <td className="py-2.5 pr-3">{m.description}</td>
                       <td className="py-2.5 text-right font-medium tabular-nums">

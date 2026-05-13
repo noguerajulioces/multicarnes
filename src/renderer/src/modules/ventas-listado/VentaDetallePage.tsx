@@ -36,10 +36,7 @@ const methodTone: Record<PaymentMethod, 'success' | 'warning' | 'info' | 'neutra
   mixed: 'neutral'
 }
 
-function methodLabelWithProcessor(
-  method: string,
-  processor: string | null | undefined
-): string {
+function methodLabelWithProcessor(method: string, processor: string | null | undefined): string {
   const base = methodLabels[method] || method
   if (method === 'card' && processor) {
     return `${base} (${processorLabels[processor] || processor})`
@@ -371,10 +368,7 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
             {sale.payments && sale.payments.length > 0 ? (
               <ul className="space-y-1.5">
                 {sale.payments.map((p) => (
-                  <li
-                    key={p.id}
-                    className="rounded-lg border border-border px-3 py-2"
-                  >
+                  <li key={p.id} className="rounded-lg border border-border px-3 py-2">
                     <div className="flex items-center justify-between">
                       <Badge tone={methodTone[p.method as PaymentMethod] ?? 'neutral'}>
                         {methodLabelWithProcessor(p.method, p.processor)}

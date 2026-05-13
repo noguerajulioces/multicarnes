@@ -268,8 +268,7 @@ function OtrosMediosPanel({
   const cardCount = otherMethods.find((r) => r.method === 'card')?.count ?? 0
   const transferRow = otherMethods.find((r) => r.method === 'transfer')
   const creditRow = otherMethods.find((r) => r.method === 'credit')
-  const grand =
-    cardTotal + (transferRow?.total ?? 0) + (creditRow?.total ?? 0)
+  const grand = cardTotal + (transferRow?.total ?? 0) + (creditRow?.total ?? 0)
   if (grand === 0) return null
 
   return (
@@ -283,8 +282,7 @@ function OtrosMediosPanel({
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium text-text-main">Tarjeta · Total</span>
               <span className="tabular-nums font-medium">
-                {formatGs(cardTotal)}{' '}
-                <span className="text-xs text-text-muted">({cardCount})</span>
+                {formatGs(cardTotal)} <span className="text-xs text-text-muted">({cardCount})</span>
               </span>
             </div>
             {cardByProcessor.length > 0 && (

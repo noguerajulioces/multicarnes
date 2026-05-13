@@ -67,8 +67,7 @@ export function createSale(data: CreateSaleData) {
     // sales the top-level fields stay NULL — each sale_payments row carries
     // its own processor/reference.
     const topReference = normalizeReference(data.paymentReference)
-    const topProcessor =
-      data.paymentMethod === 'card' ? data.paymentProcessor ?? null : null
+    const topProcessor = data.paymentMethod === 'card' ? (data.paymentProcessor ?? null) : null
     if (data.paymentMethod !== 'mixed') {
       validatePaymentDetails(data.paymentMethod, topProcessor, topReference)
     }
@@ -129,7 +128,7 @@ export function createSale(data: CreateSaleData) {
       )
       for (const p of data.payments) {
         const lineRef = normalizeReference(p.reference)
-        const lineProc = p.method === 'card' ? p.processor ?? null : null
+        const lineProc = p.method === 'card' ? (p.processor ?? null) : null
         validatePaymentDetails(p.method, lineProc, lineRef)
         insertPayment.run(saleId, p.method, p.amount, lineProc, lineRef)
       }
