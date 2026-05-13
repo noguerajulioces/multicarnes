@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
 import { loginAsSeedAdmin, SEED_ADMIN, createUserViaIpc, createProductViaIpc } from './helpers/seed'
+import { todayLocal, tomorrowLocal } from './helpers/dates'
 import { LoginPage } from './pom/LoginPage'
 
 interface StockAdjustmentRow {
@@ -69,17 +70,16 @@ test.describe('Purchase reception audit attribution (US2 of 002)', () => {
       )
 
       // Read back the audit rows for this product. The most recent ones
-      // are the reception's rows.
-      const movements = await ipc(
+      // are the reception's rows. Date range built in the test process so
+      // we don't need helpers/ inside the renderer evaluate body.
+      const today = todayLocal()
+      const tomorrow = tomorrowLocal()
+      const movements = (await ipc(
         window,
-        async (productId) => {
-          const today = new Date().toISOString().slice(0, 10)
-          const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
-          const rows = await window.api.reports.stockMovements(today, tomorrow, productId)
-          return rows as StockAdjustmentRow[]
-        },
-        product.id
-      )
+        async ([from, to, productId]) =>
+          (await window.api.reports.stockMovements(from, to, productId)) as StockAdjustmentRow[],
+        [today, tomorrow, product.id] as const
+      )) as StockAdjustmentRow[]
 
       const receptionRow = movements.find((m) =>
         m.reason?.includes(`Recepción compra #${order.id}`)
