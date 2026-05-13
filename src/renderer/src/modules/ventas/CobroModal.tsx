@@ -64,7 +64,12 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
     const saleItems = items.map((i) => ({
       productId: i.product.id,
       quantity: i.quantity,
-      unitPrice: i.product.price,
+      // 005-promotional-pricing: the cart store snapshots the effective unit
+      // price at add-to-cart (i.unit_price) when the line was sold under an
+      // active promo. Persisting i.product.price here would store the normal
+      // price as if no promo applied, breaking the receipt's "Ahorrás" math
+      // and producing sale_items rows where quantity*unit_price != subtotal.
+      unitPrice: i.unit_price ?? i.product.price,
       subtotal: i.subtotal
     }))
 
