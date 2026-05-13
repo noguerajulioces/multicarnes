@@ -48,7 +48,9 @@ export default function ProductoFormPage() {
     // 005-promotional-pricing
     promo_enabled: false,
     promo_type: 'fixed' as 'fixed' | 'percent',
-    promo_value: 0
+    promo_value: 0,
+    promo_from: '',
+    promo_to: ''
   })
   const [image, setImage] = useState<string | null>(null)
   const [stagedImage, setStagedImage] = useState<{ srcPath: string; dataUrl: string } | null>(null)
@@ -70,7 +72,9 @@ export default function ProductoFormPage() {
             active: !!p.active,
             promo_enabled: !!p.promo_enabled,
             promo_type: p.promo_type === 'percent' ? 'percent' : 'fixed',
-            promo_value: p.promo_value ?? 0
+            promo_value: p.promo_value ?? 0,
+            promo_from: p.promo_from ?? '',
+            promo_to: p.promo_to ?? ''
           })
           setImage(p.image || null)
         }
@@ -109,7 +113,9 @@ export default function ProductoFormPage() {
       active: form.active,
       promo_enabled: form.promo_enabled,
       promo_type: form.promo_enabled ? form.promo_type : null,
-      promo_value: form.promo_enabled ? form.promo_value : null
+      promo_value: form.promo_enabled ? form.promo_value : null,
+      promo_from: form.promo_enabled && form.promo_from ? form.promo_from : null,
+      promo_to: form.promo_enabled && form.promo_to ? form.promo_to : null
     }
     try {
       if (isEdit) {
@@ -452,6 +458,42 @@ export default function ProductoFormPage() {
                       )}
                     </div>
                   )}
+
+                  {/* US2: optional date range. Both bounds optional; toggle alone
+                      activates the promo when no dates are set. */}
+                  <div className="pt-3 border-t border-border space-y-3">
+                    <p className="text-xs text-text-muted">
+                      Vigencia (opcional) — si dejás las fechas vacías, el toggle controla la
+                      promoción manualmente.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm text-text-muted mb-1.5">Desde</label>
+                        <Input
+                          type="date"
+                          value={form.promo_from}
+                          onChange={(e) => setForm({ ...form, promo_from: e.target.value })}
+                          className="tabular-nums"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-text-muted mb-1.5">Hasta</label>
+                        <Input
+                          type="date"
+                          value={form.promo_to}
+                          onChange={(e) => setForm({ ...form, promo_to: e.target.value })}
+                          className="tabular-nums"
+                        />
+                      </div>
+                    </div>
+                    {form.promo_from &&
+                      form.promo_to &&
+                      form.promo_from > form.promo_to && (
+                        <p className="text-xs text-danger-700">
+                          La fecha &apos;Desde&apos; debe ser anterior o igual a &apos;Hasta&apos;.
+                        </p>
+                      )}
+                  </div>
                 </div>
               )}
             </CardBody>

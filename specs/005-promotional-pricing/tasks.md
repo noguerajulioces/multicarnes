@@ -79,9 +79,9 @@ Single project, existing layout (per [plan.md](plan.md)): `src/main/`, `src/prel
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Extend the "Promoción" section in [src/renderer/src/modules/productos/ProductoFormPage.tsx](../../src/renderer/src/modules/productos/ProductoFormPage.tsx) with two `<input type="date">` controls for `Desde` and `Hasta` (both optional) and renderer-side format / range validation mirroring T018
-- [ ] T018 [US2] Add `PROMO_DATE_FORMAT` and `PROMO_DATE_RANGE` validation cases in [src/main/db/queries/products.ts](../../src/main/db/queries/products.ts), per [contracts/products-promo-fields.md](contracts/products-promo-fields.md)
-- [ ] T019 [US2] Persist `promo_from` / `promo_to` in the `INSERT` / `UPDATE` SQL and include them in the JSON `details` of the `promo_enable` / `promo_update` / `promo_disable` audit rows in [src/main/db/queries/products.ts](../../src/main/db/queries/products.ts)
+- [X] T017 [US2] Extend the "Promoción" section in [src/renderer/src/modules/productos/ProductoFormPage.tsx](../../src/renderer/src/modules/productos/ProductoFormPage.tsx) with two `<input type="date">` controls for `Desde` and `Hasta` (both optional) and renderer-side range validation
+- [X] T018 [US2] ~Add `PROMO_DATE_FORMAT` and `PROMO_DATE_RANGE` validation~ **Already done in T009**: the validator in [src/main/db/queries/products.ts](../../src/main/db/queries/products.ts) was written end-to-end for both stories at once (single pure function). US2 just starts sending the dates.
+- [X] T019 [US2] ~Persist `promo_from`/`promo_to` and include in audit JSON~ **Already done in T010/T011**: the `resolvePromo` / column writes / `promoSnapshot` paths in [src/main/db/queries/products.ts](../../src/main/db/queries/products.ts) cover all five promo fields uniformly. No new SQL needed for US2.
 
 **Checkpoint**: User Story 2 fully functional. A scheduled promo with `Desde = T+1, Hasta = T+3` activates and deactivates automatically when the local date crosses the bounds, with no admin action required at the boundary.
 
