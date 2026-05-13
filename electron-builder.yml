@@ -30,12 +30,14 @@ nsis:
 mac:
   icon: build/icon.icns
   entitlementsInherit: build/entitlements.mac.plist
+  identity: "-"
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
     - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
+afterSign: build/after-sign.js
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
