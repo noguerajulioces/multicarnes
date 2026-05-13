@@ -2,6 +2,39 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.4.0](https://github.com/noguerajulioces/multicarnes/compare/v1.3.0...v1.4.0) (2026-05-13)
+
+### Features
+
+* **build:** add afterSign script for ad-hoc re-signing on macOS ([8c4c37b](https://github.com/noguerajulioces/multicarnes/commit/8c4c37ba24183b261df948fe22ad4999d12e08e7))
+* **caja:** refactor cash movement type handling with TYPE_META constant ([83b9ca3](https://github.com/noguerajulioces/multicarnes/commit/83b9ca35311a89123fefe33255e4aecab3e5453b))
+* **card:** add card-payment processors and voucher reference ([96ae2b3](https://github.com/noguerajulioces/multicarnes/commit/96ae2b30f85171aa7575e746a88cd1ef4e10e06b))
+* **promo:** add per-line Ahorro column to sale detail items table ([2840899](https://github.com/noguerajulioces/multicarnes/commit/28408999373b94a9fea26744677236697a4fb079)), closes [#N](https://github.com/noguerajulioces/multicarnes/issues/N)
+* **promo:** admin sets promo, POS sells at promo price (US1 MVP) ([b267233](https://github.com/noguerajulioces/multicarnes/commit/b2672332bd0becd592cec14d3103f5899a6bcbef))
+* **promo:** schedule promos with optional Desde/Hasta date range (US2) ([f5b08d0](https://github.com/noguerajulioces/multicarnes/commit/f5b08d0557a815993e44ee2429c3d117ca87c207))
+* **promo:** Solo en promo filter on admin product listing (US3) ([ed6ccec](https://github.com/noguerajulioces/multicarnes/commit/ed6ccec7c33b908dfa613505b55c00ca8c8f1225))
+* **promo:** surface promo on POS cards, product list, and sale detail ([de8c25d](https://github.com/noguerajulioces/multicarnes/commit/de8c25d30da15afab1804b01275befb89c4e4bf3))
+
+### Bug Fixes
+
+* **eslint:** update ignores to include build directory ([3109b94](https://github.com/noguerajulioces/multicarnes/commit/3109b948475525dd9a9746b0ccc550609c3a0558))
+* **promo:** persist snapshotted unit_price on sale, not normal price ([d0fb8f6](https://github.com/noguerajulioces/multicarnes/commit/d0fb8f6fe31ba63501033cc5b64a827822202f3b))
+* **promo:** subtotal shows list price so ahorro reads as a deduction ([31574e1](https://github.com/noguerajulioces/multicarnes/commit/31574e11778d8e8a386b9a4f8d669853162fe52d))
+
+### Refactoring
+
+* improve code formatting and readability across multiple files ([2606f53](https://github.com/noguerajulioces/multicarnes/commit/2606f53ca4b8420ecb425c4a11ced6c901d3d5e2))
+* **promo:** reduce cart-line visual noise on promo items ([580e182](https://github.com/noguerajulioces/multicarnes/commit/580e182ba20b43445ffb5af7a23f65772dbaffb3))
+
+### Documentation
+
+* **promo:** add 005-promotional-pricing spec, plan, and tasks ([d5a3e02](https://github.com/noguerajulioces/multicarnes/commit/d5a3e02d6ee0075ef293d1b07e0e2a537dff0067))
+* **promo:** document promotional pricing in functional-spec inventory ([0219ba3](https://github.com/noguerajulioces/multicarnes/commit/0219ba3959f72a54899b368cdd978c9d8eff963d))
+
+### Reverts
+
+* **promo:** drop aggregate ahorro from cart totals ([b7abe7c](https://github.com/noguerajulioces/multicarnes/commit/b7abe7ca99ba83eae81e4b49786508d4e32c2e89)), closes [#N](https://github.com/noguerajulioces/multicarnes/issues/N)
+
 ## [1.3.0](https://github.com/noguerajulioces/multicarnes/compare/v1.2.0...v1.3.0) (2026-05-12)
 
 ### Features
