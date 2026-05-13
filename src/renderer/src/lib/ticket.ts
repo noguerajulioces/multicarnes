@@ -155,6 +155,19 @@ export function renderTicket({
     lines.push({ text: row('Subtotal', fmtMoney(sale.subtotal), cols) })
     lines.push({ text: row('Descuento', `-${fmtMoney(sale.discount)}`, cols) })
   }
+  // 005-promotional-pricing: sum savings across promo lines. Each item carries
+  // normal_price (current product price, joined at read time). A line is a
+  // promo line iff normal_price > unit_price. Suppressed when zero so non-promo
+  // receipts print byte-identical to the prior layout.
+  const promoSavings = items.reduce((sum, it) => {
+    if (it.normal_price != null && it.normal_price > it.unit_price) {
+      return sum + (it.normal_price - it.unit_price) * Number(it.quantity)
+    }
+    return sum
+  }, 0)
+  if (promoSavings > 0) {
+    lines.push({ text: row('Ahorrás Gs.', fmtMoney(Math.round(promoSavings)), cols) })
+  }
   lines.push({
     text: row('TOTAL Gs.', fmtMoney(sale.total), cols),
     bold: true,

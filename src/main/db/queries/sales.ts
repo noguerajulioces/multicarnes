@@ -122,7 +122,7 @@ export function getSaleById(id: number) {
   sale.items = db
     .prepare(
       `
-    SELECT si.*, p.name as product_name
+    SELECT si.*, p.name as product_name, p.price as normal_price
     FROM sale_items si
     LEFT JOIN products p ON si.product_id = p.id
     WHERE si.sale_id = ?

@@ -1,5 +1,69 @@
 import { getDb } from '../index'
 
+// 005-promotional-pricing: per-product promo. See specs/005-promotional-pricing
+// for the full contract. Validation, persistence and audit-log writes happen
+// here so the renderer never bypasses them via direct IPC abuse.
+type PromoType = 'fixed' | 'percent'
+
+interface PromoFields {
+  promo_enabled?: boolean
+  promo_type?: PromoType | null
+  promo_value?: number | null
+  promo_from?: string | null
+  promo_to?: string | null
+}
+
+interface ResolvedPromo {
+  enabled: boolean
+  type: PromoType | null
+  value: number | null
+  from: string | null
+  to: string | null
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+function resolvePromo(input: PromoFields, fallback?: ResolvedPromo): ResolvedPromo {
+  return {
+    enabled:
+      input.promo_enabled !== undefined ? !!input.promo_enabled : (fallback?.enabled ?? false),
+    type: input.promo_type !== undefined ? input.promo_type : (fallback?.type ?? null),
+    value: input.promo_value !== undefined ? input.promo_value : (fallback?.value ?? null),
+    from: input.promo_from !== undefined ? input.promo_from : (fallback?.from ?? null),
+    to: input.promo_to !== undefined ? input.promo_to : (fallback?.to ?? null)
+  }
+}
+
+function validatePromo(promo: ResolvedPromo, price: number): void {
+  if (!promo.enabled) return
+  if (promo.type !== 'fixed' && promo.type !== 'percent') throw new Error('PROMO_INCOMPLETE')
+  if (promo.value == null) throw new Error('PROMO_INCOMPLETE')
+  if (promo.type === 'fixed') {
+    if (!Number.isFinite(promo.value) || promo.value <= 0)
+      throw new Error('PROMO_FIXED_NOT_POSITIVE')
+    if (promo.value >= price) throw new Error('PROMO_FIXED_NOT_LESS_THAN_PRICE')
+  } else {
+    if (!Number.isInteger(promo.value) || promo.value < 1 || promo.value > 99)
+      throw new Error('PROMO_PERCENT_OUT_OF_RANGE')
+  }
+  if (promo.from != null && !DATE_RE.test(promo.from)) throw new Error('PROMO_DATE_FORMAT')
+  if (promo.to != null && !DATE_RE.test(promo.to)) throw new Error('PROMO_DATE_FORMAT')
+  if (promo.from && promo.to && promo.from > promo.to) throw new Error('PROMO_DATE_RANGE')
+}
+
+function promoSnapshot(p: ResolvedPromo): {
+  type: PromoType | null
+  value: number | null
+  from: string | null
+  to: string | null
+} {
+  return { type: p.type, value: p.value, from: p.from, to: p.to }
+}
+
+function promoFieldsChanged(a: ResolvedPromo, b: ResolvedPromo): boolean {
+  return a.type !== b.type || a.value !== b.value || a.from !== b.from || a.to !== b.to
+}
+
 export function getAllProducts(filters?: {
   categoryId?: number
   active?: boolean
@@ -77,34 +141,59 @@ export function getProductByBarcode(barcode: string) {
     .get(barcode)
 }
 
-export function createProduct(data: {
-  name: string
-  category_id?: number
-  barcode?: string
-  price: number
-  price_type: string
-  stock: number
-  min_stock: number
-  active?: boolean
-}) {
-  const result = getDb()
-    .prepare(
-      `
-      INSERT INTO products (name, category_id, barcode, price, price_type, stock, min_stock, active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+export function createProduct(
+  data: {
+    name: string
+    category_id?: number | null
+    barcode?: string | null
+    price: number
+    price_type: string
+    stock: number
+    min_stock: number
+    active?: boolean
+  } & PromoFields,
+  userId?: number | null
+) {
+  const promo = resolvePromo(data)
+  validatePromo(promo, data.price)
+
+  const db = getDb()
+  let createdId = 0
+  const txn = db.transaction(() => {
+    const result = db
+      .prepare(
+        `
+      INSERT INTO products (name, category_id, barcode, price, price_type, stock, min_stock, active,
+                            promo_enabled, promo_type, promo_value, promo_from, promo_to)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
-    )
-    .run(
-      data.name,
-      data.category_id || null,
-      data.barcode || null,
-      data.price,
-      data.price_type,
-      data.stock,
-      data.min_stock,
-      data.active !== false ? 1 : 0
-    )
-  return getProductById(result.lastInsertRowid as number)
+      )
+      .run(
+        data.name,
+        data.category_id ?? null,
+        data.barcode ?? null,
+        data.price,
+        data.price_type,
+        data.stock,
+        data.min_stock,
+        data.active !== false ? 1 : 0,
+        promo.enabled ? 1 : 0,
+        promo.type,
+        promo.value,
+        promo.from,
+        promo.to
+      )
+    createdId = result.lastInsertRowid as number
+    if (promo.enabled) {
+      db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
+        userId ?? null,
+        'promo_enable',
+        JSON.stringify({ product_id: createdId, ...promoSnapshot(promo) })
+      )
+    }
+  })
+  txn()
+  return getProductById(createdId)
 }
 
 export function updateProduct(
@@ -119,9 +208,39 @@ export function updateProduct(
     min_stock?: number
     image?: string | null
     active?: boolean
-  }
+  } & PromoFields,
+  userId?: number | null
 ) {
   const db = getDb()
+
+  const existing = db
+    .prepare(
+      'SELECT price, promo_enabled, promo_type, promo_value, promo_from, promo_to FROM products WHERE id = ?'
+    )
+    .get(id) as
+    | {
+        price: number
+        promo_enabled: number
+        promo_type: PromoType | null
+        promo_value: number | null
+        promo_from: string | null
+        promo_to: string | null
+      }
+    | undefined
+  if (!existing) return getProductById(id)
+
+  const existingPromo: ResolvedPromo = {
+    enabled: existing.promo_enabled === 1,
+    type: existing.promo_type,
+    value: existing.promo_value,
+    from: existing.promo_from,
+    to: existing.promo_to
+  }
+  const nextPromo = resolvePromo(data, existingPromo)
+  const effectivePrice = data.price ?? existing.price
+
+  validatePromo(nextPromo, effectivePrice)
+
   const fields: string[] = []
   const params: unknown[] = []
 
@@ -161,12 +280,75 @@ export function updateProduct(
     fields.push('active = ?')
     params.push(data.active ? 1 : 0)
   }
-
-  if (fields.length > 0) {
-    fields.push("updated_at = datetime('now','localtime')")
-    params.push(id)
-    db.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`).run(...params)
+  // Promo column writes — only when explicitly provided in `data`.
+  if (data.promo_enabled !== undefined) {
+    fields.push('promo_enabled = ?')
+    params.push(nextPromo.enabled ? 1 : 0)
   }
+  if (data.promo_type !== undefined) {
+    fields.push('promo_type = ?')
+    params.push(nextPromo.type)
+  }
+  if (data.promo_value !== undefined) {
+    fields.push('promo_value = ?')
+    params.push(nextPromo.value)
+  }
+  if (data.promo_from !== undefined) {
+    fields.push('promo_from = ?')
+    params.push(nextPromo.from)
+  }
+  if (data.promo_to !== undefined) {
+    fields.push('promo_to = ?')
+    params.push(nextPromo.to)
+  }
+
+  const anyPromoFieldProvided =
+    data.promo_enabled !== undefined ||
+    data.promo_type !== undefined ||
+    data.promo_value !== undefined ||
+    data.promo_from !== undefined ||
+    data.promo_to !== undefined
+
+  let auditAction: 'promo_enable' | 'promo_update' | 'promo_disable' | null = null
+  let auditDetails: object | null = null
+  if (anyPromoFieldProvided) {
+    if (!existingPromo.enabled && nextPromo.enabled) {
+      auditAction = 'promo_enable'
+      auditDetails = { product_id: id, ...promoSnapshot(nextPromo) }
+    } else if (existingPromo.enabled && !nextPromo.enabled) {
+      auditAction = 'promo_disable'
+      auditDetails = { product_id: id, previous: promoSnapshot(existingPromo) }
+    } else if (
+      existingPromo.enabled &&
+      nextPromo.enabled &&
+      promoFieldsChanged(existingPromo, nextPromo)
+    ) {
+      auditAction = 'promo_update'
+      auditDetails = {
+        product_id: id,
+        before: promoSnapshot(existingPromo),
+        after: promoSnapshot(nextPromo)
+      }
+    }
+  }
+
+  if (fields.length === 0 && !auditAction) return getProductById(id)
+
+  const txn = db.transaction(() => {
+    if (fields.length > 0) {
+      fields.push("updated_at = datetime('now','localtime')")
+      params.push(id)
+      db.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`).run(...params)
+    }
+    if (auditAction) {
+      db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
+        userId ?? null,
+        auditAction,
+        JSON.stringify(auditDetails)
+      )
+    }
+  })
+  txn()
   return getProductById(id)
 }
 

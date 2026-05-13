@@ -419,13 +419,42 @@ export default function VentasPage() {
                 <tbody>
                   {items.map((item) => {
                     const itemPt = priceTypeInfo(item.product.price_type)
+                    const hasPromo =
+                      item.normal_price != null &&
+                      item.unit_price != null &&
+                      item.normal_price > item.unit_price
+                    const lineSavings = hasPromo
+                      ? Math.round((item.savings_per_unit ?? 0) * item.quantity)
+                      : 0
                     return (
                       <tr key={item.product.id} className="border-b border-border">
                         <td className="py-2">
-                          <p className="font-medium">{item.product.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-medium">{item.product.name}</p>
+                            {hasPromo && <Badge tone="success">PROMO</Badge>}
+                          </div>
                           <p className="text-xs text-text-muted">
-                            {formatGs(item.product.price)} / {itemPt.unit}
+                            {hasPromo ? (
+                              <>
+                                <span className="line-through opacity-60">
+                                  {formatGs(item.normal_price!)}
+                                </span>{' '}
+                                <span className="font-medium text-success-700">
+                                  {formatGs(item.unit_price!)}
+                                </span>{' '}
+                                / {itemPt.unit}
+                              </>
+                            ) : (
+                              <>
+                                {formatGs(item.product.price)} / {itemPt.unit}
+                              </>
+                            )}
                           </p>
+                          {hasPromo && lineSavings > 0 && (
+                            <p className="text-xs text-success-700 mt-0.5">
+                              Ahorrás {formatGs(lineSavings)}
+                            </p>
+                          )}
                         </td>
                         <td className="py-2">
                           <div className="flex items-center justify-center gap-1">

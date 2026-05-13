@@ -32,8 +32,21 @@ export interface Product {
   image: string | null
   active: boolean
   low_stock?: boolean
+  // 005-promotional-pricing: per-product promo. Active iff promo_enabled AND
+  // (current local date is within [promo_from, promo_to] when set).
+  promo_enabled?: boolean
+  promo_type?: 'fixed' | 'percent' | null
+  promo_value?: number | null
+  promo_from?: string | null
+  promo_to?: string | null
   created_at?: string
   updated_at?: string
+}
+
+export interface EffectivePrice {
+  unitPrice: number
+  normalPrice: number
+  savingsPerUnit: number
 }
 
 export type DocumentType = 'CI' | 'RUC'
@@ -160,6 +173,13 @@ export interface SaleItem {
   quantity: number
   unit_price: number
   subtotal: number
+  // 005-promotional-pricing: current product price at read time. When this
+  // exceeds `unit_price`, the line was sold under a promo and the receipt
+  // renders an "Ahorrás" totals line. NOTE: this is the product's *current*
+  // normal price (joined at read time), not a snapshot of the price at sale.
+  // A future change can snapshot the price on sale_items when retroactive
+  // accuracy on historical reprints matters (data-model.md §1.3).
+  normal_price?: number
 }
 
 export interface SalePayment {
@@ -173,6 +193,12 @@ export interface CartItem {
   product: Product
   quantity: number
   subtotal: number
+  // 005-promotional-pricing: present only when the line was added under an
+  // active promo. Snapshotted at add-to-cart so mid-sale promo changes do not
+  // repaint the line.
+  unit_price?: number
+  normal_price?: number
+  savings_per_unit?: number
 }
 
 export interface PurchaseOrder {
