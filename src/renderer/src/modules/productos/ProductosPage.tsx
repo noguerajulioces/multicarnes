@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatGs, cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
 import { priceTypeInfo, formatQty } from '../../lib/price-types'
+import { isPromoActive } from '../../lib/promo'
 import type { Product, Category } from '@shared/types'
 import {
   Search,
@@ -214,6 +215,7 @@ export default function ProductosPage() {
                 const low = p.stock <= p.min_stock
                 const out = p.stock <= 0
                 const pt = priceTypeInfo(p.price_type)
+                const promo = isPromoActive(p, new Date())
                 return (
                   <tr
                     key={p.id}
@@ -234,10 +236,24 @@ export default function ProductosPage() {
                         </div>
                         <span className="truncate">{p.name}</span>
                         {!p.active && <Badge tone="neutral">Inactivo</Badge>}
+                        {promo && <Badge tone="success">PROMO</Badge>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-text-muted">{p.category_name || '—'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatGs(p.price)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {promo ? (
+                        <div className="leading-tight">
+                          <p className="text-xs text-text-muted line-through">
+                            {formatGs(promo.normalPrice)}
+                          </p>
+                          <p className="font-medium text-success-700">
+                            {formatGs(promo.unitPrice)}
+                          </p>
+                        </div>
+                      ) : (
+                        formatGs(p.price)
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge tone={p.price_type === 'kg' ? 'info' : 'neutral'}>{pt.label}</Badge>
                     </td>
