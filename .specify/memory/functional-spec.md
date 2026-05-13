@@ -312,6 +312,30 @@ Quantities are formatted with `es-PY` locale (`formatQty`) ([price-types.ts:43-5
 
 ---
 
+### 9.9 Promotional pricing (per-product)
+**What it does:** Per-product promotional sale price managed by Admin/Supervisor. The POS automatically uses the promo price when active, shows a PROMO badge with strike-through normal price and "Ahorrás" indicator on the cart line, and prints an "Ahorrás" totals line on the receipt when at least one line was sold under promo.
+
+**Who uses it:** Admin/Supervisor manage; Cashier consumes (UI hides the controls; matrix enforces `products:create`/`update` on admin+supervisor only).
+
+**Acceptance criteria:**
+- Five additive columns on `products`: `promo_enabled` (0/1), `promo_type` (`fixed`|`percent`), `promo_value` (Gs amount or 1–99 percent), and the optional `promo_from`/`promo_to` calendar-day window ([src/main/db/schema.ts:19-38](src/main/db/schema.ts#L19-L38)).
+- Migration **v8** (`add_products_promo_columns`) is additive and idempotent under `PRAGMA table_info`; partial index `idx_products_promo_enabled` covers the "Solo en promo" filter ([src/main/db/index.ts](src/main/db/index.ts)).
+- Validation in `queries/products.ts` throws typed `PROMO_*` errors (fixed must be > 0 and < normal price; percent must be integer 1–99; date range must be `Desde <= Hasta` when both bounds set; format `YYYY-MM-DD`). Errors are translated to Spanish in the form via `PROMO_ERROR_MSG`.
+- Audit log: each promo-state change writes a `promo_enable` / `promo_update` / `promo_disable` row to `action_logs` inside the same `db.transaction()` as the product mutation, with JSON details capturing before/after; attribution via `ctx.userId` from the IPC handler.
+- Activation rule: a promo is active iff `promo_enabled = 1` AND (`promo_from` is null OR today >= promo_from) AND (`promo_to` is null OR today <= promo_to), in local timezone. Pure function `isPromoActive(product, now)` in [src/renderer/src/lib/promo.ts](src/renderer/src/lib/promo.ts).
+- Effective unit price: `promo_value` for `fixed`, or `Math.round(price * (1 - percent/100))` half-up for `percent`. If the computed promo price is not strictly less than the normal price, the promo silently self-disables (defensive against stale fixed amounts after a normal-price drop).
+- Cart line snapshot (FR-008): `addItem` in [src/renderer/src/store/cart.store.ts](src/renderer/src/store/cart.store.ts) records `unit_price`/`normal_price`/`savings_per_unit` at add-to-cart. Lines already in the cart are never re-priced when the promo is later edited, disabled, or expires.
+- Cart line render in [src/renderer/src/modules/ventas/VentasPage.tsx](src/renderer/src/modules/ventas/VentasPage.tsx): `<Badge tone="success">PROMO</Badge>`, struck-through normal price next to the active unit price, and an "Ahorrás Gs. N" line where N = `savings_per_unit × quantity`.
+- Receipt totals: `getSaleById` joins `p.price as normal_price` so the receipt has the data without an extra IPC; [src/renderer/src/lib/ticket.ts](src/renderer/src/lib/ticket.ts) sums savings across promo lines and prints "Ahorrás Gs." above TOTAL when > 0. `ticket-pdf.ts` inherits via the shared `RenderedTicket.lines`.
+- Admin discovery: "Solo en promo" filter chip on [src/renderer/src/modules/productos/ProductosPage.tsx](src/renderer/src/modules/productos/ProductosPage.tsx) adds `inPromoOnly: true` to `products:getAll`, which translates to a SQL predicate matching the renderer-side activation rule. Cashier role does not see the chip (UI gating; existing matrix already restricts the product-edit path).
+- Receipt savings caveat (v1): `normal_price` on `SaleItem` is the product's **current** price (joined at read time), not a snapshot of the price at the moment of sale. A reprint after a normal-price raise can therefore show an inflated "Ahorrás". Out of scope to fix in v1 — a future change can snapshot `normal_price` onto `sale_items` if retroactive accuracy matters ([specs/005-promotional-pricing/data-model.md §1.3](specs/005-promotional-pricing/data-model.md)).
+
+**Data persisted:** `products.promo_*` columns (additive); `action_logs` rows tagged `promo_enable`/`promo_update`/`promo_disable`. No new tables.
+
+**Reference:** [specs/005-promotional-pricing/](specs/005-promotional-pricing/).
+
+---
+
 ## 10. Customers
 
 ### 10.1 Customer CRUD & balance ledger

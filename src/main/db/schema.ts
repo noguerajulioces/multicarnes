@@ -17,18 +17,23 @@ export function createTables(db: Database.Database): void {
     );
 
     CREATE TABLE IF NOT EXISTS products (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      category_id INTEGER REFERENCES categories(id),
-      name        TEXT NOT NULL,
-      barcode     TEXT UNIQUE,
-      price       INTEGER NOT NULL DEFAULT 0,
-      price_type  TEXT NOT NULL DEFAULT 'unit',
-      stock       REAL NOT NULL DEFAULT 0,
-      min_stock   REAL NOT NULL DEFAULT 0,
-      image       TEXT,
-      active      INTEGER NOT NULL DEFAULT 1,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-      updated_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id   INTEGER REFERENCES categories(id),
+      name          TEXT NOT NULL,
+      barcode       TEXT UNIQUE,
+      price         INTEGER NOT NULL DEFAULT 0,
+      price_type    TEXT NOT NULL DEFAULT 'unit',
+      stock         REAL NOT NULL DEFAULT 0,
+      min_stock     REAL NOT NULL DEFAULT 0,
+      image         TEXT,
+      active        INTEGER NOT NULL DEFAULT 1,
+      promo_enabled INTEGER NOT NULL DEFAULT 0,
+      promo_type    TEXT,
+      promo_value   INTEGER,
+      promo_from    TEXT,
+      promo_to      TEXT,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+      updated_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS customers (

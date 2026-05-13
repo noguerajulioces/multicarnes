@@ -209,6 +209,37 @@ const MIGRATIONS: Migration[] = [
           );
       `)
     }
+  },
+  {
+    version: 8,
+    name: 'add_products_promo_columns',
+    up: (db) => {
+      // 005-promotional-pricing: per-product promo. Adds five additive
+      // columns. Idempotent under PRAGMA table_info — re-running is a no-op.
+      // Fresh installs get the columns from schema.ts; this migration only
+      // matters for upgraded installs.
+      const cols = db.prepare('PRAGMA table_info(products)').all() as { name: string }[]
+      const has = (n: string): boolean => cols.some((c) => c.name === n)
+      if (!has('promo_enabled')) {
+        db.exec('ALTER TABLE products ADD COLUMN promo_enabled INTEGER NOT NULL DEFAULT 0')
+      }
+      if (!has('promo_type')) {
+        db.exec('ALTER TABLE products ADD COLUMN promo_type TEXT')
+      }
+      if (!has('promo_value')) {
+        db.exec('ALTER TABLE products ADD COLUMN promo_value INTEGER')
+      }
+      if (!has('promo_from')) {
+        db.exec('ALTER TABLE products ADD COLUMN promo_from TEXT')
+      }
+      if (!has('promo_to')) {
+        db.exec('ALTER TABLE products ADD COLUMN promo_to TEXT')
+      }
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_products_promo_enabled
+          ON products(promo_enabled) WHERE promo_enabled = 1;
+      `)
+    }
   }
 ]
 

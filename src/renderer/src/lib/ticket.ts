@@ -151,9 +151,29 @@ export function renderTicket({
   lines.push({ text: divider(cols) })
 
   // ---------- Totals ----------
-  if (sale.discount && sale.discount > 0) {
-    lines.push({ text: row('Subtotal', fmtMoney(sale.subtotal), cols) })
-    lines.push({ text: row('Descuento', `-${fmtMoney(sale.discount)}`, cols) })
+  // 005-promotional-pricing: sum savings across promo lines. Each item carries
+  // normal_price (current product price, joined at read time). A line is a
+  // promo line iff normal_price > unit_price. When > 0, the receipt prints
+  // Subtotal as the list-price total and deducts the saving explicitly so the
+  // math chain reads: Subtotal − Ahorrás − Descuento = TOTAL. Non-promo, no-
+  // discount sales remain a single TOTAL line, byte-identical to before.
+  const promoSavings = items.reduce((sum, it) => {
+    if (it.normal_price != null && it.normal_price > it.unit_price) {
+      return sum + (it.normal_price - it.unit_price) * Number(it.quantity)
+    }
+    return sum
+  }, 0)
+  const hasManualDiscount = !!sale.discount && sale.discount > 0
+  if (promoSavings > 0 || hasManualDiscount) {
+    const grossSubtotal =
+      promoSavings > 0 ? sale.subtotal + Math.round(promoSavings) : sale.subtotal
+    lines.push({ text: row('Subtotal', fmtMoney(grossSubtotal), cols) })
+    if (promoSavings > 0) {
+      lines.push({ text: row('Ahorrás Gs.', `-${fmtMoney(Math.round(promoSavings))}`, cols) })
+    }
+    if (hasManualDiscount) {
+      lines.push({ text: row('Descuento', `-${fmtMoney(sale.discount)}`, cols) })
+    }
   }
   lines.push({
     text: row('TOTAL Gs.', fmtMoney(sale.total), cols),

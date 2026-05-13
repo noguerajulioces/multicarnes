@@ -35,6 +35,7 @@ import {
 } from '../../components/ui'
 import { cn } from '../../lib/utils'
 import { priceTypeInfo, formatQty } from '../../lib/price-types'
+import { isPromoActive } from '../../lib/promo'
 import CobroModal from './CobroModal'
 
 export default function VentasPage() {
@@ -419,12 +420,33 @@ export default function VentasPage() {
                 <tbody>
                   {items.map((item) => {
                     const itemPt = priceTypeInfo(item.product.price_type)
+                    const hasPromo =
+                      item.normal_price != null &&
+                      item.unit_price != null &&
+                      item.normal_price > item.unit_price
                     return (
                       <tr key={item.product.id} className="border-b border-border">
                         <td className="py-2">
-                          <p className="font-medium">{item.product.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-medium">{item.product.name}</p>
+                            {hasPromo && <Badge tone="success">PROMO</Badge>}
+                          </div>
                           <p className="text-xs text-text-muted">
-                            {formatGs(item.product.price)} / {itemPt.unit}
+                            {hasPromo ? (
+                              <>
+                                <span className="line-through opacity-60">
+                                  {formatGs(item.normal_price!)}
+                                </span>{' '}
+                                <span className="font-medium text-success-700">
+                                  {formatGs(item.unit_price!)}
+                                </span>{' '}
+                                / {itemPt.unit}
+                              </>
+                            ) : (
+                              <>
+                                {formatGs(item.product.price)} / {itemPt.unit}
+                              </>
+                            )}
                           </p>
                         </td>
                         <td className="py-2">
@@ -642,6 +664,7 @@ export default function VentasPage() {
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                   {products.map((p) => {
                     const lowStock = p.stock > 0 && p.stock <= p.min_stock
+                    const promo = isPromoActive(p, new Date())
                     return (
                       <button
                         key={p.id}
@@ -651,24 +674,40 @@ export default function VentasPage() {
                         style={{ boxShadow: 'var(--shadow-card-soft)' }}
                         className="bg-surface rounded-xl border border-border text-left hover:border-brand hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       >
-                        {p.image ? (
-                          <div className="w-full h-24 bg-surface-muted">
+                        <div className="relative w-full h-24 bg-surface-muted">
+                          {p.image ? (
                             <img
                               src={`product-img://${p.image}`}
                               alt={p.name}
                               className="w-full h-full object-cover"
                             />
-                          </div>
-                        ) : (
-                          <div className="w-full h-24 bg-surface-muted flex items-center justify-center">
-                            <Package size={32} className="text-text-disabled" />
-                          </div>
-                        )}
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package size={32} className="text-text-disabled" />
+                            </div>
+                          )}
+                          {promo && (
+                            <Badge tone="success" className="absolute top-1.5 right-1.5 shadow-sm">
+                              PROMO
+                            </Badge>
+                          )}
+                        </div>
                         <div className="p-3">
                           <p className="font-medium text-sm truncate text-text-main">{p.name}</p>
-                          <p className="text-brand font-bold mt-1 tabular-nums">
-                            {formatGs(p.price)}
-                          </p>
+                          {promo ? (
+                            <div className="mt-1 leading-tight">
+                              <p className="text-xs text-text-muted line-through tabular-nums">
+                                {formatGs(promo.normalPrice)}
+                              </p>
+                              <p className="text-success-700 font-bold tabular-nums">
+                                {formatGs(promo.unitPrice)}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-brand font-bold mt-1 tabular-nums">
+                              {formatGs(p.price)}
+                            </p>
+                          )}
                           <div className="flex items-center justify-between mt-1.5 gap-2">
                             <span className="text-xs text-text-muted">
                               Stock: {formatQty(p.stock, p.price_type)}

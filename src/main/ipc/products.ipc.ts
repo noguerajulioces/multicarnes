@@ -65,14 +65,21 @@ export function registerProductsIpc(): string[] {
     }
   )
 
-  registerAuthorized('products:create', getRule('products:create'), (_e, _c, data: unknown) =>
-    productsQuery.createProduct(data as Parameters<typeof productsQuery.createProduct>[0])
+  registerAuthorized('products:create', getRule('products:create'), (_e, ctx, data: unknown) =>
+    productsQuery.createProduct(
+      data as Parameters<typeof productsQuery.createProduct>[0],
+      ctx.userId
+    )
   )
   registerAuthorized(
     'products:update',
     getRule('products:update'),
-    (_e, _c, id: number, data: unknown) =>
-      productsQuery.updateProduct(id, data as Parameters<typeof productsQuery.updateProduct>[1])
+    (_e, ctx, id: number, data: unknown) =>
+      productsQuery.updateProduct(
+        id,
+        data as Parameters<typeof productsQuery.updateProduct>[1],
+        ctx.userId
+      )
   )
   registerAuthorized(
     'products:adjustStock',

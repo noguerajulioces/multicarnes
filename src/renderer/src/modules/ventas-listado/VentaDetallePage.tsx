@@ -238,31 +238,67 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
                 <th className="px-4 py-3 font-medium">Producto</th>
                 <th className="px-4 py-3 font-medium text-right">Cantidad</th>
                 <th className="px-4 py-3 font-medium text-right">P. Unit.</th>
+                <th className="px-4 py-3 font-medium text-right">Ahorro</th>
                 <th className="px-4 py-3 font-medium text-right">Subtotal</th>
               </tr>
             </thead>
             <tbody>
               {(sale.items ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-text-muted">
+                  <td colSpan={5} className="px-4 py-6 text-center text-text-muted">
                     Sin items registrados
                   </td>
                 </tr>
               ) : (
-                (sale.items ?? []).map((it) => (
-                  <tr key={it.id} className="border-t border-border">
-                    <td className="px-4 py-3 font-medium">
-                      {it.product_name || `#${it.product_id}`}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {it.quantity.toLocaleString('es-PY', { maximumFractionDigits: 3 })}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatGs(it.unit_price)}</td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums">
-                      {formatGs(it.subtotal)}
-                    </td>
-                  </tr>
-                ))
+                (sale.items ?? []).map((it) => {
+                  // 005-promotional-pricing: a line was sold under promo when
+                  // the (current) normal price exceeds the persisted unit_price.
+                  // See data-model.md §1.3 caveat — historical reprints use the
+                  // current product.price as the normal, not a snapshot.
+                  const soldUnderPromo = it.normal_price != null && it.normal_price > it.unit_price
+                  const lineSavings = soldUnderPromo
+                    ? Math.round((it.normal_price! - it.unit_price) * Number(it.quantity))
+                    : 0
+                  return (
+                    <tr key={it.id} className="border-t border-border">
+                      <td className="px-4 py-3 font-medium">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span>{it.product_name || `#${it.product_id}`}</span>
+                          {soldUnderPromo && <Badge tone="success">PROMO</Badge>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {it.quantity.toLocaleString('es-PY', { maximumFractionDigits: 3 })}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {soldUnderPromo ? (
+                          <div className="leading-tight">
+                            <p className="text-xs text-text-muted line-through">
+                              {formatGs(it.normal_price!)}
+                            </p>
+                            <p className="text-success-700 font-medium">
+                              {formatGs(it.unit_price)}
+                            </p>
+                          </div>
+                        ) : (
+                          formatGs(it.unit_price)
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {soldUnderPromo ? (
+                          <span className="text-success-700 font-medium">
+                            −{formatGs(lineSavings)}
+                          </span>
+                        ) : (
+                          <span className="text-text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums">
+                        {formatGs(it.subtotal)}
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -274,7 +310,34 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
           <CardBody>
             <p className="text-xs text-text-muted mb-3">Totales</p>
             <div className="space-y-1.5 text-sm">
-              <Row label="Subtotal" value={formatGs(sale.subtotal)} />
+              {(() => {
+                // 005-promotional-pricing: when at least one line was sold
+                // under promo, show "Subtotal" as the list-price total and
+                // deduct the saving explicitly so the math reads:
+                //   Subtotal − Ahorro − Descuento = Total.
+                // Falls back to sale.subtotal (legacy display) for sales with
+                // no promo lines so non-promo receipts look unchanged.
+                const promoSavings = (sale.items ?? []).reduce((sum, it) => {
+                  if (it.normal_price != null && it.normal_price > it.unit_price) {
+                    return sum + (it.normal_price - it.unit_price) * Number(it.quantity)
+                  }
+                  return sum
+                }, 0)
+                const grossSubtotal =
+                  promoSavings > 0 ? sale.subtotal + promoSavings : sale.subtotal
+                return (
+                  <>
+                    <Row label="Subtotal" value={formatGs(grossSubtotal)} />
+                    {promoSavings > 0 && (
+                      <Row
+                        label="Ahorro por promoción"
+                        value={`−${formatGs(Math.round(promoSavings))}`}
+                        positive
+                      />
+                    )}
+                  </>
+                )
+              })()}
               {sale.discount > 0 && (
                 <Row label="Descuento" value={`−${formatGs(sale.discount)}`} negative />
               )}
@@ -351,16 +414,22 @@ function DetailField({
 function Row({
   label,
   value,
-  negative = false
+  negative = false,
+  positive = false
 }: {
   label: string
   value: string
   negative?: boolean
+  positive?: boolean
 }): React.ReactElement {
   return (
     <div className="flex justify-between">
       <span className="text-text-muted">{label}</span>
-      <span className={`tabular-nums ${negative ? 'text-danger-700' : ''}`}>{value}</span>
+      <span
+        className={`tabular-nums ${negative ? 'text-danger-700' : positive ? 'text-success-700' : ''}`}
+      >
+        {value}
+      </span>
     </div>
   )
 }
