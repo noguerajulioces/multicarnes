@@ -1,20 +1,29 @@
 <!-- SPECKIT START -->
-Active feature: **004-logout-cash-close** — block logout when the signed-in
+Active feature: **005-promotional-pricing** — per-product promo price managed
+by Admin/Supervisor and consumed automatically by the POS. Five additive
+columns on `products` (toggle, fixed-Gs or %-off, optional date range), a
+pure `isPromoActive(product, now)` decision in `src/renderer/src/lib/promo.ts`,
+cart lines snapshot the price at add-to-cart, and the receipt prints an
+"Ahorrás" totals line when any line was sold under promo. Additive migration
+v8; no new IPC channels; reuses existing `products:*` and `action_logs`.
+
+Plan: [specs/005-promotional-pricing/plan.md](specs/005-promotional-pricing/plan.md).
+Spec: [specs/005-promotional-pricing/spec.md](specs/005-promotional-pricing/spec.md).
+
+Prior feature: **004-logout-cash-close** — block logout when the signed-in
 user owns an open cash register, with a one-click shortcut into the existing
 close-register flow. Per-user IPC query (`cash:getMyOpenRegister`) scoped to
 `ctx.userId`, a `useLogoutGuard` hook that gates `auth.store.logout()`, and a
 shared `LogoutBlockedModal`. No schema change; no new dependencies.
+Reference: [specs/004-logout-cash-close/](specs/004-logout-cash-close/).
 
-Plan: [specs/004-logout-cash-close/plan.md](specs/004-logout-cash-close/plan.md).
-Spec: [specs/004-logout-cash-close/spec.md](specs/004-logout-cash-close/spec.md).
-
-Prior feature (landed): **003-cash-movements-history** — "Movimientos de Caja"
+Earlier feature (landed): **003-cash-movements-history** — "Movimientos de Caja"
 page with server-side pagination, role-aware filters, append-only voiding,
 and Excel export. Backed by an additive `cash_movements` migration (v7) plus a
 one-time backfill of synthetic opening/closing rows.
 Reference: [specs/003-cash-movements-history/](specs/003-cash-movements-history/).
 
-Earlier feature (landed): **002-review-fixes** — three correctness fixes from
+Even earlier (landed): **002-review-fixes** — three correctness fixes from
 the round-2 code review (held tickets per-cashier, purchase reception audit
 attribution, mixed-payment cancellation UX) plus two fold-ins.
 Reference: [specs/002-review-fixes/](specs/002-review-fixes/).
