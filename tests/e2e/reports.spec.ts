@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
+import { todayLocal, tomorrowLocal } from './helpers/dates'
 import {
   loginAsSeedAdmin,
   createUserViaIpc,
@@ -89,8 +90,8 @@ test.describe('Reports', () => {
         { registerId: register.id, userId: admin.id, productId: product.id }
       )
 
-      const today = new Date().toISOString().slice(0, 10)
-      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+      const today = todayLocal()
+      const tomorrow = tomorrowLocal()
       const summary = (await ipc(
         window,
         async ([from, to]) => window.api.reports.salesSummary(from, to),
@@ -157,8 +158,8 @@ test.describe('Reports', () => {
         }
       )
 
-      const today = new Date().toISOString().slice(0, 10)
-      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+      const today = todayLocal()
+      const tomorrow = tomorrowLocal()
       const top = (await ipc(
         window,
         async ([from, to]) => window.api.reports.topProducts(from, to),
