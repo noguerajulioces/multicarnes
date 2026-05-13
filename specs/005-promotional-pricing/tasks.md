@@ -109,10 +109,10 @@ Most of the spec behaviour for US3 emerges from work already done in foundationa
 
 **Purpose**: Validate end-to-end, exercise the migration twice, and keep the project's documentation index honest.
 
-- [ ] T023 [P] Run `npm run typecheck` (both `typecheck:node` and `typecheck:web`) and `npm run lint` — fix any new errors or net-new warnings introduced by the feature
-- [ ] T024 Run the full manual QA pass from [quickstart.md](quickstart.md) (Tests 1–12) against a fresh `npm run dev` build; check off each test result in the file or in a PR comment
-- [ ] T025 Verify migration v8 idempotency: shut down the app and relaunch it twice in a row. `schema_migrations` should show exactly one v8 row and only one `pre-migrate-v8-*.db` backup file
-- [ ] T026 [P] Update [.specify/memory/functional-spec.md](../../.specify/memory/functional-spec.md) — add a "Promotional Pricing" subsection under §9 (Inventory & Products) with `file:line` citations to the new code (the lib/promo.ts function, the cart store snapshot, the cart-line render in VentasPage, the receipt totals in ticket.ts / ticket-pdf.ts, and the action_logs additions)
+- [X] T023 [P] Run `npm run typecheck` (both `typecheck:node` and `typecheck:web`) and `npm run lint` — fix any new errors or net-new warnings introduced by the feature *(typecheck clean across foundation/US1/US2/US3; lint: 0 errors; the one prettier nit introduced was fixed during US3)*
+- [ ] T024 Run the full manual QA pass from [quickstart.md](quickstart.md) (Tests 1–12) against a fresh `npm run dev` build; check off each test result in the file or in a PR comment — **manual / pending: needs a live build, deferred to QA**
+- [ ] T025 Verify migration v8 idempotency: shut down the app and relaunch it twice in a row. `schema_migrations` should show exactly one v8 row and only one `pre-migrate-v8-*.db` backup file — **manual / pending: needs a live build, deferred to QA**
+- [X] T026 [P] Update [.specify/memory/functional-spec.md](../../.specify/memory/functional-spec.md) — add a "Promotional Pricing" subsection under §9 (Inventory & Products) with `file:line` citations to the new code (the lib/promo.ts function, the cart store snapshot, the cart-line render in VentasPage, the receipt totals in ticket.ts / ticket-pdf.ts, and the action_logs additions)
 
 ---
 
