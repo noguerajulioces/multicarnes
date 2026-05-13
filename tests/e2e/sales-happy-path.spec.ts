@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
+import { todayLocal, tomorrowLocal } from './helpers/dates'
 import {
   loginAsSeedAdmin,
   createProductViaIpc,
@@ -90,15 +91,15 @@ test.describe('Sales — POS happy path', () => {
       )) as ProductFull
       expect(after.stock).toBe(8)
 
-      // A stock_adjustments row references the sale.
+      // A stock_adjustments row references the sale. Build the date range in
+      // the test process (Node) and pass the strings in — the evaluate body
+      // runs inside the renderer and can't import from helpers/.
+      const today = todayLocal()
+      const tomorrow = tomorrowLocal()
       const movements = (await ipc(
         window,
-        async (id) => {
-          const today = new Date().toISOString().slice(0, 10)
-          const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
-          return window.api.reports.stockMovements(today, tomorrow, id)
-        },
-        product.id
+        async ([from, to, id]) => window.api.reports.stockMovements(from, to, id),
+        [today, tomorrow, product.id] as const
       )) as StockAdjustmentRow[]
       const saleRow = movements.find((m) => m.reason?.includes(`Venta #${sale.id}`))
       expect(saleRow, `stock_adjustments row for sale #${sale.id} not found`).toBeDefined()

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
+import { todayLocal, tomorrowLocal } from './helpers/dates'
 import {
   loginAsSeedAdmin,
   createProductViaIpc,
@@ -64,8 +65,8 @@ test.describe('Sales — list & filters', () => {
         }
       )
 
-      const today = new Date().toISOString().slice(0, 10)
-      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+      const today = todayLocal()
+      const tomorrow = tomorrowLocal()
 
       const cashOnly = (await ipc(
         window,

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { launchApp, ipc } from './helpers/electron'
 import { loginAsSeedAdmin, createUserViaIpc, createProductViaIpc } from './helpers/seed'
+import { todayLocal, tomorrowLocal } from './helpers/dates'
 import { LoginPage } from './pom/LoginPage'
 
 interface ProductFull {
@@ -78,8 +79,8 @@ test.describe('Products', () => {
       expect(after.stock).toBe(15)
 
       // The stock_adjustments row is visible via reports.stockMovements.
-      const today = new Date().toISOString().slice(0, 10)
-      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+      const today = todayLocal()
+      const tomorrow = tomorrowLocal()
       const adjustments = (await ipc(
         window,
         async ([from, to, id]) => window.api.reports.stockMovements(from, to, id),
