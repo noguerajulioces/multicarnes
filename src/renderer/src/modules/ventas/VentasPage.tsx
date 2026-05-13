@@ -424,9 +424,6 @@ export default function VentasPage() {
                       item.normal_price != null &&
                       item.unit_price != null &&
                       item.normal_price > item.unit_price
-                    const lineSavings = hasPromo
-                      ? Math.round((item.savings_per_unit ?? 0) * item.quantity)
-                      : 0
                     return (
                       <tr key={item.product.id} className="border-b border-border">
                         <td className="py-2">
@@ -451,11 +448,6 @@ export default function VentasPage() {
                               </>
                             )}
                           </p>
-                          {hasPromo && lineSavings > 0 && (
-                            <p className="text-xs text-success-700 mt-0.5">
-                              Ahorrás {formatGs(lineSavings)}
-                            </p>
-                          )}
                         </td>
                         <td className="py-2">
                           <div className="flex items-center justify-center gap-1">
@@ -516,6 +508,28 @@ export default function VentasPage() {
               <span className="text-text-muted">Subtotal</span>
               <span className="font-medium tabular-nums">{formatGs(subtotal())}</span>
             </div>
+            {(() => {
+              // 005-promotional-pricing: aggregate promo savings across cart lines.
+              // Replaces the per-item "Ahorrás" so the line list stays quieter.
+              const promoSavings = items.reduce((sum, i) => {
+                if (
+                  i.normal_price != null &&
+                  i.unit_price != null &&
+                  i.normal_price > i.unit_price
+                ) {
+                  return sum + (i.normal_price - i.unit_price) * i.quantity
+                }
+                return sum
+              }, 0)
+              return promoSavings > 0 ? (
+                <div className="flex justify-between text-sm">
+                  <span className="text-text-muted">Ahorro por promoción</span>
+                  <span className="font-medium tabular-nums text-success-700">
+                    −{formatGs(Math.round(promoSavings))}
+                  </span>
+                </div>
+              ) : null
+            })()}
             <div className="flex justify-between text-sm items-center">
               <div className="flex items-center gap-2">
                 <span className="text-text-muted">Descuento</span>
@@ -695,10 +709,7 @@ export default function VentasPage() {
                             </div>
                           )}
                           {promo && (
-                            <Badge
-                              tone="success"
-                              className="absolute top-1.5 right-1.5 shadow-sm"
-                            >
+                            <Badge tone="success" className="absolute top-1.5 right-1.5 shadow-sm">
                               PROMO
                             </Badge>
                           )}
