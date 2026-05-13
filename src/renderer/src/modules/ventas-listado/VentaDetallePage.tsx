@@ -238,13 +238,14 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
                 <th className="px-4 py-3 font-medium">Producto</th>
                 <th className="px-4 py-3 font-medium text-right">Cantidad</th>
                 <th className="px-4 py-3 font-medium text-right">P. Unit.</th>
+                <th className="px-4 py-3 font-medium text-right">Ahorro</th>
                 <th className="px-4 py-3 font-medium text-right">Subtotal</th>
               </tr>
             </thead>
             <tbody>
               {(sale.items ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-text-muted">
+                  <td colSpan={5} className="px-4 py-6 text-center text-text-muted">
                     Sin items registrados
                   </td>
                 </tr>
@@ -255,6 +256,9 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
                   // See data-model.md §1.3 caveat — historical reprints use the
                   // current product.price as the normal, not a snapshot.
                   const soldUnderPromo = it.normal_price != null && it.normal_price > it.unit_price
+                  const lineSavings = soldUnderPromo
+                    ? Math.round((it.normal_price! - it.unit_price) * Number(it.quantity))
+                    : 0
                   return (
                     <tr key={it.id} className="border-t border-border">
                       <td className="px-4 py-3 font-medium">
@@ -278,6 +282,15 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
                           </div>
                         ) : (
                           formatGs(it.unit_price)
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {soldUnderPromo ? (
+                          <span className="text-success-700 font-medium">
+                            −{formatGs(lineSavings)}
+                          </span>
+                        ) : (
+                          <span className="text-text-muted">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right font-medium tabular-nums">
