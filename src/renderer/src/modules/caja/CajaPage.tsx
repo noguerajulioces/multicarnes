@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs, formatDateTime } from '../../lib/utils'
-import type { CashMovement } from '@shared/types'
+import type { CashMovement, CashMovementType } from '@shared/types'
 import { Plus, Minus, Wallet, Banknote, ArrowUpDown, Coins } from 'lucide-react'
 import {
   Badge,
@@ -21,6 +21,17 @@ import {
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaTourSteps, cajaManagerTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
+
+const TYPE_META: Record<
+  CashMovementType,
+  { label: string; tone: 'success' | 'danger' | 'info' | 'neutral' }
+> = {
+  income: { label: 'Ingreso', tone: 'success' },
+  expense: { label: 'Egreso', tone: 'danger' },
+  opening: { label: 'Apertura', tone: 'info' },
+  closing: { label: 'Cierre', tone: 'info' },
+  void: { label: 'Anulación', tone: 'neutral' }
+}
 
 export default function CajaPage() {
   const user = useAuthStore((s) => s.user)
@@ -193,8 +204,8 @@ export default function CajaPage() {
                         {formatDateTime(m.created_at)}
                       </td>
                       <td className="py-2.5 pr-3">
-                        <Badge tone={m.type === 'income' ? 'success' : 'danger'}>
-                          {m.type === 'income' ? 'Ingreso' : 'Egreso'}
+                        <Badge tone={TYPE_META[m.type].tone}>
+                          {TYPE_META[m.type].label}
                         </Badge>
                       </td>
                       <td className="py-2.5 pr-3">{m.description}</td>
