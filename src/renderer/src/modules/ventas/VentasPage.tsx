@@ -504,13 +504,13 @@ export default function VentasPage() {
             data-tour="ventas-totals"
             className="border-t border-border bg-surface-muted px-5 py-4 space-y-2.5"
           >
-            <div className="flex justify-between text-sm">
-              <span className="text-text-muted">Subtotal</span>
-              <span className="font-medium tabular-nums">{formatGs(subtotal())}</span>
-            </div>
             {(() => {
-              // 005-promotional-pricing: aggregate promo savings across cart lines.
-              // Replaces the per-item "Ahorrás" so the line list stays quieter.
+              // 005-promotional-pricing: when at least one cart line has an
+              // active promo, show "Subtotal" as the list-price total and
+              // deduct the saving explicitly so the math reads cleanly:
+              //   Subtotal − Ahorro − Descuento = TOTAL.
+              // When no promo lines exist, fall back to the legacy single
+              // "Subtotal" row to keep non-promo carts byte-identical.
               const promoSavings = items.reduce((sum, i) => {
                 if (
                   i.normal_price != null &&
@@ -521,14 +521,23 @@ export default function VentasPage() {
                 }
                 return sum
               }, 0)
-              return promoSavings > 0 ? (
-                <div className="flex justify-between text-sm">
-                  <span className="text-text-muted">Ahorro por promoción</span>
-                  <span className="font-medium tabular-nums text-success-700">
-                    −{formatGs(Math.round(promoSavings))}
-                  </span>
-                </div>
-              ) : null
+              const grossSubtotal = subtotal() + promoSavings
+              return (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-text-muted">Subtotal</span>
+                    <span className="font-medium tabular-nums">{formatGs(grossSubtotal)}</span>
+                  </div>
+                  {promoSavings > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-text-muted">Ahorro por promoción</span>
+                      <span className="font-medium tabular-nums text-success-700">
+                        −{formatGs(Math.round(promoSavings))}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )
             })()}
             <div className="flex justify-between text-sm items-center">
               <div className="flex items-center gap-2">

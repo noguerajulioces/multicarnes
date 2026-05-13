@@ -297,27 +297,37 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
           <CardBody>
             <p className="text-xs text-text-muted mb-3">Totales</p>
             <div className="space-y-1.5 text-sm">
-              <Row label="Subtotal" value={formatGs(sale.subtotal)} />
-              {sale.discount > 0 && (
-                <Row label="Descuento" value={`−${formatGs(sale.discount)}`} negative />
-              )}
               {(() => {
-                // 005-promotional-pricing: sum savings across items where the
-                // current normal price exceeds the persisted unit_price.
+                // 005-promotional-pricing: when at least one line was sold
+                // under promo, show "Subtotal" as the list-price total and
+                // deduct the saving explicitly so the math reads:
+                //   Subtotal − Ahorro − Descuento = Total.
+                // Falls back to sale.subtotal (legacy display) for sales with
+                // no promo lines so non-promo receipts look unchanged.
                 const promoSavings = (sale.items ?? []).reduce((sum, it) => {
                   if (it.normal_price != null && it.normal_price > it.unit_price) {
                     return sum + (it.normal_price - it.unit_price) * Number(it.quantity)
                   }
                   return sum
                 }, 0)
-                return promoSavings > 0 ? (
-                  <Row
-                    label="Ahorro por promoción"
-                    value={`−${formatGs(Math.round(promoSavings))}`}
-                    positive
-                  />
-                ) : null
+                const grossSubtotal =
+                  promoSavings > 0 ? sale.subtotal + promoSavings : sale.subtotal
+                return (
+                  <>
+                    <Row label="Subtotal" value={formatGs(grossSubtotal)} />
+                    {promoSavings > 0 && (
+                      <Row
+                        label="Ahorro por promoción"
+                        value={`−${formatGs(Math.round(promoSavings))}`}
+                        positive
+                      />
+                    )}
+                  </>
+                )
               })()}
+              {sale.discount > 0 && (
+                <Row label="Descuento" value={`−${formatGs(sale.discount)}`} negative />
+              )}
               <div className="flex justify-between pt-2 border-t border-border">
                 <span className="font-semibold">Total</span>
                 <span className="text-lg font-bold text-brand tabular-nums">
