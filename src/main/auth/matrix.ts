@@ -109,6 +109,9 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   'reports:pendingCredits': { kind: 'privileged', roles: ['admin', 'supervisor'] },
   'reports:salesSummary': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'reports:salesComparison': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+  // 006-card-payments: detailed card-sales listing for reconciliation. Limited
+  // to admin/supervisor — cashiers don't need the cross-day per-acquirer view.
+  'reports:cardSales': { kind: 'privileged', roles: ['admin', 'supervisor'] },
 
   // Auth (US4 + US5)
   'auth:matrixSummary': { kind: 'privileged', roles: ['admin'] },

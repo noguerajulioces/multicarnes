@@ -18,9 +18,11 @@ import { useAuthStore } from '../../store/auth.store'
 import { confirm } from '../../lib/confirm'
 import { handleApiError } from '../../lib/api-error'
 import { toast } from '../../lib/toast'
+import { PROCESSOR_LABEL as processorLabels } from '../../lib/processors'
 
 const methodLabels: Record<string, string> = {
   cash: 'Efectivo',
+  card: 'Tarjeta',
   credit: 'Fiado',
   transfer: 'Transferencia',
   mixed: 'Mixto'
@@ -28,9 +30,21 @@ const methodLabels: Record<string, string> = {
 
 const methodTone: Record<PaymentMethod, 'success' | 'warning' | 'info' | 'neutral'> = {
   cash: 'success',
+  card: 'info',
   credit: 'warning',
   transfer: 'info',
   mixed: 'neutral'
+}
+
+function methodLabelWithProcessor(
+  method: string,
+  processor: string | null | undefined
+): string {
+  const base = methodLabels[method] || method
+  if (method === 'card' && processor) {
+    return `${base} (${processorLabels[processor] || processor})`
+  }
+  return base
 }
 
 export default function VentaDetallePage(): React.ReactElement {
@@ -218,7 +232,7 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
                   <Badge tone="success">Fiado · Pagado</Badge>
                 ) : (
                   <Badge tone={methodTone[sale.payment_method]}>
-                    {methodLabels[sale.payment_method] || sale.payment_method}
+                    {methodLabelWithProcessor(sale.payment_method, sale.payment_processor)}
                   </Badge>
                 )}
               </div>
@@ -359,21 +373,35 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
                 {sale.payments.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+                    className="rounded-lg border border-border px-3 py-2"
                   >
-                    <Badge tone={methodTone[p.method as PaymentMethod] ?? 'neutral'}>
-                      {methodLabels[p.method] || p.method}
-                    </Badge>
-                    <span className="font-medium tabular-nums">{formatGs(p.amount)}</span>
+                    <div className="flex items-center justify-between">
+                      <Badge tone={methodTone[p.method as PaymentMethod] ?? 'neutral'}>
+                        {methodLabelWithProcessor(p.method, p.processor)}
+                      </Badge>
+                      <span className="font-medium tabular-nums">{formatGs(p.amount)}</span>
+                    </div>
+                    {p.reference && (
+                      <p className="mt-1 text-xs text-text-muted tabular-nums">
+                        Comp.: {p.reference}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
             ) : (
-              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
-                <Badge tone={methodTone[sale.payment_method] ?? 'neutral'}>
-                  {methodLabels[sale.payment_method] || sale.payment_method}
-                </Badge>
-                <span className="font-medium tabular-nums">{formatGs(sale.total)}</span>
+              <div className="rounded-lg border border-border px-3 py-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <Badge tone={methodTone[sale.payment_method] ?? 'neutral'}>
+                    {methodLabelWithProcessor(sale.payment_method, sale.payment_processor)}
+                  </Badge>
+                  <span className="font-medium tabular-nums">{formatGs(sale.total)}</span>
+                </div>
+                {sale.payment_reference && (
+                  <p className="mt-1 text-xs text-text-muted tabular-nums">
+                    Comp.: {sale.payment_reference}
+                  </p>
+                )}
               </div>
             )}
           </CardBody>

@@ -1,12 +1,23 @@
 import { useState, useEffect } from 'react'
-import { X, User, Banknote, ArrowLeftRight, Clock, Layers } from 'lucide-react'
+import {
+  X,
+  User,
+  Banknote,
+  CreditCard,
+  ArrowLeftRight,
+  Clock,
+  Layers,
+  Plus,
+  Trash2
+} from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
 import { Button, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
-import type { Customer, PaymentMethod, Sale } from '@shared/types'
+import { PROCESSORS } from '../../lib/processors'
+import type { Customer, PaymentMethod, PaymentProcessor, Sale } from '@shared/types'
 import TicketPreviewModal from './TicketPreviewModal'
 
 interface Props {
@@ -14,12 +25,42 @@ interface Props {
   onSuccess: () => void
 }
 
+// 006-card-payments: Tarjeta is a new top-level method covering POS terminals
+// (Bancard, Dinelco, Ueno) and QR — all settle outside the cash register and
+// emit a voucher number the cashier types in for later reconciliation.
 const methodOptions: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
   { value: 'cash', label: 'Efectivo', icon: Banknote },
+  { value: 'card', label: 'Tarjeta', icon: CreditCard },
   { value: 'transfer', label: 'Transfer.', icon: ArrowLeftRight },
   { value: 'credit', label: 'Fiado', icon: Clock },
   { value: 'mixed', label: 'Mixto', icon: Layers }
 ]
+
+type MixedMethod = 'cash' | 'card' | 'transfer' | 'credit'
+
+interface MixedLine {
+  id: number
+  method: MixedMethod
+  amount: number
+  processor: PaymentProcessor | null
+  reference: string
+}
+
+const MIXED_METHOD_OPTIONS: { value: MixedMethod; label: string }[] = [
+  { value: 'cash', label: 'Efectivo' },
+  { value: 'card', label: 'Tarjeta' },
+  { value: 'transfer', label: 'Transferencia' },
+  { value: 'credit', label: 'Fiado' }
+]
+
+let mixedLineSeq = 0
+const newMixedLine = (method: MixedMethod = 'cash'): MixedLine => ({
+  id: ++mixedLineSeq,
+  method,
+  amount: 0,
+  processor: null,
+  reference: ''
+})
 
 export default function CobroModal({ onClose, onSuccess }: Props) {
   const user = useAuthStore((s) => s.user)
@@ -30,9 +71,13 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [customerSearch, setCustomerSearch] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [mixedCash, setMixedCash] = useState(0)
-  const [mixedTransfer, setMixedTransfer] = useState(0)
-  const [mixedCredit, setMixedCredit] = useState(0)
+  const [cardProcessor, setCardProcessor] = useState<PaymentProcessor | null>(null)
+  const [cardReference, setCardReference] = useState('')
+  const [transferReference, setTransferReference] = useState('')
+  const [mixedLines, setMixedLines] = useState<MixedLine[]>(() => [
+    newMixedLine('cash'),
+    newMixedLine('card')
+  ])
   const [loading, setLoading] = useState(false)
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
 
@@ -46,14 +91,31 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
 
   const totalAmount = total()
   const change = paymentMethod === 'cash' ? cashReceived - totalAmount : 0
-  const mixedTotal = mixedCash + mixedTransfer + mixedCredit
+  const mixedTotal = mixedLines.reduce((sum, l) => sum + (l.amount || 0), 0)
+  const mixedRemaining = totalAmount - mixedTotal
+  const mixedHasCredit = mixedLines.some((l) => l.method === 'credit' && l.amount > 0)
+  const mixedActiveLines = mixedLines.filter((l) => l.amount > 0)
+
+  const mixedLinesValid = (): boolean => {
+    if (mixedActiveLines.length < 2) return false
+    if (mixedTotal !== totalAmount) return false
+    for (const l of mixedActiveLines) {
+      if (l.method === 'card' && (!l.processor || !l.reference.trim())) return false
+      if (l.method === 'transfer' && !l.reference.trim()) return false
+    }
+    return true
+  }
 
   const canConfirm = (): boolean => {
     if (items.length === 0) return false
     if (paymentMethod === 'cash' && cashReceived < totalAmount) return false
+    if (paymentMethod === 'card' && (!cardProcessor || !cardReference.trim())) return false
+    if (paymentMethod === 'transfer' && !transferReference.trim()) return false
     if (paymentMethod === 'credit' && !selectedCustomer) return false
-    if (paymentMethod === 'mixed' && mixedTotal !== totalAmount) return false
-    if (paymentMethod === 'mixed' && mixedCredit > 0 && !selectedCustomer) return false
+    if (paymentMethod === 'mixed') {
+      if (!mixedLinesValid()) return false
+      if (mixedHasCredit && !selectedCustomer) return false
+    }
     return true
   }
 
@@ -73,12 +135,30 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
       subtotal: i.subtotal
     }))
 
-    let payments: { method: string; amount: number }[] | undefined
+    let payments:
+      | {
+          method: string
+          amount: number
+          processor?: PaymentProcessor | null
+          reference?: string | null
+        }[]
+      | undefined
+    let paymentProcessor: PaymentProcessor | null = null
+    let paymentReference: string | null = null
+
     if (paymentMethod === 'mixed') {
-      payments = []
-      if (mixedCash > 0) payments.push({ method: 'cash', amount: mixedCash })
-      if (mixedTransfer > 0) payments.push({ method: 'transfer', amount: mixedTransfer })
-      if (mixedCredit > 0) payments.push({ method: 'credit', amount: mixedCredit })
+      payments = mixedActiveLines.map((l) => ({
+        method: l.method,
+        amount: l.amount,
+        processor: l.method === 'card' ? l.processor : null,
+        reference:
+          l.method === 'card' || l.method === 'transfer' ? l.reference.trim() || null : null
+      }))
+    } else if (paymentMethod === 'card') {
+      paymentProcessor = cardProcessor
+      paymentReference = cardReference.trim() || null
+    } else if (paymentMethod === 'transfer') {
+      paymentReference = transferReference.trim() || null
     }
 
     try {
@@ -91,6 +171,8 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
         discount: discount,
         total: totalAmount,
         paymentMethod,
+        paymentProcessor,
+        paymentReference,
         payments
       })
       // Re-fetch with items + payments populated for the ticket preview
@@ -111,6 +193,16 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
         onClose={onSuccess}
       />
     )
+  }
+
+  const updateMixedLine = (id: number, patch: Partial<MixedLine>): void => {
+    setMixedLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)))
+  }
+  const removeMixedLine = (id: number): void => {
+    setMixedLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.id !== id)))
+  }
+  const addMixedLine = (): void => {
+    setMixedLines((prev) => [...prev, newMixedLine('cash')])
   }
 
   return (
@@ -204,7 +296,7 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
 
         <div>
           <label className="block text-sm text-text-muted mb-2">Método de pago</label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {methodOptions.map((m) => {
               const active = paymentMethod === m.value
               const Icon = m.icon
@@ -217,7 +309,8 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
                     'flex flex-col items-center gap-1 py-3 rounded-xl text-xs font-medium border transition-colors',
                     active
                       ? 'border-brand bg-brand text-white'
-                      : 'border-border bg-surface text-text-main hover:border-brand hover:text-brand'
+                      : 'border-border bg-surface text-text-main hover:border-brand hover:text-brand',
+                    m.value === 'mixed' && 'col-span-2'
                   )}
                 >
                   <Icon size={18} />
@@ -247,6 +340,65 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
           </div>
         )}
 
+        {paymentMethod === 'card' && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Procesador *</label>
+              <div className="grid grid-cols-3 gap-2">
+                {PROCESSORS.map((p) => {
+                  const active = cardProcessor === p.value
+                  return (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setCardProcessor(p.value)}
+                      className={cn(
+                        'flex flex-col items-center justify-center gap-1 py-3 rounded-xl text-xs font-medium border transition-colors min-h-[64px]',
+                        active
+                          ? 'border-brand bg-brand text-white'
+                          : 'border-border bg-surface text-text-main hover:border-brand hover:text-brand'
+                      )}
+                    >
+                      {p.logo && (
+                        <img
+                          src={p.logo}
+                          alt=""
+                          className="h-6 max-w-[80px] object-contain"
+                          onError={(e) => {
+                            ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+                          }}
+                        />
+                      )}
+                      <span>{p.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">N° de comprobante *</label>
+              <Input
+                value={cardReference}
+                onChange={(e) => setCardReference(e.target.value)}
+                placeholder="Ej: 000123456"
+                autoFocus
+              />
+            </div>
+          </div>
+        )}
+
+        {paymentMethod === 'transfer' && (
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">N° de comprobante *</label>
+            <Input
+              value={transferReference}
+              onChange={(e) => setTransferReference(e.target.value)}
+              placeholder="Ej: 000123456"
+              autoFocus
+            />
+          </div>
+        )}
+
         {paymentMethod === 'credit' && !selectedCustomer && (
           <div className="px-3 py-2 bg-warning-50 rounded-lg text-sm text-warning-700">
             Seleccioná un cliente para registrar la venta a crédito.
@@ -255,50 +407,143 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
 
         {paymentMethod === 'mixed' && (
           <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs text-text-muted mb-1">Efectivo</label>
-                <MoneyInput
-                  value={mixedCash}
-                  onValueChange={setMixedCash}
-                  className="text-right tabular-nums"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">Transferencia</label>
-                <MoneyInput
-                  value={mixedTransfer}
-                  onValueChange={setMixedTransfer}
-                  className="text-right tabular-nums"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">Fiado</label>
-                <MoneyInput
-                  value={mixedCredit}
-                  onValueChange={setMixedCredit}
-                  className="text-right tabular-nums"
-                  placeholder="0"
-                />
-              </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-text-muted">Desglose</span>
+              <span
+                className={cn(
+                  'font-medium tabular-nums',
+                  mixedRemaining === 0
+                    ? 'text-success-700'
+                    : mixedRemaining < 0
+                      ? 'text-danger-700'
+                      : 'text-text-muted'
+                )}
+              >
+                {mixedRemaining === 0
+                  ? 'Suma correcta'
+                  : mixedRemaining > 0
+                    ? `Restante: ${formatGs(mixedRemaining)}`
+                    : `Excede por: ${formatGs(-mixedRemaining)}`}
+              </span>
             </div>
-            <div
-              className={cn(
-                'flex items-center justify-between px-3 py-2 rounded-lg text-sm',
-                mixedTotal === totalAmount
-                  ? 'bg-success-50 text-success-700'
-                  : 'bg-danger-50 text-danger-700'
-              )}
+
+            {mixedLines.map((line) => (
+              <div key={line.id} className="border border-border rounded-xl p-3 space-y-2">
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs text-text-muted mb-1">Método</label>
+                    <select
+                      value={line.method}
+                      onChange={(e) =>
+                        updateMixedLine(line.id, {
+                          method: e.target.value as MixedMethod,
+                          processor: null,
+                          reference: ''
+                        })
+                      }
+                      className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm text-text-main"
+                    >
+                      {MIXED_METHOD_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-text-muted mb-1">Monto</label>
+                    <MoneyInput
+                      value={line.amount}
+                      onValueChange={(v) => updateMixedLine(line.id, { amount: v })}
+                      className="text-right tabular-nums"
+                      placeholder="0"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeMixedLine(line.id)}
+                    disabled={mixedLines.length <= 1}
+                    className="h-10 w-10 flex items-center justify-center rounded-xl border border-border text-danger-500 hover:bg-danger-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label="Quitar pago"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                {line.method === 'card' && (
+                  <>
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1">Procesador *</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {PROCESSORS.map((p) => {
+                          const active = line.processor === p.value
+                          return (
+                            <button
+                              key={p.value}
+                              type="button"
+                              onClick={() => updateMixedLine(line.id, { processor: p.value })}
+                              className={cn(
+                                'flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-xs font-medium border transition-colors min-h-[52px]',
+                                active
+                                  ? 'border-brand bg-brand text-white'
+                                  : 'border-border bg-surface text-text-main hover:border-brand hover:text-brand'
+                              )}
+                            >
+                              {p.logo && (
+                                <img
+                                  src={p.logo}
+                                  alt=""
+                                  className="h-5 max-w-[70px] object-contain"
+                                  onError={(e) => {
+                                    ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+                                  }}
+                                />
+                              )}
+                              <span>{p.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1">
+                        N° de comprobante *
+                      </label>
+                      <Input
+                        value={line.reference}
+                        onChange={(e) => updateMixedLine(line.id, { reference: e.target.value })}
+                        placeholder="Ej: 000123456"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {line.method === 'transfer' && (
+                  <div>
+                    <label className="block text-xs text-text-muted mb-1">N° de comprobante *</label>
+                    <Input
+                      value={line.reference}
+                      onChange={(e) => updateMixedLine(line.id, { reference: e.target.value })}
+                      placeholder="Ej: 000123456"
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addMixedLine}
+              className="w-full py-2.5 rounded-xl border border-dashed border-border text-sm text-text-muted hover:border-brand hover:text-brand flex items-center justify-center gap-1.5"
             >
-              <span className="font-medium">
-                {mixedTotal === totalAmount ? 'Suma correcta' : 'Debe coincidir con el total'}
-              </span>
-              <span className="font-bold tabular-nums">
-                {formatGs(mixedTotal)} / {formatGs(totalAmount)}
-              </span>
-            </div>
+              <Plus size={14} /> Agregar pago
+            </button>
+
+            {mixedHasCredit && !selectedCustomer && (
+              <div className="px-3 py-2 bg-warning-50 rounded-lg text-sm text-warning-700">
+                Seleccioná un cliente para registrar la porción Fiado.
+              </div>
+            )}
           </div>
         )}
       </div>

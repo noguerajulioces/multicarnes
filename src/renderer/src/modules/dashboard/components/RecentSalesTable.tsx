@@ -11,6 +11,7 @@ interface RecentSalesTableProps {
 
 const methodLabel: Record<string, string> = {
   cash: 'Efectivo',
+  card: 'Tarjeta',
   credit: 'Crédito',
   transfer: 'Transfer.',
   mixed: 'Mixto'

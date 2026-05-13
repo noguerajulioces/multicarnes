@@ -17,6 +17,12 @@ interface Migration {
   version: number
   name: string
   up: (db: Database.Database) => void
+  // When the up() body recreates a table that has incoming foreign keys
+  // (SQLite's only way to alter a CHECK constraint), FK enforcement must be
+  // disabled around the transaction — and PRAGMA foreign_keys cannot be
+  // toggled inside one. The runner handles the toggle and runs
+  // foreign_key_check before committing.
+  requiresForeignKeysOff?: boolean
 }
 
 // P3: Versioned migrations. Each entry runs at most once and is recorded in
@@ -240,6 +246,86 @@ const MIGRATIONS: Migration[] = [
           ON products(promo_enabled) WHERE promo_enabled = 1;
       `)
     }
+  },
+  {
+    version: 9,
+    name: 'payment_methods_card_and_processor',
+    // 006-card-payments: extend payment_method CHECK to include 'card' and
+    // add payment_processor + payment_reference columns. SQLite can't ALTER a
+    // CHECK in place, so both `sales` and `sale_payments` are rebuilt via the
+    // recommended swap pattern. Incoming FKs from sale_items / sale_payments
+    // → sales force the runner to disable foreign_keys for this migration.
+    requiresForeignKeysOff: true,
+    up: (db) => {
+      const salesSql = (
+        db
+          .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sales'")
+          .get() as { sql: string }
+      ).sql
+      const salesNeedsRebuild =
+        !salesSql.includes("'card'") ||
+        !salesSql.includes('payment_processor') ||
+        !salesSql.includes('payment_reference')
+
+      if (salesNeedsRebuild) {
+        db.exec(`
+          CREATE TABLE sales_new (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            register_id       INTEGER NOT NULL REFERENCES cash_registers(id),
+            customer_id       INTEGER REFERENCES customers(id),
+            user_id           INTEGER NOT NULL REFERENCES users(id),
+            subtotal          INTEGER NOT NULL,
+            discount          INTEGER NOT NULL DEFAULT 0,
+            total             INTEGER NOT NULL,
+            payment_method    TEXT NOT NULL CHECK(payment_method IN ('cash','card','credit','transfer','mixed')),
+            payment_processor TEXT CHECK(payment_processor IN ('bancard','dinelco','upay') OR payment_processor IS NULL),
+            payment_reference TEXT,
+            status            TEXT NOT NULL DEFAULT 'completed' CHECK(status IN ('completed','cancelled')),
+            notes             TEXT,
+            created_at        TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+          );
+          INSERT INTO sales_new
+            (id, register_id, customer_id, user_id, subtotal, discount, total,
+             payment_method, payment_processor, payment_reference,
+             status, notes, created_at)
+          SELECT id, register_id, customer_id, user_id, subtotal, discount, total,
+                 payment_method, NULL, NULL, status, notes, created_at
+          FROM sales;
+          DROP TABLE sales;
+          ALTER TABLE sales_new RENAME TO sales;
+        `)
+      }
+
+      const spSql = (
+        db
+          .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sale_payments'")
+          .get() as { sql: string }
+      ).sql
+      const spNeedsRebuild =
+        !spSql.includes("'card'") || !spSql.includes('processor') || !spSql.includes('reference')
+
+      if (spNeedsRebuild) {
+        db.exec(`
+          CREATE TABLE sale_payments_new (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id   INTEGER NOT NULL REFERENCES sales(id),
+            method    TEXT NOT NULL CHECK(method IN ('cash','card','credit','transfer')),
+            amount    INTEGER NOT NULL,
+            processor TEXT CHECK(processor IN ('bancard','dinelco','upay') OR processor IS NULL),
+            reference TEXT
+          );
+          INSERT INTO sale_payments_new (id, sale_id, method, amount, processor, reference)
+          SELECT id, sale_id, method, amount, NULL, NULL FROM sale_payments;
+          DROP TABLE sale_payments;
+          ALTER TABLE sale_payments_new RENAME TO sale_payments;
+        `)
+      }
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_sales_processor
+          ON sales(payment_processor) WHERE payment_processor IS NOT NULL;
+      `)
+    }
   }
 ]
 
@@ -338,11 +424,30 @@ function runMigrations(db: Database.Database, dbPath: string): void {
 
   const recordApplied = db.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)')
   for (const migration of pending) {
-    const txn = db.transaction(() => {
-      migration.up(db)
-      recordApplied.run(migration.version, migration.name)
-    })
-    txn()
+    const runTxn = (): void => {
+      const txn = db.transaction(() => {
+        migration.up(db)
+        recordApplied.run(migration.version, migration.name)
+      })
+      txn()
+    }
+    if (migration.requiresForeignKeysOff) {
+      db.pragma('foreign_keys = OFF')
+      try {
+        runTxn()
+        const violations = db.pragma('foreign_key_check') as unknown[]
+        if (violations.length > 0) {
+          throw new Error(
+            `Migration v${migration.version} (${migration.name}) produced FK violations: ` +
+              JSON.stringify(violations)
+          )
+        }
+      } finally {
+        db.pragma('foreign_keys = ON')
+      }
+    } else {
+      runTxn()
+    }
   }
 }
 

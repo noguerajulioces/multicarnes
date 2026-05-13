@@ -73,7 +73,14 @@ interface ApiSales {
     discount: number
     total: number
     paymentMethod: string
-    payments?: { method: string; amount: number }[]
+    paymentProcessor?: string | null
+    paymentReference?: string | null
+    payments?: {
+      method: string
+      amount: number
+      processor?: string | null
+      reference?: string | null
+    }[]
     notes?: string
   }): Promise<Sale>
   getAll(
@@ -162,7 +169,19 @@ interface SalesSummaryResult {
   totals: { sales_count: number; total: number; discount: number; subtotal: number }
   byDay: { day: string; sales_count: number; total: number }[]
   byMethod: { method: string; sales_count: number; total: number }[]
+  byCardProcessor: { processor: string; sales_count: number; total: number }[]
   byUser: { user_id: number; user_name: string; sales_count: number; total: number }[]
+}
+
+interface CardSalesRow {
+  sale_id: number
+  created_at: string
+  user_name: string | null
+  customer_name: string | null
+  processor: string | null
+  reference: string | null
+  amount: number
+  source: 'single' | 'mixed'
 }
 
 interface SalesComparisonResult {
@@ -198,6 +217,7 @@ interface ApiReports {
   pendingCredits(): Promise<PendingCreditRow[]>
   salesSummary(from: string, to: string): Promise<SalesSummaryResult>
   salesComparison(from: string, to: string): Promise<SalesComparisonResult>
+  cardSales(from: string, to: string, processor?: string): Promise<CardSalesRow[]>
 }
 
 interface ApiBackup {
