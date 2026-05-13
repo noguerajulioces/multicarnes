@@ -4,7 +4,16 @@ import { formatGs, cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
 import { priceTypeInfo, formatQty } from '../../lib/price-types'
 import type { Product, Category } from '@shared/types'
-import { Search, Plus, Eye, AlertTriangle, Package, TrendingUp, TrendingDown } from 'lucide-react'
+import {
+  Search,
+  Plus,
+  Eye,
+  AlertTriangle,
+  Package,
+  TrendingUp,
+  TrendingDown,
+  Tag
+} from 'lucide-react'
 import {
   Badge,
   Button,
@@ -34,6 +43,7 @@ export default function ProductosPage() {
   const [filterCat, setFilterCat] = useState<number | ''>('')
   const [filterStock, setFilterStock] = useState(false)
   const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('all')
+  const [filterPromo, setFilterPromo] = useState(false)
   const [adjustModal, setAdjustModal] = useState<Product | null>(null)
   const [newStock, setNewStock] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
@@ -52,19 +62,20 @@ export default function ProductosPage() {
     else if (filterStatus === 'inactive') filters.active = false
     if (filterCat) filters.categoryId = filterCat
     if (filterStock) filters.lowStock = true
+    if (filterPromo) filters.inPromoOnly = true
     return filters
   }
 
   useEffect(() => {
     setPage(1)
-  }, [search, filterCat, filterStock, filterStatus])
+  }, [search, filterCat, filterStock, filterStatus, filterPromo])
 
   useEffect(() => {
     window.api.products.getAll(buildFilters()).then((res) => {
       setProducts(res.items)
       setTotal(res.total)
     })
-  }, [search, filterCat, filterStock, filterStatus, page])
+  }, [search, filterCat, filterStock, filterStatus, filterPromo, page])
 
   const handleAdjust = async (): Promise<void> => {
     if (!adjustModal || !newStock || !adjustReason || !user) return
@@ -163,6 +174,19 @@ export default function ProductosPage() {
           >
             <AlertTriangle size={14} />
             Stock bajo
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterPromo((v) => !v)}
+            className={cn(
+              'inline-flex items-center gap-2 h-10 px-3 rounded-xl text-sm font-medium border transition-colors',
+              filterPromo
+                ? 'border-success-700 bg-success-50 text-success-700'
+                : 'border-border bg-surface text-text-main hover:bg-surface-muted'
+            )}
+          >
+            <Tag size={14} />
+            Solo en promo
           </button>
         </div>
       </div>

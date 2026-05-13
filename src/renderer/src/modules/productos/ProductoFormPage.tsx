@@ -344,10 +344,7 @@ export default function ProductoFormPage() {
           </Card>
 
           {/* 005-promotional-pricing */}
-          <Card
-            className="rounded-2xl"
-            style={{ boxShadow: 'var(--shadow-card-soft)' }}
-          >
+          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
             <CardHeader>
               <h2 className="font-semibold text-text-main">Promoción</h2>
               <p className="text-xs text-text-muted">

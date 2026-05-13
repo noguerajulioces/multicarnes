@@ -97,9 +97,9 @@ Most of the spec behaviour for US3 emerges from work already done in foundationa
 
 ### Implementation for User Story 3
 
-- [ ] T020 [US3] Extend the list-filter shape with optional `inPromoOnly?: boolean` and add the SQL `WHERE` predicate from [contracts/products-in-promo-filter.md](contracts/products-in-promo-filter.md) — `promo_enabled = 1 AND (promo_from IS NULL OR promo_from <= date('now','localtime')) AND (promo_to IS NULL OR promo_to >= date('now','localtime'))` — in [src/main/db/queries/products.ts](../../src/main/db/queries/products.ts)
-- [ ] T021 [P] [US3] Forward `inPromoOnly` through the `products:getAll` handler in [src/main/ipc/products.ipc.ts](../../src/main/ipc/products.ipc.ts) and update the preload bridge typing in [src/preload/index.ts](../../src/preload/index.ts) (TS-only pass-through)
-- [ ] T022 [US3] Add a "Solo en promo" filter chip alongside the existing category / status / low-stock chips in [src/renderer/src/modules/productos/ProductosPage.tsx](../../src/renderer/src/modules/productos/ProductosPage.tsx); toggling it sets `inPromoOnly: true` on the next list fetch and resets the page index (existing filter-change pattern)
+- [X] T020 [US3] Extend the list-filter shape with optional `inPromoOnly?: boolean` and add the SQL `WHERE` predicate from [contracts/products-in-promo-filter.md](contracts/products-in-promo-filter.md) — `promo_enabled = 1 AND (promo_from IS NULL OR promo_from <= date('now','localtime')) AND (promo_to IS NULL OR promo_to >= date('now','localtime'))` — in [src/main/db/queries/products.ts](../../src/main/db/queries/products.ts)
+- [X] T021 [P] [US3] ~Forward `inPromoOnly` through ipc/preload~ **No-op**: the existing [src/main/ipc/products.ipc.ts](../../src/main/ipc/products.ipc.ts) handler passes `filters` as `Parameters<typeof productsQuery.getAllProducts>[0]` and the preload bridge at [src/preload/index.ts:17](../../src/preload/index.ts#L17) accepts `filters?: unknown` — both pick up the new field automatically.
+- [X] T022 [US3] Add a "Solo en promo" filter chip alongside the existing category / status / low-stock chips in [src/renderer/src/modules/productos/ProductosPage.tsx](../../src/renderer/src/modules/productos/ProductosPage.tsx); toggling it sets `inPromoOnly: true` on the next list fetch and resets the page index (existing filter-change pattern). Uses `<Tag>` icon from lucide-react with success tone to match the PROMO badge.
 
 **Checkpoint**: All three user stories functional independently. Admin discovery, scheduling, and edit/disable flows all behave per spec.
 

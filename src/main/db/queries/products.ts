@@ -69,6 +69,7 @@ export function getAllProducts(filters?: {
   active?: boolean
   lowStock?: boolean
   search?: string
+  inPromoOnly?: boolean
   page?: number
   perPage?: number
 }) {
@@ -89,6 +90,14 @@ export function getAllProducts(filters?: {
     conditions.push('(p.name LIKE ? OR p.barcode LIKE ?)')
     const term = `%${filters.search}%`
     params.push(term, term)
+  }
+  // 005-promotional-pricing: "Solo en promo" filter. Predicate mirrors the
+  // renderer-side isPromoActive() semantics in lib/promo.ts (R7 in research).
+  // The partial index idx_products_promo_enabled (migration v8) covers this.
+  if (filters?.inPromoOnly) {
+    conditions.push(
+      "p.promo_enabled = 1 AND (p.promo_from IS NULL OR p.promo_from <= date('now','localtime')) AND (p.promo_to IS NULL OR p.promo_to >= date('now','localtime'))"
+    )
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
   const total = (
