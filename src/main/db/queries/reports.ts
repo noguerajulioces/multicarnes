@@ -169,6 +169,33 @@ export function salesSummary(from: string, to: string) {
     )
     .all(from, to)
 
+  // 006-card-payments: card revenue split by acquirer for the Resumen
+  // sub-rows. Combines single-method card sales with the card portion of
+  // mixed sales (same processor column on sale_payments).
+  const byCardProcessor = db
+    .prepare(
+      `
+    SELECT processor, COUNT(*) AS sales_count, COALESCE(SUM(amount), 0) AS total
+    FROM (
+      SELECT payment_processor AS processor, total AS amount
+      FROM sales
+      WHERE date(created_at) >= ? AND date(created_at) <= ?
+        AND status = 'completed' AND payment_method = 'card'
+      UNION ALL
+      SELECT sp.processor AS processor, sp.amount AS amount
+      FROM sale_payments sp
+      JOIN sales s ON sp.sale_id = s.id
+      WHERE date(s.created_at) >= ? AND date(s.created_at) <= ?
+        AND s.status = 'completed' AND s.payment_method = 'mixed'
+        AND sp.method = 'card'
+    ) t
+    WHERE processor IS NOT NULL
+    GROUP BY processor
+    ORDER BY total DESC
+  `
+    )
+    .all(from, to, from, to)
+
   const byUser = db
     .prepare(
       `
@@ -186,7 +213,88 @@ export function salesSummary(from: string, to: string) {
     )
     .all(from, to)
 
-  return { totals, byDay, byMethod, byUser }
+  return { totals, byDay, byMethod, byCardProcessor, byUser }
+}
+
+// 006-card-payments: detailed card-sales listing for the supervisor's
+// next-day reconciliation against each acquirer's settlement statement.
+// Returns one row per card payment (single-method) or per card line within
+// a mixed sale, so the supervisor can match voucher numbers 1:1.
+export function cardSales(
+  from: string,
+  to: string,
+  processor?: string
+): Array<{
+  sale_id: number
+  created_at: string
+  user_name: string | null
+  customer_name: string | null
+  processor: string | null
+  reference: string | null
+  amount: number
+  source: 'single' | 'mixed'
+}> {
+  const db = getDb()
+  const params: unknown[] = [from, to, from, to]
+  let processorFilterSingle = ''
+  let processorFilterMixed = ''
+  if (processor) {
+    processorFilterSingle = 'AND s.payment_processor = ?'
+    processorFilterMixed = 'AND sp.processor = ?'
+    params.push(processor, processor)
+  }
+
+  return db
+    .prepare(
+      `
+    SELECT * FROM (
+      SELECT
+        s.id          AS sale_id,
+        s.created_at  AS created_at,
+        u.name        AS user_name,
+        c.name        AS customer_name,
+        s.payment_processor AS processor,
+        s.payment_reference AS reference,
+        s.total       AS amount,
+        'single'      AS source
+      FROM sales s
+      LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN customers c ON s.customer_id = c.id
+      WHERE date(s.created_at) >= ? AND date(s.created_at) <= ?
+        AND s.status = 'completed' AND s.payment_method = 'card'
+        ${processorFilterSingle}
+      UNION ALL
+      SELECT
+        s.id          AS sale_id,
+        s.created_at  AS created_at,
+        u.name        AS user_name,
+        c.name        AS customer_name,
+        sp.processor  AS processor,
+        sp.reference  AS reference,
+        sp.amount     AS amount,
+        'mixed'       AS source
+      FROM sale_payments sp
+      JOIN sales s ON sp.sale_id = s.id
+      LEFT JOIN users u ON s.user_id = u.id
+      LEFT JOIN customers c ON s.customer_id = c.id
+      WHERE date(s.created_at) >= ? AND date(s.created_at) <= ?
+        AND s.status = 'completed' AND s.payment_method = 'mixed'
+        AND sp.method = 'card'
+        ${processorFilterMixed}
+    ) t
+    ORDER BY created_at DESC, sale_id DESC
+  `
+    )
+    .all(...params) as Array<{
+    sale_id: number
+    created_at: string
+    user_name: string | null
+    customer_name: string | null
+    processor: string | null
+    reference: string | null
+    amount: number
+    source: 'single' | 'mixed'
+  }>
 }
 
 function periodStats(from: string, to: string) {

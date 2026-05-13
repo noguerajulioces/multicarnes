@@ -42,6 +42,12 @@ export function registerReportsIpc(): string[] {
     getRule('reports:salesComparison'),
     (_e, _c, from: string, to: string) => reportsQuery.salesComparison(from, to)
   )
+  registerAuthorized(
+    'reports:cardSales',
+    getRule('reports:cardSales'),
+    (_e, _c, from: string, to: string, processor?: string) =>
+      reportsQuery.cardSales(from, to, processor)
+  )
 
   return listRegisteredChannels().slice(before)
 }

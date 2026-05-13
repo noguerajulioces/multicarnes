@@ -38,6 +38,7 @@ import type { Customer, Sale, CustomerPayment, PaymentMethod } from '@shared/typ
 
 const methodLabel: Record<PaymentMethod, string> = {
   cash: 'Efectivo',
+  card: 'Tarjeta',
   credit: 'Crédito',
   transfer: 'Transfer.',
   mixed: 'Mixto'
@@ -45,6 +46,7 @@ const methodLabel: Record<PaymentMethod, string> = {
 
 const methodTone: Record<PaymentMethod, 'success' | 'warning' | 'info' | 'neutral'> = {
   cash: 'success',
+  card: 'info',
   credit: 'warning',
   transfer: 'info',
   mixed: 'neutral'

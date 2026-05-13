@@ -9,6 +9,24 @@ import { MoneyInput, TourButton } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaCierreTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
+import { PROCESSOR_LABEL } from '../../lib/processors'
+
+interface OtherMethodRow {
+  method: string
+  total: number
+  count: number
+}
+interface CardProcessorRow {
+  processor: string
+  total: number
+  count: number
+}
+
+const METHOD_LABEL: Record<string, string> = {
+  card: 'Tarjeta',
+  transfer: 'Transferencia',
+  credit: 'Fiado'
+}
 
 export default function CierreCajaPage() {
   const { register, setRegister } = useCashStore()
@@ -19,6 +37,8 @@ export default function CierreCajaPage() {
   const [notes, setNotes] = useState('')
   const [expected, setExpected] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [otherMethods, setOtherMethods] = useState<OtherMethodRow[]>([])
+  const [cardByProcessor, setCardByProcessor] = useState<CardProcessorRow[]>([])
 
   useEffect(() => {
     if (!register) {
@@ -26,8 +46,16 @@ export default function CierreCajaPage() {
       return
     }
     window.api.cash.getSummary(register.id).then((s: unknown) => {
-      const sum = s as { cashSales: number; incomes: number; expenses: number }
+      const sum = s as {
+        cashSales: number
+        incomes: number
+        expenses: number
+        otherMethodsTotals?: OtherMethodRow[]
+        cardByProcessor?: CardProcessorRow[]
+      }
       setExpected(register.opening_amount + sum.cashSales + sum.incomes - sum.expenses)
+      setOtherMethods(sum.otherMethodsTotals ?? [])
+      setCardByProcessor(sum.cardByProcessor ?? [])
     })
   }, [register])
 
@@ -217,6 +245,85 @@ export default function CierreCajaPage() {
               </button>
             </div>
           </div>
+        </div>
+
+        <OtrosMediosPanel cardByProcessor={cardByProcessor} otherMethods={otherMethods} />
+      </div>
+    </div>
+  )
+}
+
+function OtrosMediosPanel({
+  cardByProcessor,
+  otherMethods
+}: {
+  cardByProcessor: CardProcessorRow[]
+  otherMethods: OtherMethodRow[]
+}): React.ReactElement | null {
+  // 006-card-payments: read-only summary of revenue that does NOT enter the
+  // cash drawer (card, transfer, credit). Useful for the supervisor to write
+  // down or photograph at close time so they can reconcile against each
+  // acquirer's settlement the next day.
+  const cardTotal = otherMethods.find((r) => r.method === 'card')?.total ?? 0
+  const cardCount = otherMethods.find((r) => r.method === 'card')?.count ?? 0
+  const transferRow = otherMethods.find((r) => r.method === 'transfer')
+  const creditRow = otherMethods.find((r) => r.method === 'credit')
+  const grand =
+    cardTotal + (transferRow?.total ?? 0) + (creditRow?.total ?? 0)
+  if (grand === 0) return null
+
+  return (
+    <div className="mt-5 pt-5 border-t border-border">
+      <p className="text-xs text-text-muted mb-3 font-medium uppercase tracking-wide">
+        Otros medios (no afectan caja)
+      </p>
+      <div className="rounded-xl border border-border divide-y divide-border bg-surface-muted/30">
+        {cardTotal > 0 && (
+          <div className="px-4 py-2.5">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-text-main">Tarjeta · Total</span>
+              <span className="tabular-nums font-medium">
+                {formatGs(cardTotal)}{' '}
+                <span className="text-xs text-text-muted">({cardCount})</span>
+              </span>
+            </div>
+            {cardByProcessor.length > 0 && (
+              <ul className="mt-1.5 space-y-0.5 text-xs">
+                {cardByProcessor.map((p) => (
+                  <li key={p.processor} className="flex items-center justify-between pl-3">
+                    <span className="text-text-muted">
+                      └ {PROCESSOR_LABEL[p.processor] || p.processor}
+                    </span>
+                    <span className="tabular-nums text-text-muted">
+                      {formatGs(p.total)} <span className="opacity-70">({p.count})</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        {transferRow && transferRow.total > 0 && (
+          <div className="px-4 py-2.5 flex items-center justify-between text-sm">
+            <span className="font-medium text-text-main">{METHOD_LABEL.transfer}</span>
+            <span className="tabular-nums font-medium">
+              {formatGs(transferRow.total)}{' '}
+              <span className="text-xs text-text-muted">({transferRow.count})</span>
+            </span>
+          </div>
+        )}
+        {creditRow && creditRow.total > 0 && (
+          <div className="px-4 py-2.5 flex items-center justify-between text-sm">
+            <span className="font-medium text-text-main">{METHOD_LABEL.credit}</span>
+            <span className="tabular-nums font-medium">
+              {formatGs(creditRow.total)}{' '}
+              <span className="text-xs text-text-muted">({creditRow.count})</span>
+            </span>
+          </div>
+        )}
+        <div className="px-4 py-2.5 flex items-center justify-between text-sm bg-surface-muted/60">
+          <span className="font-semibold text-text-main">Total no-efectivo</span>
+          <span className="font-bold tabular-nums text-brand">{formatGs(grand)}</span>
         </div>
       </div>
     </div>

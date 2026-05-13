@@ -16,9 +16,11 @@ import {
 import type { PaymentMethod, Sale } from '@shared/types'
 import { Eye, FileSpreadsheet, FileText, Plus, Printer, Search } from 'lucide-react'
 import TicketPreviewModal from '../ventas/TicketPreviewModal'
+import { PROCESSOR_LABEL as processorLabels } from '../../lib/processors'
 
 const methodLabels: Record<string, string> = {
   cash: 'Efectivo',
+  card: 'Tarjeta',
   credit: 'Fiado',
   transfer: 'Transferencia',
   mixed: 'Mixto'
@@ -26,6 +28,7 @@ const methodLabels: Record<string, string> = {
 
 const methodTone: Record<PaymentMethod, 'success' | 'warning' | 'info' | 'neutral'> = {
   cash: 'success',
+  card: 'info',
   credit: 'warning',
   transfer: 'info',
   mixed: 'neutral'
@@ -104,6 +107,14 @@ export default function VentasListadoPage() {
     }
   }
 
+  const methodCellLabel = (s: Sale): string => {
+    const base = methodLabels[s.payment_method] || s.payment_method
+    if (s.payment_method === 'card' && s.payment_processor) {
+      return `${base} (${processorLabels[s.payment_processor] || s.payment_processor})`
+    }
+    return base
+  }
+
   const prepareExport = (rows: Sale[]): Record<string, unknown>[] =>
     rows.map((s) => {
       const isCredit = s.payment_method === 'credit'
@@ -114,7 +125,7 @@ export default function VentasListadoPage() {
         _num: `#${s.id}`,
         customer_name: s.customer_name || '-',
         _total: formatGs(s.total),
-        _method: creditPaid ? 'Fiado · Pagado' : methodLabels[s.payment_method] || s.payment_method
+        _method: creditPaid ? 'Fiado · Pagado' : methodCellLabel(s)
       }
     })
 
@@ -255,7 +266,7 @@ export default function VentasListadoPage() {
                           <Badge tone="success">Fiado · Pagado</Badge>
                         ) : (
                           <Badge tone={methodTone[s.payment_method]}>
-                            {methodLabels[s.payment_method] || s.payment_method}
+                            {methodCellLabel(s)}
                           </Badge>
                         )}
                       </td>

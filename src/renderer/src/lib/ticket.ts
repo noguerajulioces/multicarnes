@@ -1,4 +1,5 @@
 import type { Sale } from '@shared/types'
+import { PROCESSOR_LABEL } from './processors'
 
 export type TicketWidth = 58 | 80
 
@@ -9,6 +10,7 @@ const WIDTH_CHARS: Record<TicketWidth, number> = {
 
 const PAYMENT_LABEL: Record<string, string> = {
   cash: 'Efectivo',
+  card: 'Tarjeta',
   transfer: 'Transferencia',
   credit: 'Fiado',
   mixed: 'Mixto'
@@ -184,12 +186,30 @@ export function renderTicket({
   lines.push({ text: divider(cols) })
 
   // ---------- Payment ----------
+  // 006-card-payments: when method is card, append the processor inline
+  // (`Tarjeta (Bancard)`) and print the voucher number below. Same per line
+  // for mixed payments — supervisor reconciles those against each bank's
+  // settlement next day.
   const methodLabel = PAYMENT_LABEL[sale.payment_method] ?? sale.payment_method
-  lines.push({ text: row('Pago:', methodLabel, cols) })
+  const topProcessor = sale.payment_processor
+    ? PROCESSOR_LABEL[sale.payment_processor] ?? sale.payment_processor
+    : null
+  const topMethodFull = topProcessor ? `${methodLabel} (${topProcessor})` : methodLabel
+  lines.push({ text: row('Pago:', topMethodFull, cols) })
+  if (sale.payment_method !== 'mixed' && sale.payment_reference) {
+    lines.push({ text: row('Comp.:', sale.payment_reference, cols) })
+  }
   if (sale.payment_method === 'mixed' && sale.payments) {
     for (const p of sale.payments) {
       const label = PAYMENT_LABEL[p.method] ?? p.method
-      lines.push({ text: row(`  ${label}`, fmtMoney(p.amount), cols) })
+      const proc = p.processor
+        ? PROCESSOR_LABEL[p.processor] ?? p.processor
+        : null
+      const fullLabel = proc ? `${label} (${proc})` : label
+      lines.push({ text: row(`  ${fullLabel}`, fmtMoney(p.amount), cols) })
+      if (p.reference) {
+        lines.push({ text: row(`    Comp.`, p.reference, cols) })
+      }
     }
   }
   if (sale.payment_method === 'cash' && cashReceived != null && cashReceived > 0) {

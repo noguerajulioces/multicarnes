@@ -1,5 +1,7 @@
 import { getDb } from '../index'
 
+type Processor = 'bancard' | 'dinelco' | 'upay'
+
 interface CreateSaleData {
   registerId: number
   userId: number
@@ -9,8 +11,42 @@ interface CreateSaleData {
   discount: number
   total: number
   paymentMethod: string
-  payments?: { method: string; amount: number }[]
+  paymentProcessor?: Processor | null
+  paymentReference?: string | null
+  payments?: {
+    method: string
+    amount: number
+    processor?: Processor | null
+    reference?: string | null
+  }[]
   notes?: string
+}
+
+const PROCESSORS: ReadonlySet<string> = new Set(['bancard', 'dinelco', 'upay'])
+
+function normalizeReference(value: string | null | undefined): string | null {
+  if (value == null) return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function validatePaymentDetails(
+  method: string,
+  processor: string | null | undefined,
+  reference: string | null
+): void {
+  if (method === 'card') {
+    if (!processor || !PROCESSORS.has(processor)) {
+      throw new Error('Pago con tarjeta requiere un procesador válido (Bancard, Dinelco o Upay).')
+    }
+    if (!reference) {
+      throw new Error('Pago con tarjeta requiere el N° de comprobante.')
+    }
+  } else if (method === 'transfer') {
+    if (!reference) {
+      throw new Error('Pago por transferencia requiere el N° de comprobante.')
+    }
+  }
 }
 
 export function createSale(data: CreateSaleData) {
@@ -27,11 +63,24 @@ export function createSale(data: CreateSaleData) {
       throw new Error('La caja indicada no está abierta. Abrí una nueva caja antes de continuar.')
     }
 
+    // 006-card-payments: validate processor/reference per method. For mixed
+    // sales the top-level fields stay NULL — each sale_payments row carries
+    // its own processor/reference.
+    const topReference = normalizeReference(data.paymentReference)
+    const topProcessor =
+      data.paymentMethod === 'card' ? data.paymentProcessor ?? null : null
+    if (data.paymentMethod !== 'mixed') {
+      validatePaymentDetails(data.paymentMethod, topProcessor, topReference)
+    }
+
     const result = db
       .prepare(
         `
-      INSERT INTO sales (register_id, customer_id, user_id, subtotal, discount, total, payment_method, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO sales (
+        register_id, customer_id, user_id, subtotal, discount, total,
+        payment_method, payment_processor, payment_reference, notes
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
       )
       .run(
@@ -42,6 +91,8 @@ export function createSale(data: CreateSaleData) {
         data.discount,
         data.total,
         data.paymentMethod,
+        topProcessor,
+        topReference,
         data.notes || null
       )
     const saleId = result.lastInsertRowid as number
@@ -74,10 +125,13 @@ export function createSale(data: CreateSaleData) {
 
     if (data.payments && data.payments.length > 0) {
       const insertPayment = db.prepare(
-        'INSERT INTO sale_payments (sale_id, method, amount) VALUES (?, ?, ?)'
+        'INSERT INTO sale_payments (sale_id, method, amount, processor, reference) VALUES (?, ?, ?, ?, ?)'
       )
       for (const p of data.payments) {
-        insertPayment.run(saleId, p.method, p.amount)
+        const lineRef = normalizeReference(p.reference)
+        const lineProc = p.method === 'card' ? p.processor ?? null : null
+        validatePaymentDetails(p.method, lineProc, lineRef)
+        insertPayment.run(saleId, p.method, p.amount, lineProc, lineRef)
       }
     }
 

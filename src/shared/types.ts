@@ -1,6 +1,7 @@
 export type Role = 'admin' | 'supervisor' | 'cajero'
 export type PriceType = 'unit' | 'kg' | 'g' | 'l' | 'ml' | 'm' | 'docena' | 'paquete'
-export type PaymentMethod = 'cash' | 'credit' | 'transfer' | 'mixed'
+export type PaymentMethod = 'cash' | 'card' | 'credit' | 'transfer' | 'mixed'
+export type PaymentProcessor = 'bancard' | 'dinelco' | 'upay'
 export type SaleStatus = 'completed' | 'cancelled'
 export type OrderStatus = 'pending' | 'received' | 'cancelled'
 export type MovementType = 'income' | 'expense'
@@ -157,6 +158,8 @@ export interface Sale {
   discount: number
   total: number
   payment_method: PaymentMethod
+  payment_processor?: PaymentProcessor | null
+  payment_reference?: string | null
   status: SaleStatus
   notes: string | null
   items?: SaleItem[]
@@ -185,8 +188,10 @@ export interface SaleItem {
 export interface SalePayment {
   id: number
   sale_id: number
-  method: 'cash' | 'credit' | 'transfer'
+  method: 'cash' | 'card' | 'credit' | 'transfer'
   amount: number
+  processor?: PaymentProcessor | null
+  reference?: string | null
 }
 
 export interface CartItem {

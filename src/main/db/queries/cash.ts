@@ -262,7 +262,65 @@ export function getCashRegisterSummary(registerId: number) {
     )
     .all(registerId)
 
-  return { register, cashSales: cashSales.total + mixedCash.total, ...movements, salesByMethod }
+  // 006-card-payments: per-processor breakdown of card revenue so the
+  // supervisor can reconcile each acquirer's settlement against the POS at
+  // register-close time. Combines single-method `card` sales with the card
+  // portion of mixed sales — both keyed by the same processor column.
+  const cardByProcessor = db
+    .prepare(
+      `
+    SELECT processor, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
+    FROM (
+      SELECT payment_processor AS processor, total AS amount
+      FROM sales
+      WHERE register_id = ? AND status = 'completed' AND payment_method = 'card'
+      UNION ALL
+      SELECT sp.processor AS processor, sp.amount AS amount
+      FROM sale_payments sp
+      JOIN sales s ON sp.sale_id = s.id
+      WHERE s.register_id = ? AND s.status = 'completed'
+        AND s.payment_method = 'mixed' AND sp.method = 'card'
+    ) t
+    WHERE processor IS NOT NULL
+    GROUP BY processor
+    ORDER BY processor
+  `
+    )
+    .all(registerId, registerId)
+
+  // Aggregate non-cash, non-credit revenue: card per-processor, transfer, and
+  // the credit portion. Useful for the "Otros medios" panel at close-register.
+  const otherMethodsTotals = db
+    .prepare(
+      `
+    SELECT method, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
+    FROM (
+      -- single-method sales (transfer / credit / card)
+      SELECT payment_method AS method, total AS amount
+      FROM sales
+      WHERE register_id = ? AND status = 'completed'
+        AND payment_method IN ('transfer','credit','card')
+      UNION ALL
+      -- mixed sales: each non-cash line counts in its own bucket
+      SELECT sp.method AS method, sp.amount AS amount
+      FROM sale_payments sp
+      JOIN sales s ON sp.sale_id = s.id
+      WHERE s.register_id = ? AND s.status = 'completed'
+        AND s.payment_method = 'mixed' AND sp.method IN ('transfer','credit','card')
+    ) t
+    GROUP BY method
+  `
+    )
+    .all(registerId, registerId)
+
+  return {
+    register,
+    cashSales: cashSales.total + mixedCash.total,
+    ...movements,
+    salesByMethod,
+    cardByProcessor,
+    otherMethodsTotals
+  }
 }
 
 export function getAllCashRegisters() {

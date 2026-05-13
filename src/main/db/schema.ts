@@ -86,18 +86,24 @@ export function createTables(db: Database.Database): void {
       ON cash_movements(register_id, created_at DESC);
 
     CREATE TABLE IF NOT EXISTS sales (
-      id             INTEGER PRIMARY KEY AUTOINCREMENT,
-      register_id    INTEGER NOT NULL REFERENCES cash_registers(id),
-      customer_id    INTEGER REFERENCES customers(id),
-      user_id        INTEGER NOT NULL REFERENCES users(id),
-      subtotal       INTEGER NOT NULL,
-      discount       INTEGER NOT NULL DEFAULT 0,
-      total          INTEGER NOT NULL,
-      payment_method TEXT NOT NULL CHECK(payment_method IN ('cash','credit','transfer','mixed')),
-      status         TEXT NOT NULL DEFAULT 'completed' CHECK(status IN ('completed','cancelled')),
-      notes          TEXT,
-      created_at     TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      register_id       INTEGER NOT NULL REFERENCES cash_registers(id),
+      customer_id       INTEGER REFERENCES customers(id),
+      user_id           INTEGER NOT NULL REFERENCES users(id),
+      subtotal          INTEGER NOT NULL,
+      discount          INTEGER NOT NULL DEFAULT 0,
+      total             INTEGER NOT NULL,
+      payment_method    TEXT NOT NULL CHECK(payment_method IN ('cash','card','credit','transfer','mixed')),
+      payment_processor TEXT CHECK(payment_processor IN ('bancard','dinelco','upay') OR payment_processor IS NULL),
+      payment_reference TEXT,
+      status            TEXT NOT NULL DEFAULT 'completed' CHECK(status IN ('completed','cancelled')),
+      notes             TEXT,
+      created_at        TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
+    -- idx_sales_processor lives in migration v9, not here: createTables() runs
+    -- before migrations and an existing pre-v9 DB has no payment_processor
+    -- column yet, so referencing it in a partial-index predicate would fail
+    -- before the migration gets a chance to add the column.
 
     CREATE TABLE IF NOT EXISTS sale_items (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,10 +115,12 @@ export function createTables(db: Database.Database): void {
     );
 
     CREATE TABLE IF NOT EXISTS sale_payments (
-      id      INTEGER PRIMARY KEY AUTOINCREMENT,
-      sale_id INTEGER NOT NULL REFERENCES sales(id),
-      method  TEXT NOT NULL CHECK(method IN ('cash','credit','transfer')),
-      amount  INTEGER NOT NULL
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      sale_id   INTEGER NOT NULL REFERENCES sales(id),
+      method    TEXT NOT NULL CHECK(method IN ('cash','card','credit','transfer')),
+      amount    INTEGER NOT NULL,
+      processor TEXT CHECK(processor IN ('bancard','dinelco','upay') OR processor IS NULL),
+      reference TEXT
     );
 
     CREATE TABLE IF NOT EXISTS purchase_orders (

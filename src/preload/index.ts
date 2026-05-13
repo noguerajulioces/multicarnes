@@ -114,7 +114,9 @@ const api = {
     salesSummary: (from: string, to: string) =>
       ipcRenderer.invoke('reports:salesSummary', from, to),
     salesComparison: (from: string, to: string) =>
-      ipcRenderer.invoke('reports:salesComparison', from, to)
+      ipcRenderer.invoke('reports:salesComparison', from, to),
+    cardSales: (from: string, to: string, processor?: string) =>
+      ipcRenderer.invoke('reports:cardSales', from, to, processor)
   },
   // Backup & Settings
   backup: {

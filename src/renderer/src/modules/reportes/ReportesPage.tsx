@@ -25,6 +25,7 @@ import {
 import { usePageTour } from '../../lib/use-page-tour'
 import { reportesTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
+import { PROCESSOR_LABEL as processorLabels } from '../../lib/processors'
 import type { PaymentMethod } from '@shared/types'
 import {
   FileSpreadsheet,
@@ -39,7 +40,26 @@ import {
   Search
 } from 'lucide-react'
 
-type Tab = 'resumen' | 'comparativo' | 'fiados' | 'productos' | 'margen' | 'stock' | 'caja'
+type Tab =
+  | 'resumen'
+  | 'comparativo'
+  | 'fiados'
+  | 'tarjetas'
+  | 'productos'
+  | 'margen'
+  | 'stock'
+  | 'caja'
+
+interface CardSalesRow {
+  sale_id: number
+  created_at: string
+  user_name: string | null
+  customer_name: string | null
+  processor: string | null
+  reference: string | null
+  amount: number
+  source: 'single' | 'mixed'
+}
 
 interface ReportConfig {
   columns: { header: string; key: string; align?: 'left' | 'right' | 'center'; width?: number }[]
@@ -61,6 +81,7 @@ interface SalesSummaryResult {
   totals: { sales_count: number; total: number; discount: number; subtotal: number }
   byDay: { day: string; sales_count: number; total: number }[]
   byMethod: { method: string; sales_count: number; total: number }[]
+  byCardProcessor: { processor: string; sales_count: number; total: number }[]
   byUser: { user_id: number; user_name: string; sales_count: number; total: number }[]
 }
 
@@ -90,6 +111,7 @@ interface SalesComparisonResult {
 
 const methodLabels: Record<string, string> = {
   cash: 'Efectivo',
+  card: 'Tarjeta',
   credit: 'Fiado',
   transfer: 'Transferencia',
   mixed: 'Mixto'
@@ -97,6 +119,7 @@ const methodLabels: Record<string, string> = {
 
 const methodTone: Record<PaymentMethod, 'success' | 'warning' | 'info' | 'neutral'> = {
   cash: 'success',
+  card: 'info',
   credit: 'warning',
   transfer: 'info',
   mixed: 'neutral'
@@ -158,6 +181,20 @@ const reportConfigs: Partial<Record<Tab, ReportConfig>> = {
       { header: 'Esperado', key: '_expected', align: 'right', width: 15 },
       { header: 'Contado', key: '_closing', align: 'right', width: 15 },
       { header: 'Diferencia', key: '_diff', align: 'right', width: 15 }
+    ]
+  },
+  tarjetas: {
+    title: 'Ventas con Tarjeta',
+    filename: 'ventas_tarjeta',
+    columns: [
+      { header: 'Fecha', key: '_fecha', width: 18 },
+      { header: 'N°', key: '_num', width: 8 },
+      { header: 'Cajero', key: 'user_name', width: 16 },
+      { header: 'Cliente', key: '_customer', width: 20 },
+      { header: 'Procesador', key: '_processor', width: 14 },
+      { header: 'Comprobante', key: '_reference', width: 16 },
+      { header: 'Monto', key: '_amount', align: 'right', width: 14 },
+      { header: 'Origen', key: '_source', width: 10 }
     ]
   }
 }
@@ -232,6 +269,17 @@ function prepareExportData(tab: Tab, data: unknown[]): Record<string, unknown>[]
         _closing: formatGs(r.closing_amount),
         _diff: `${r.difference >= 0 ? '+' : ''}${formatGs(r.difference)}`
       }))
+    case 'tarjetas':
+      return (data as CardSalesRow[]).map((r) => ({
+        ...r,
+        _fecha: formatDateTime(r.created_at),
+        _num: `#${r.sale_id}`,
+        _customer: r.customer_name || '-',
+        _processor: r.processor ? processorLabels[r.processor] || r.processor : '-',
+        _reference: r.reference || '-',
+        _amount: formatGs(r.amount),
+        _source: r.source === 'mixed' ? 'Mixto' : 'Tarjeta'
+      }))
     default:
       return data as Record<string, unknown>[]
   }
@@ -279,6 +327,7 @@ const VALID_TABS: readonly Tab[] = [
   'resumen',
   'comparativo',
   'fiados',
+  'tarjetas',
   'productos',
   'margen',
   'stock',
@@ -310,6 +359,7 @@ export default function ReportesPage() {
   const [data, setData] = useState<unknown[]>([])
   const [summary, setSummary] = useState<SalesSummaryResult | null>(null)
   const [comparison, setComparison] = useState<SalesComparisonResult | null>(null)
+  const [cardProcessorFilter, setCardProcessorFilter] = useState<string>('')
   const [loading, setLoading] = useState(false)
 
   // US4 (T032): when arriving with ?registerId=X, scroll to the matching
@@ -343,6 +393,10 @@ export default function ReportesPage() {
         setData(await window.api.reports.stockMovements(from, to))
       } else if (tab === 'caja') {
         setData(await window.api.reports.cashRegisters())
+      } else if (tab === 'tarjetas') {
+        setData(
+          await window.api.reports.cardSales(from, to, cardProcessorFilter || undefined)
+        )
       }
     } catch (err) {
       handleApiError(err)
@@ -387,6 +441,7 @@ export default function ReportesPage() {
     { key: 'resumen', label: 'Resumen' },
     { key: 'comparativo', label: 'Comparativo' },
     { key: 'fiados', label: 'Fiados pendientes' },
+    { key: 'tarjetas', label: 'Tarjetas' },
     { key: 'productos', label: 'Más Vendidos' },
     { key: 'margen', label: 'Margen' },
     { key: 'stock', label: 'Mov. Stock' },
@@ -396,7 +451,8 @@ export default function ReportesPage() {
   const exportableTabHasData = reportConfigs[tab] && data.length > 0
   const isObjectTab = tab === 'resumen' || tab === 'comparativo'
   const objectTabHasData = (tab === 'resumen' && summary) || (tab === 'comparativo' && comparison)
-  const showEmpty = !loading && !isObjectTab && data.length === 0
+  // Tarjetas paints its own empty state with reconciliation-specific copy.
+  const showEmpty = !loading && !isObjectTab && tab !== 'tarjetas' && data.length === 0
 
   const { startTour } = usePageTour({ key: 'reportes', steps: reportesTourSteps })
 
@@ -459,6 +515,21 @@ export default function ReportesPage() {
                   />
                 </div>
               </>
+            )}
+            {tab === 'tarjetas' && (
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Procesador</label>
+                <select
+                  value={cardProcessorFilter}
+                  onChange={(e) => setCardProcessorFilter(e.target.value)}
+                  className="h-10 px-3 rounded-md border border-border bg-surface text-sm text-text-main w-44"
+                >
+                  <option value="">Todos</option>
+                  <option value="bancard">Bancard</option>
+                  <option value="dinelco">Dinelco</option>
+                  <option value="upay">Upay</option>
+                </select>
+              </div>
             )}
             <Button onClick={load} disabled={loading} className="rounded-xl">
               <Search size={16} />
@@ -582,19 +653,48 @@ export default function ReportesPage() {
                         </td>
                       </tr>
                     ) : (
-                      summary.byMethod.map((r) => (
-                        <tr key={r.method} className="border-b border-border last:border-0">
-                          <td className="py-2.5 pr-3">
-                            <Badge tone={methodTone[r.method as PaymentMethod] ?? 'neutral'}>
-                              {methodLabels[r.method] || r.method}
-                            </Badge>
-                          </td>
-                          <td className="py-2.5 pr-3 text-right tabular-nums">{r.sales_count}</td>
-                          <td className="py-2.5 text-right font-medium tabular-nums">
-                            {formatGs(r.total)}
-                          </td>
-                        </tr>
-                      ))
+                      summary.byMethod.flatMap((r) => {
+                        const rows = [
+                          <tr key={r.method} className="border-b border-border last:border-0">
+                            <td className="py-2.5 pr-3">
+                              <Badge tone={methodTone[r.method as PaymentMethod] ?? 'neutral'}>
+                                {methodLabels[r.method] || r.method}
+                              </Badge>
+                            </td>
+                            <td className="py-2.5 pr-3 text-right tabular-nums">
+                              {r.sales_count}
+                            </td>
+                            <td className="py-2.5 text-right font-medium tabular-nums">
+                              {formatGs(r.total)}
+                            </td>
+                          </tr>
+                        ]
+                        // 006-card-payments: when the row is the aggregated
+                        // Tarjeta total, indent the per-acquirer breakdown
+                        // under it so the supervisor can see at a glance what
+                        // went through each terminal without leaving Resumen.
+                        if (r.method === 'card' && summary.byCardProcessor?.length > 0) {
+                          for (const p of summary.byCardProcessor) {
+                            rows.push(
+                              <tr
+                                key={`card-${p.processor}`}
+                                className="border-b border-border last:border-0 text-xs text-text-muted"
+                              >
+                                <td className="py-1.5 pr-3 pl-6">
+                                  └ {processorLabels[p.processor] || p.processor}
+                                </td>
+                                <td className="py-1.5 pr-3 text-right tabular-nums">
+                                  {p.sales_count}
+                                </td>
+                                <td className="py-1.5 text-right tabular-nums">
+                                  {formatGs(p.total)}
+                                </td>
+                              </tr>
+                            )
+                          }
+                        }
+                        return rows
+                      })
                     )}
                   </tbody>
                 </table>
@@ -789,6 +889,10 @@ export default function ReportesPage() {
             </table>
           </div>
         </Card>
+      )}
+
+      {!loading && tab === 'tarjetas' && (
+        <TarjetasReport rows={data as CardSalesRow[]} />
       )}
 
       {!loading && tab === 'productos' && (
@@ -1046,6 +1150,134 @@ export default function ReportesPage() {
           </CardBody>
         </Card>
       )}
+    </div>
+  )
+}
+
+// 006-card-payments: dedicated reconciliation view. Per-processor totals on
+// top so the supervisor can match the day's settlement at a glance; full
+// transaction list below for voucher-by-voucher matching against the
+// acquirer's statement.
+function TarjetasReport({ rows }: { rows: CardSalesRow[] }): React.ReactElement {
+  const byProcessor = rows.reduce<Record<string, { total: number; count: number }>>((acc, r) => {
+    const key = r.processor || 'unknown'
+    if (!acc[key]) acc[key] = { total: 0, count: 0 }
+    acc[key].total += r.amount
+    acc[key].count += 1
+    return acc
+  }, {})
+  const grandTotal = rows.reduce((s, r) => s + r.amount, 0)
+
+  if (rows.length === 0) {
+    return (
+      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <CardBody>
+          <EmptyState
+            icon={<CreditCard size={40} />}
+            title="Sin ventas con tarjeta en el período"
+            description="Ajustá el rango o el procesador y hacé click en Consultar."
+          />
+        </CardBody>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <CardHeader>
+          <h2 className="font-semibold text-text-main">Resumen por procesador</h2>
+        </CardHeader>
+        <CardBody className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-text-muted">
+                <th className="pb-2 font-normal pr-3">Procesador</th>
+                <th className="pb-2 font-normal pr-3 text-right">Ventas</th>
+                <th className="pb-2 font-normal text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(byProcessor)
+                .sort((a, b) => b[1].total - a[1].total)
+                .map(([proc, t]) => (
+                  <tr key={proc} className="border-b border-border last:border-0">
+                    <td className="py-2.5 pr-3 font-medium">
+                      {proc === 'unknown' ? '—' : processorLabels[proc] || proc}
+                    </td>
+                    <td className="py-2.5 pr-3 text-right tabular-nums">{t.count}</td>
+                    <td className="py-2.5 text-right font-medium tabular-nums">
+                      {formatGs(t.total)}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-border bg-surface-muted/40">
+                <td className="px-0 py-3 font-semibold text-text-main">Total</td>
+                <td className="px-0 py-3 text-right tabular-nums font-semibold">{rows.length}</td>
+                <td className="px-0 py-3 text-right text-lg font-bold text-brand tabular-nums">
+                  {formatGs(grandTotal)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </CardBody>
+      </Card>
+
+      <Card
+        className="rounded-2xl overflow-hidden"
+        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className={tableHeadCls}>
+                <th className={thCls}>Fecha</th>
+                <th className={thCls}>N°</th>
+                <th className={thCls}>Cajero</th>
+                <th className={thCls}>Cliente</th>
+                <th className={thCls}>Procesador</th>
+                <th className={thCls}>Comprobante</th>
+                <th className={`${thCls} text-right`}>Monto</th>
+                <th className={thCls}>Origen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, idx) => (
+                <tr key={`${r.sale_id}-${idx}`} className={trCls}>
+                  <td className={`${tdCls} text-text-muted tabular-nums`}>
+                    {formatDateTime(r.created_at)}
+                  </td>
+                  <td className={`${tdCls} font-medium`}>#{r.sale_id}</td>
+                  <td className={`${tdCls} text-text-muted`}>{r.user_name || '—'}</td>
+                  <td className={tdCls}>
+                    {r.customer_name || (
+                      <span className="text-text-disabled">Consumidor final</span>
+                    )}
+                  </td>
+                  <td className={tdCls}>
+                    {r.processor ? (
+                      <Badge tone="info">{processorLabels[r.processor] || r.processor}</Badge>
+                    ) : (
+                      <span className="text-text-disabled">—</span>
+                    )}
+                  </td>
+                  <td className={`${tdCls} tabular-nums`}>
+                    {r.reference || <span className="text-text-disabled">—</span>}
+                  </td>
+                  <td className={`${tdCls} text-right font-medium tabular-nums`}>
+                    {formatGs(r.amount)}
+                  </td>
+                  <td className={`${tdCls} text-xs text-text-muted`}>
+                    {r.source === 'mixed' ? 'Mixto' : 'Tarjeta'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   )
 }
