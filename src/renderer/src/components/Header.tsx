@@ -232,12 +232,8 @@ function NotificationBell(): React.ReactElement {
   const ref = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const totalUnseen = useNotificationStore((s) => selectUnseenCount(s, role))
-  const unseenLowStock = useNotificationStore((s) =>
-    selectUnseenForCategory(s, 'low_stock')
-  )
-  const unseenPending = useNotificationStore((s) =>
-    selectUnseenForCategory(s, 'pending_credits')
-  )
+  const unseenLowStock = useNotificationStore((s) => selectUnseenForCategory(s, 'low_stock'))
+  const unseenPending = useNotificationStore((s) => selectUnseenForCategory(s, 'pending_credits'))
 
   useEffect(() => {
     useNotificationStore.getState().loadForUser(userId)
