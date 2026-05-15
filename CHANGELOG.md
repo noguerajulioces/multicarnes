@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.5.0](https://github.com/noguerajulioces/multicarnes/compare/v1.4.0...v1.5.0) (2026-05-15)
+
+### Features
+
+* **007-receipt-share:** WhatsApp / image / PDF receipt sharing ([5ae5fc7](https://github.com/noguerajulioces/multicarnes/commit/5ae5fc754e86a3e8740c1529aae49b1756c5a4bb))
+* **notifications:** add per-user read state to header bell ([07a68d8](https://github.com/noguerajulioces/multicarnes/commit/07a68d87da53d08b4b7393808df5ebed31bee39c))
+
+### Refactoring
+
+* **NotificationBell:** streamline unseen notifications retrieval ([9120c86](https://github.com/noguerajulioces/multicarnes/commit/9120c864adefcf827aca1a8e75c43b36db970f3d))
+
 ## [1.4.0](https://github.com/noguerajulioces/multicarnes/compare/v1.3.0...v1.4.0) (2026-05-13)
 
 ### Features
