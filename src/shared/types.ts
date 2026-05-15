@@ -151,6 +151,10 @@ export interface Sale {
   register_id: number
   customer_id: number | null
   customer_name?: string
+  // 007-receipt-share: customer.phone surfaced on the sale so the renderer can
+  // pre-fill the WhatsApp recipient without a second IPC round-trip. Optional
+  // because anonymous sales and customers without phone leave this empty.
+  customer_phone?: string | null
   customer_balance?: number
   user_id: number
   user_name?: string
@@ -166,6 +170,19 @@ export interface Sale {
   payments?: SalePayment[]
   created_at: string
 }
+
+// 007-receipt-share: receipt sharing channels used by the audit IPC.
+export type ShareChannel = 'whatsapp' | 'pdf' | 'image'
+
+export interface LogShareRequest {
+  saleId: number
+  channel: ShareChannel
+  target?: string | null
+}
+
+export type LogShareResponse =
+  | { ok: true; logId: number }
+  | { ok: false; error: 'sale_not_found' | 'invalid_channel' | 'invalid_target' }
 
 export interface SaleItem {
   id: number

@@ -1,5 +1,18 @@
 <!-- SPECKIT START -->
-Active feature: **006-notif-read-state** — header notification dropdown gains
+Active feature: **007-receipt-share** — entrega del comprobante de venta por
+canales alternativos a la impresora térmica (que el cliente todavía no tiene):
+(1) WhatsApp como texto plano vía `wa.me/<phone>?text=<encoded>` abierto por
+el `setWindowOpenHandler` ya existente en `src/main/index.ts`; (2) descarga
+como imagen PNG generada en Canvas 2D (sin nuevas dependencias); (3) descarga
+como PDF reutilizando `downloadTicketPdf` existente. Disponible desde el
+modal post-venta y desde el detalle de venta en el historial. Una nueva IPC
+`sales:logShare` registra cada acción en `action_logs`. Sin migración SQLite,
+sin nuevas dependencias.
+
+Plan: [specs/007-receipt-share/plan.md](specs/007-receipt-share/plan.md).
+Spec: [specs/007-receipt-share/spec.md](specs/007-receipt-share/spec.md).
+
+Prior feature: **006-notif-read-state** — header notification dropdown gains
 a per-user "read" state with inbox semantics: the dropdown lists only rows
 with unread alerts, "marks as read" when the dropdown closes, and renders
 "Sin notificaciones pendientes" once everything is read. The bell badge
@@ -11,11 +24,9 @@ Renderer-only: `useNotificationStore`
 `selectUnseenCount` / `selectUnseenForCategory` consumed by
 `NotificationBell` in `Header.tsx`. No SQLite migration, no new IPC channels,
 no new dependencies.
+Reference: [specs/006-notif-read-state/](specs/006-notif-read-state/).
 
-Plan: [specs/006-notif-read-state/plan.md](specs/006-notif-read-state/plan.md).
-Spec: [specs/006-notif-read-state/spec.md](specs/006-notif-read-state/spec.md).
-
-Prior feature: **005-promotional-pricing** — per-product promo price managed
+Earlier feature: **005-promotional-pricing** — per-product promo price managed
 by Admin/Supervisor and consumed automatically by the POS. Five additive
 columns on `products` (toggle, fixed-Gs or %-off, optional date range), a
 pure `isPromoActive(product, now)` decision in `src/renderer/src/lib/promo.ts`,

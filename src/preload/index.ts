@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { CashMovementListOpts } from '../shared/types'
+import type { CashMovementListOpts, LogShareRequest } from '../shared/types'
 
 const api = {
   // Users
@@ -45,7 +45,8 @@ const api = {
     getByRegister: (registerId: number) => ipcRenderer.invoke('sales:getByRegister', registerId),
     cancel: (id: number, options?: { refundMixedCredit?: boolean }) =>
       ipcRenderer.invoke('sales:cancel', id, options),
-    dayTotal: () => ipcRenderer.invoke('sales:dayTotal')
+    dayTotal: () => ipcRenderer.invoke('sales:dayTotal'),
+    logShare: (req: LogShareRequest) => ipcRenderer.invoke('sales:logShare', req)
   },
   // Customers
   customers: {

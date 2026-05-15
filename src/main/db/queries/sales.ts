@@ -162,7 +162,7 @@ export function getSaleById(id: number) {
   const sale = db
     .prepare(
       `
-    SELECT s.*, c.name as customer_name, u.name as user_name
+    SELECT s.*, c.name as customer_name, c.phone as customer_phone, u.name as user_name
     FROM sales s
     LEFT JOIN customers c ON s.customer_id = c.id
     LEFT JOIN users u ON s.user_id = u.id
@@ -247,7 +247,7 @@ export function getRecentSales(limit: number = 50) {
   return getDb()
     .prepare(
       `
-    SELECT s.*, c.name as customer_name, u.name as user_name
+    SELECT s.*, c.name as customer_name, c.phone as customer_phone, u.name as user_name
     FROM sales s
     LEFT JOIN customers c ON s.customer_id = c.id
     LEFT JOIN users u ON s.user_id = u.id
@@ -262,7 +262,7 @@ export function getSalesByRegister(registerId: number) {
   return getDb()
     .prepare(
       `
-    SELECT s.*, c.name as customer_name, u.name as user_name
+    SELECT s.*, c.name as customer_name, c.phone as customer_phone, u.name as user_name
     FROM sales s
     LEFT JOIN customers c ON s.customer_id = c.id
     LEFT JOIN users u ON s.user_id = u.id
@@ -391,4 +391,40 @@ export function getDayCashSalesTotal(registerId: number) {
     .get(registerId) as { total: number }
 
   return result.total + directCash.total
+}
+
+// 007-receipt-share: append-only audit row when the renderer shares a sale
+// receipt through one of the alternative channels (WhatsApp / PDF / PNG).
+// Cross-user calls are allowed by design — a supervisor often re-sends a past
+// receipt for a different cashier when a customer comes back asking for it.
+const VALID_SHARE_CHANNELS: ReadonlySet<string> = new Set(['whatsapp', 'pdf', 'image'])
+
+export function logSaleShare(
+  userId: number,
+  saleId: number,
+  channel: string,
+  target: string | null
+):
+  | { ok: true; logId: number }
+  | { ok: false; error: 'sale_not_found' | 'invalid_channel' | 'invalid_target' } {
+  if (!VALID_SHARE_CHANNELS.has(channel)) {
+    return { ok: false, error: 'invalid_channel' }
+  }
+  let normalizedTarget: string | null = null
+  if (channel === 'whatsapp') {
+    if (target == null || !/^\d{9,15}$/.test(target)) {
+      return { ok: false, error: 'invalid_target' }
+    }
+    normalizedTarget = target
+  }
+
+  const db = getDb()
+  const exists = db.prepare('SELECT 1 FROM sales WHERE id = ?').get(saleId)
+  if (!exists) return { ok: false, error: 'sale_not_found' }
+
+  const details = JSON.stringify({ saleId, channel, target: normalizedTarget })
+  const result = db
+    .prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)')
+    .run(userId, 'sale.share', details)
+  return { ok: true, logId: Number(result.lastInsertRowid) }
 }

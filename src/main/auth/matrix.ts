@@ -39,6 +39,10 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   'sales:getByRegister': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'sales:cancel': { kind: 'privileged', roles: ['admin', 'supervisor'] },
   'sales:dayTotal': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+  // 007-receipt-share: any signed-in role can audit-log a receipt share. The
+  // handler captures ctx.userId so cross-user reprints from a supervisor stay
+  // traceable to the actual operator.
+  'sales:logShare': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
 
   // Cash (US2)
   'cash:open': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
