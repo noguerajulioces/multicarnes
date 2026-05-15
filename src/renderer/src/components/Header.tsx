@@ -11,6 +11,11 @@ import {
 } from 'lucide-react'
 import { useCashStore } from '../store/cash.store'
 import { useAuthStore } from '../store/auth.store'
+import {
+  useNotificationStore,
+  selectUnseenCount,
+  selectUnseenForCategory
+} from '../store/notifications.store'
 import { useLogoutGuard } from '../hooks/use-logout-guard'
 import { LogoutBlockedModal } from './LogoutBlockedModal'
 
@@ -221,40 +226,48 @@ function Clock(): React.ReactElement {
 function NotificationBell(): React.ReactElement {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const isCajero = user?.role === 'cajero'
+  const userId = user?.id ?? null
+  const role = user?.role ?? 'cajero'
+  const isCajero = role === 'cajero'
   const ref = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
-  const [lowStockCount, setLowStockCount] = useState(0)
-  const [pendingCount, setPendingCount] = useState(0)
-
-  const refresh = async (): Promise<void> => {
-    try {
-      const tasks: Promise<unknown>[] = [window.api.products.lowStock()]
-      if (!isCajero) tasks.push(window.api.reports.pendingCredits())
-      const results = await Promise.all(tasks)
-      const low = results[0] as unknown[]
-      setLowStockCount(low.length)
-      if (!isCajero) {
-        const pending = results[1] as unknown[]
-        setPendingCount(pending.length)
-      }
-    } catch {
-      /* ignore */
-    }
-  }
+  const totalUnseen = useNotificationStore((s) => selectUnseenCount(s, role))
+  const unseenLowStock = useNotificationStore((s) => selectUnseenForCategory(s, 'low_stock'))
+  const unseenPending = useNotificationStore((s) => selectUnseenForCategory(s, 'pending_credits'))
 
   useEffect(() => {
-    refresh()
+    useNotificationStore.getState().loadForUser(userId)
+  }, [userId])
+
+  useEffect(() => {
+    if (userId === null) return
+    void useNotificationStore.getState().refresh()
     // refresh discreto cada 60s para mantener al día las alertas
-    const id = setInterval(refresh, 60_000)
+    const id = setInterval(() => {
+      void useNotificationStore.getState().refresh()
+    }, 60_000)
     return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCajero])
+  }, [userId])
 
   useEffect(() => {
-    if (open) refresh()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!open) return
+    // 006-notif-read-state: al abrir el dropdown refrescamos para asegurarnos
+    // de mostrar el estado más reciente. El marcado como "visto" ocurre al
+    // CERRAR el dropdown (efecto separado abajo), no al abrirlo, para que las
+    // filas no se desvanezcan delante del usuario mientras está mirando.
+    void useNotificationStore.getState().refresh()
   }, [open])
+
+  // 006-notif-read-state: al cerrar el dropdown todas las alertas que estaban
+  // visibles se consideran leídas. La próxima apertura mostrará "Sin
+  // notificaciones pendientes" salvo que haya entrado algo nuevo en el ínterin.
+  const prevOpen = useRef(false)
+  useEffect(() => {
+    if (prevOpen.current && !open) {
+      useNotificationStore.getState().markAllVisibleAsSeen(role)
+    }
+    prevOpen.current = open
+  }, [open, role])
 
   useEffect(() => {
     if (!open) return
@@ -264,8 +277,6 @@ function NotificationBell(): React.ReactElement {
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
   }, [open])
-
-  const total = lowStockCount + (isCajero ? 0 : pendingCount)
 
   return (
     <div ref={ref} className="relative">
@@ -277,9 +288,9 @@ function NotificationBell(): React.ReactElement {
         className="relative p-2 rounded-lg text-text-muted hover:text-text-main hover:bg-surface-muted transition-colors"
       >
         <Bell size={16} />
-        {total > 0 && (
+        {totalUnseen > 0 && (
           <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-danger-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
-            {total > 9 ? '9+' : total}
+            {totalUnseen > 9 ? '9+' : totalUnseen}
           </span>
         )}
       </button>
@@ -290,23 +301,22 @@ function NotificationBell(): React.ReactElement {
         >
           <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
             <p className="text-sm font-semibold text-text-main">Notificaciones</p>
-            {total > 0 && (
+            {totalUnseen > 0 && (
               <span className="text-xs text-text-muted tabular-nums">
-                {total} pendiente{total === 1 ? '' : 's'}
+                {totalUnseen} nueva{totalUnseen === 1 ? '' : 's'}
               </span>
             )}
           </div>
-          {total === 0 ? (
+          {totalUnseen === 0 ? (
             <div className="px-4 py-8 text-center">
               <div className="w-10 h-10 rounded-full bg-success-50 text-success-700 flex items-center justify-center mx-auto mb-2">
                 <Bell size={18} />
               </div>
-              <p className="text-sm font-medium text-text-main">Todo en orden</p>
-              <p className="text-xs text-text-muted mt-0.5">Sin alertas pendientes</p>
+              <p className="text-sm font-medium text-text-main">Sin notificaciones pendientes</p>
             </div>
           ) : (
             <ul>
-              {lowStockCount > 0 && (
+              {unseenLowStock > 0 && (
                 <li>
                   <button
                     type="button"
@@ -322,15 +332,15 @@ function NotificationBell(): React.ReactElement {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-text-main">Stock bajo</p>
                       <p className="text-xs text-text-muted">
-                        {lowStockCount} producto{lowStockCount === 1 ? '' : 's'} crítico
-                        {lowStockCount === 1 ? '' : 's'}
+                        {unseenLowStock} producto{unseenLowStock === 1 ? '' : 's'} crítico
+                        {unseenLowStock === 1 ? '' : 's'}
                       </p>
                     </div>
                     <ChevronRight size={14} className="text-text-disabled shrink-0" />
                   </button>
                 </li>
               )}
-              {!isCajero && pendingCount > 0 && (
+              {!isCajero && unseenPending > 0 && (
                 <li>
                   <button
                     type="button"
@@ -346,7 +356,7 @@ function NotificationBell(): React.ReactElement {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-text-main">Cobros pendientes</p>
                       <p className="text-xs text-text-muted">
-                        {pendingCount} cliente{pendingCount === 1 ? '' : 's'} con saldo deudor
+                        {unseenPending} cliente{unseenPending === 1 ? '' : 's'} con saldo deudor
                       </p>
                     </div>
                     <ChevronRight size={14} className="text-text-disabled shrink-0" />

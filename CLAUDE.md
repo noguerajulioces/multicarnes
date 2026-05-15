@@ -1,23 +1,37 @@
 <!-- SPECKIT START -->
-Active feature: **005-promotional-pricing** — per-product promo price managed
+Active feature: **006-notif-read-state** — header notification dropdown gains
+a per-user "read" state with inbox semantics: the dropdown lists only rows
+with unread alerts, "marks as read" when the dropdown closes, and renders
+"Sin notificaciones pendientes" once everything is read. The bell badge
+silences after the close and re-lights only when a *new* entity enters the
+alert set (a new debtor customer or a new product below min stock).
+Renderer-only: `useNotificationStore`
+(`src/renderer/src/store/notifications.store.ts`) persists seen IDs to
+`localStorage` under `notif:seen:<userId>:<category>` and exposes
+`selectUnseenCount` / `selectUnseenForCategory` consumed by
+`NotificationBell` in `Header.tsx`. No SQLite migration, no new IPC channels,
+no new dependencies.
+
+Plan: [specs/006-notif-read-state/plan.md](specs/006-notif-read-state/plan.md).
+Spec: [specs/006-notif-read-state/spec.md](specs/006-notif-read-state/spec.md).
+
+Prior feature: **005-promotional-pricing** — per-product promo price managed
 by Admin/Supervisor and consumed automatically by the POS. Five additive
 columns on `products` (toggle, fixed-Gs or %-off, optional date range), a
 pure `isPromoActive(product, now)` decision in `src/renderer/src/lib/promo.ts`,
 cart lines snapshot the price at add-to-cart, and the receipt prints an
 "Ahorrás" totals line when any line was sold under promo. Additive migration
 v8; no new IPC channels; reuses existing `products:*` and `action_logs`.
+Reference: [specs/005-promotional-pricing/](specs/005-promotional-pricing/).
 
-Plan: [specs/005-promotional-pricing/plan.md](specs/005-promotional-pricing/plan.md).
-Spec: [specs/005-promotional-pricing/spec.md](specs/005-promotional-pricing/spec.md).
-
-Prior feature: **004-logout-cash-close** — block logout when the signed-in
+Earlier feature: **004-logout-cash-close** — block logout when the signed-in
 user owns an open cash register, with a one-click shortcut into the existing
 close-register flow. Per-user IPC query (`cash:getMyOpenRegister`) scoped to
 `ctx.userId`, a `useLogoutGuard` hook that gates `auth.store.logout()`, and a
 shared `LogoutBlockedModal`. No schema change; no new dependencies.
 Reference: [specs/004-logout-cash-close/](specs/004-logout-cash-close/).
 
-Earlier feature (landed): **003-cash-movements-history** — "Movimientos de Caja"
+Earlier landed feature: **003-cash-movements-history** — "Movimientos de Caja"
 page with server-side pagination, role-aware filters, append-only voiding,
 and Excel export. Backed by an additive `cash_movements` migration (v7) plus a
 one-time backfill of synthetic opening/closing rows.
