@@ -1,6 +1,7 @@
 import * as salesQuery from '../db/queries/sales'
 import { registerAuthorized, listRegisteredChannels } from '../auth/guard'
 import { getRule } from '../auth/matrix'
+import type { LogShareRequest } from '../../shared/types'
 
 export function registerSalesIpc(): string[] {
   const before = listRegisteredChannels().length
@@ -32,6 +33,12 @@ export function registerSalesIpc(): string[] {
   )
   registerAuthorized('sales:dayTotal', getRule('sales:dayTotal'), () =>
     salesQuery.getDaySalesTotal()
+  )
+  registerAuthorized(
+    'sales:logShare',
+    getRule('sales:logShare'),
+    (_event, ctx, req: LogShareRequest) =>
+      salesQuery.logSaleShare(ctx.userId!, req.saleId, req.channel, req.target ?? null)
   )
 
   return listRegisteredChannels().slice(before)

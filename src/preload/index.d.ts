@@ -20,7 +20,9 @@ import type {
   PageOpts,
   CashMovementListOpts,
   CashMovementListResult,
-  CashMovementRow
+  CashMovementRow,
+  LogShareRequest,
+  LogShareResponse
 } from '../shared/types'
 
 interface ApiUsers {
@@ -96,6 +98,7 @@ interface ApiSales {
   getByRegister(registerId: number): Promise<Sale[]>
   cancel(id: number, options?: { refundMixedCredit?: boolean }): Promise<Sale | null>
   dayTotal(): Promise<{ total: number; count: number }>
+  logShare(req: LogShareRequest): Promise<LogShareResponse>
 }
 
 interface ApiCustomers {
