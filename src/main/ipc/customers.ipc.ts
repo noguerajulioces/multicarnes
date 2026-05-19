@@ -23,8 +23,27 @@ export function registerCustomersIpc(): string[] {
   registerAuthorized(
     'customers:addPayment',
     getRule('customers:addPayment'),
-    (_e, _c, customerId: number, userId: number, amount: number, note?: string) =>
-      customersQuery.addCustomerPayment(customerId, userId, amount, note)
+    (
+      _e,
+      ctx,
+      customerId: number,
+      userId: number,
+      amount: number,
+      note: string | undefined,
+      affectsCash: boolean
+    ) => {
+      // ctx.userId is non-null here because the matrix marks this channel as
+      // 'privileged' — the guard rejects unauthenticated calls before reaching us.
+      if (ctx.userId === null) throw new Error('Sesión inválida.')
+      return customersQuery.addCustomerPayment({
+        customerId,
+        userId,
+        amount,
+        note,
+        affectsCash,
+        callerUserId: ctx.userId
+      })
+    }
   )
   registerAuthorized(
     'customers:updatePayment',

@@ -326,6 +326,21 @@ const MIGRATIONS: Migration[] = [
           ON sales(payment_processor) WHERE payment_processor IS NOT NULL;
       `)
     }
+  },
+  {
+    version: 10,
+    name: 'add_customer_payments_affects_cash',
+    up: (db) => {
+      // 008-debt-payment-types: distinguish cash-affecting payments from
+      // salary-deduction (non-cash) ones. Idempotent under PRAGMA table_info
+      // so re-running on a fresh install that already has the column from
+      // schema.ts is a no-op.
+      const cols = db.prepare('PRAGMA table_info(customer_payments)').all() as { name: string }[]
+      const has = cols.some((c) => c.name === 'affects_cash')
+      if (!has) {
+        db.exec('ALTER TABLE customer_payments ADD COLUMN affects_cash INTEGER NOT NULL DEFAULT 1')
+      }
+    }
   }
 ]
 

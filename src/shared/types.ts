@@ -306,6 +306,7 @@ export interface CustomerPayment {
   user_name?: string
   amount: number
   note: string | null
+  affects_cash: boolean
   created_at: string
 }
 

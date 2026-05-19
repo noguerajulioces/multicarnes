@@ -54,8 +54,13 @@ const api = {
     getById: (id: number) => ipcRenderer.invoke('customers:getById', id),
     create: (data: unknown) => ipcRenderer.invoke('customers:create', data),
     update: (id: number, data: unknown) => ipcRenderer.invoke('customers:update', id, data),
-    addPayment: (customerId: number, userId: number, amount: number, note?: string) =>
-      ipcRenderer.invoke('customers:addPayment', customerId, userId, amount, note),
+    addPayment: (
+      customerId: number,
+      userId: number,
+      amount: number,
+      note: string | undefined,
+      affectsCash: boolean
+    ) => ipcRenderer.invoke('customers:addPayment', customerId, userId, amount, note, affectsCash),
     updatePayment: (paymentId: number, amount: number, note?: string | null) =>
       ipcRenderer.invoke('customers:updatePayment', paymentId, amount, note),
     deletePayment: (paymentId: number) => ipcRenderer.invoke('customers:deletePayment', paymentId),

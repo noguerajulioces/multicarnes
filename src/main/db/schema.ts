@@ -154,12 +154,13 @@ export function createTables(db: Database.Database): void {
     );
 
     CREATE TABLE IF NOT EXISTS customer_payments (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      customer_id INTEGER NOT NULL REFERENCES customers(id),
-      user_id     INTEGER NOT NULL REFERENCES users(id),
-      amount      INTEGER NOT NULL,
-      note        TEXT,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id  INTEGER NOT NULL REFERENCES customers(id),
+      user_id      INTEGER NOT NULL REFERENCES users(id),
+      amount       INTEGER NOT NULL,
+      note         TEXT,
+      affects_cash INTEGER NOT NULL DEFAULT 1,
+      created_at   TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS action_logs (

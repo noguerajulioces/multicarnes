@@ -16,6 +16,7 @@ import {
 import { confirm } from '../../lib/confirm'
 import { toast } from '../../lib/toast'
 import { useAuthStore } from '../../store/auth.store'
+import { useCashStore } from '../../store/cash.store'
 import { formatGs, formatDateTime, cn } from '../../lib/utils'
 import { formatQty } from '../../lib/price-types'
 import {
@@ -56,12 +57,14 @@ export default function ClienteFichaPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
+  const openRegister = useCashStore((s) => s.register)
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [sales, setSales] = useState<Sale[]>([])
   const [payments, setPayments] = useState<CustomerPayment[]>([])
   const [showPayment, setShowPayment] = useState(false)
   const [payAmount, setPayAmount] = useState(0)
   const [payNote, setPayNote] = useState('')
+  const [payAffectsCash, setPayAffectsCash] = useState(true)
   const [expandedSale, setExpandedSale] = useState<number | null>(null)
   const [editPayment, setEditPayment] = useState<CustomerPayment | null>(null)
   const [editAmount, setEditAmount] = useState(0)
@@ -87,12 +90,23 @@ export default function ClienteFichaPage() {
     setShowPayment(false)
     setPayAmount(0)
     setPayNote('')
+    setPayAffectsCash(true)
   }
+
+  const canPayCash = openRegister != null && openRegister.user_id === user?.id
 
   const handlePayment = async (): Promise<void> => {
     if (!user || !id || !payAmount) return
+    if (payAffectsCash && !canPayCash) return
     try {
-      await window.api.customers.addPayment(Number(id), user.id, payAmount, payNote || undefined)
+      await window.api.customers.addPayment(
+        Number(id),
+        user.id,
+        payAmount,
+        payNote || undefined,
+        payAffectsCash
+      )
+      toast.success('Pago registrado')
     } catch (err) {
       handleApiError(err)
       return
@@ -417,6 +431,7 @@ export default function ClienteFichaPage() {
                 <tr className="border-b border-border text-text-muted text-left">
                   <th className="pb-2 font-normal pr-3">Fecha</th>
                   <th className="pb-2 font-normal pr-3 text-right">Monto</th>
+                  <th className="pb-2 font-normal pr-3">Tipo</th>
                   <th className="pb-2 font-normal">Nota</th>
                   <th className="pb-2 font-normal w-12"></th>
                 </tr>
@@ -424,7 +439,7 @@ export default function ClienteFichaPage() {
               <tbody>
                 {payments.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-text-muted">
+                    <td colSpan={5} className="py-8 text-center text-text-muted">
                       Sin pagos recibidos
                     </td>
                   </tr>
@@ -439,6 +454,11 @@ export default function ClienteFichaPage() {
                       </td>
                       <td className="py-2.5 pr-3 text-right font-medium text-success-700 tabular-nums">
                         {formatGs(p.amount)}
+                      </td>
+                      <td className="py-2.5 pr-3 whitespace-nowrap">
+                        <Badge tone={p.affects_cash ? 'success' : 'warning'}>
+                          {p.affects_cash ? 'Efectivo' : 'Descuento de sueldo'}
+                        </Badge>
                       </td>
                       <td className="py-2.5 text-text-muted truncate max-w-[200px]">
                         {p.note || <span className="text-text-disabled">—</span>}
@@ -472,7 +492,10 @@ export default function ClienteFichaPage() {
             <Button variant="secondary" onClick={closePaymentModal}>
               Cancelar
             </Button>
-            <Button onClick={handlePayment} disabled={!payAmount}>
+            <Button
+              onClick={handlePayment}
+              disabled={!payAmount || (payAffectsCash && !canPayCash)}
+            >
               Guardar
             </Button>
           </div>
@@ -489,6 +512,43 @@ export default function ClienteFichaPage() {
             >
               {formatGs(customer.balance)}
             </p>
+          </div>
+
+          <div>
+            <label className="block text-sm text-text-muted mb-1.5">Tipo de pago</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPayAffectsCash(true)}
+                className={cn(
+                  'px-3 py-2 text-sm rounded-lg border transition-colors text-left',
+                  payAffectsCash
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-border bg-surface text-text-muted hover:bg-surface-muted'
+                )}
+              >
+                <span className="block font-medium">Efectivo</span>
+                <span className="block text-xs">Afecta caja</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayAffectsCash(false)}
+                className={cn(
+                  'px-3 py-2 text-sm rounded-lg border transition-colors text-left',
+                  !payAffectsCash
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-border bg-surface text-text-muted hover:bg-surface-muted'
+                )}
+              >
+                <span className="block font-medium">Descuento de sueldo</span>
+                <span className="block text-xs">No afecta caja</span>
+              </button>
+            </div>
+            {payAffectsCash && !canPayCash && (
+              <p className="mt-2 text-xs text-warning-700 bg-warning-50 border border-warning-200 rounded-lg px-3 py-2">
+                Necesitás abrir caja para registrar pagos en efectivo.
+              </p>
+            )}
           </div>
 
           <div>
