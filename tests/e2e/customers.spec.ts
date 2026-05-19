@@ -155,11 +155,13 @@ test.describe('Customers', () => {
       )) as CustomerFull
       expect(Math.abs(beforePayment.balance)).toBe(100_000)
 
-      // Pay 40k.
+      // Pay 40k. addPayment now takes (customerId, userId, amount, note, affectsCash)
+      // — 008-debt-payment-types adds the cash/salary-deduction flag. Admin has
+      // an open register so we pass affectsCash=true for the legacy semantics.
       await ipc(
         window,
         async ([customerId, userId]) => {
-          await window.api.customers.addPayment(customerId, userId, 40_000, 'Abono')
+          await window.api.customers.addPayment(customerId, userId, 40_000, 'Abono', true)
         },
         [customer.id, admin.id] as const
       )
@@ -215,7 +217,7 @@ test.describe('Customers', () => {
       await ipc(
         window,
         async ([cId, uId]) => {
-          await window.api.customers.addPayment(cId, uId, 20_000, 'partial')
+          await window.api.customers.addPayment(cId, uId, 20_000, 'partial', true)
         },
         [customer.id, admin.id] as const
       )
