@@ -145,7 +145,9 @@ const reportConfigs: Partial<Record<Tab, ReportConfig>> = {
       { header: 'Producto', key: 'product_name', width: 25 },
       { header: 'Categoría', key: 'category_name', width: 15 },
       { header: 'Cant. Vendida', key: 'total_quantity', align: 'right', width: 14 },
-      { header: 'Total Recaudado', key: '_revenue', align: 'right', width: 18 }
+      { header: 'Recaudado bruto', key: '_bruto', align: 'right', width: 16 },
+      { header: 'Descuentos', key: '_desc', align: 'right', width: 14 },
+      { header: 'Recaudado neto', key: '_neto', align: 'right', width: 16 }
     ]
   },
   margen: {
@@ -217,12 +219,18 @@ function prepareExportData(tab: Tab, data: unknown[]): Record<string, unknown>[]
           category_name: string
           total_quantity: number
           total_revenue: number
+          total_revenue_net: number
         }[]
-      ).map((r) => ({
-        ...r,
-        category_name: r.category_name || '-',
-        _revenue: formatGs(r.total_revenue)
-      }))
+      ).map((r) => {
+        const desc = r.total_revenue - r.total_revenue_net
+        return {
+          ...r,
+          category_name: r.category_name || '-',
+          _bruto: formatGs(r.total_revenue),
+          _desc: desc > 0 ? `-${formatGs(desc)}` : '-',
+          _neto: formatGs(r.total_revenue_net)
+        }
+      })
     case 'margen':
       return (data as { product_name: string; sale_price: number; last_cost: number | null }[]).map(
         (r) => {
@@ -897,7 +905,9 @@ export default function ReportesPage() {
                   <th className={thCls}>Producto</th>
                   <th className={thCls}>Categoría</th>
                   <th className={`${thCls} text-right`}>Cant. Vendida</th>
-                  <th className={`${thCls} text-right`}>Total</th>
+                  <th className={`${thCls} text-right`}>Bruto</th>
+                  <th className={`${thCls} text-right`}>Desc.</th>
+                  <th className={`${thCls} text-right`}>Neto</th>
                 </tr>
               </thead>
               <tbody>
@@ -907,19 +917,33 @@ export default function ReportesPage() {
                     category_name: string
                     total_quantity: number
                     total_revenue: number
+                    total_revenue_net: number
                   }[]
-                ).map((r, i) => (
-                  <tr key={i} className={trCls}>
-                    <td className={`${tdCls} font-medium`}>{r.product_name}</td>
-                    <td className={`${tdCls} text-text-muted`}>
-                      {r.category_name || <span className="text-text-disabled">—</span>}
-                    </td>
-                    <td className={`${tdCls} text-right tabular-nums`}>{r.total_quantity}</td>
-                    <td className={`${tdCls} text-right font-medium tabular-nums`}>
-                      {formatGs(r.total_revenue)}
-                    </td>
-                  </tr>
-                ))}
+                ).map((r, i) => {
+                  const desc = r.total_revenue - r.total_revenue_net
+                  return (
+                    <tr key={i} className={trCls}>
+                      <td className={`${tdCls} font-medium`}>{r.product_name}</td>
+                      <td className={`${tdCls} text-text-muted`}>
+                        {r.category_name || <span className="text-text-disabled">—</span>}
+                      </td>
+                      <td className={`${tdCls} text-right tabular-nums`}>{r.total_quantity}</td>
+                      <td className={`${tdCls} text-right tabular-nums text-text-muted`}>
+                        {formatGs(r.total_revenue)}
+                      </td>
+                      <td className={`${tdCls} text-right tabular-nums`}>
+                        {desc > 0 ? (
+                          <span className="text-warning-700">-{formatGs(desc)}</span>
+                        ) : (
+                          <span className="text-text-disabled">—</span>
+                        )}
+                      </td>
+                      <td className={`${tdCls} text-right font-medium tabular-nums`}>
+                        {formatGs(r.total_revenue_net)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
