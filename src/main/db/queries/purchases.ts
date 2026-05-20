@@ -212,6 +212,17 @@ export function receivePurchaseOrder(id: number, userId: number) {
       throw new Error('receivePurchaseOrder: userId must reference an active user')
     }
 
+    // Only a pending order can be received. Without this guard a second
+    // 'receive' (double-click, stale page, second window) would add the stock
+    // again and write a duplicate stock_adjustments row.
+    const order = db.prepare('SELECT status FROM purchase_orders WHERE id = ?').get(id) as
+      | { status: string }
+      | undefined
+    if (!order) throw new Error('Orden de compra no encontrada')
+    if (order.status !== 'pending') {
+      throw new Error('Solo se pueden recibir órdenes pendientes.')
+    }
+
     const items = db.prepare('SELECT * FROM purchase_items WHERE order_id = ?').all(id) as {
       product_id: number
       quantity: number

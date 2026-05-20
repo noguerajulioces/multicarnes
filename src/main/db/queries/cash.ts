@@ -79,9 +79,19 @@ export function closeCashRegister(
 ) {
   const db = getDb()
   const register = getCashRegisterById(id) as
-    | { opening_amount: number; opened_at: string; user_id: number; user_name?: string }
+    | {
+        opening_amount: number
+        opened_at: string
+        user_id: number
+        user_name?: string
+        status: string
+      }
     | undefined
   if (!register) throw new Error('Caja no encontrada')
+  // Refuse to re-close an already-closed register: a second close would
+  // overwrite the stored closing/expected/difference and emit a duplicate
+  // synthetic 'closing' movement.
+  if (register.status !== 'open') throw new Error('La caja ya está cerrada.')
 
   const cashSales = db
     .prepare(
