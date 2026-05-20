@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.6.0](https://github.com/noguerajulioces/multicarnes/compare/v1.5.0...v1.6.0) (2026-05-20)
+
+### Features
+
+* **008-debt-payment-types:** cash vs salary-deduction debt payments ([acdc7c4](https://github.com/noguerajulioces/multicarnes/commit/acdc7c41b8ae55555a7495ad2ac50f7080c2e6f9))
+
 ## [1.5.0](https://github.com/noguerajulioces/multicarnes/compare/v1.4.0...v1.5.0) (2026-05-15)
 
 ### Features
