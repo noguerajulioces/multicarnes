@@ -297,34 +297,6 @@ export function cancelSale(id: number, userId: number, options?: { refundMixedCr
     const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(id) as Record<string, unknown>
     if (!sale || sale.status === 'cancelled') return null
 
-    // #2: block cancelling a cash-affecting sale whose register is already
-    // closed — the refund would have to come out of a drawer that was already
-    // arqueado, and there is no adjustment path for a frozen past shift.
-    // Credit/card/transfer sales never touch the drawer, so they stay
-    // cancellable from any shift.
-    const reg = db
-      .prepare('SELECT status FROM cash_registers WHERE id = ?')
-      .get(sale.register_id) as { status: string } | undefined
-    if (reg && reg.status !== 'open') {
-      const cashPortion =
-        sale.payment_method === 'mixed'
-          ? (
-              db
-                .prepare(
-                  "SELECT COALESCE(SUM(amount), 0) AS c FROM sale_payments WHERE sale_id = ? AND method = 'cash'"
-                )
-                .get(id) as { c: number }
-            ).c
-          : sale.payment_method === 'cash'
-            ? 1
-            : 0
-      if (cashPortion > 0) {
-        throw new Error(
-          'No se puede anular una venta en efectivo de una caja ya cerrada. Registrá un ajuste de caja.'
-        )
-      }
-    }
-
     const items = db.prepare('SELECT * FROM sale_items WHERE sale_id = ?').all(id) as {
       product_id: number
       quantity: number

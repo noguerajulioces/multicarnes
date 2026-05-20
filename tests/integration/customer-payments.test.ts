@@ -7,7 +7,6 @@ import {
   getCustomerPayments,
   getCustomerById
 } from '../../src/main/db/queries/customers'
-import { closeCashRegister } from '../../src/main/db/queries/cash'
 import {
   createTestDb,
   seedUser,
@@ -51,20 +50,6 @@ interface ActionLogRow {
   user_id: number | null
   action: string
   details: string | null
-}
-
-// Sum of cash income that still counts toward the arqueo — i.e. income rows
-// that have NOT been voided (mirrors closeCashRegister's expected calc).
-function activeIncomeTotal(db: Database.Database): number {
-  return (
-    db
-      .prepare(
-        `SELECT COALESCE(SUM(amount), 0) AS t FROM cash_movements cm
-         WHERE cm.type = 'income'
-           AND NOT EXISTS (SELECT 1 FROM cash_movements v WHERE v.void_of = cm.id)`
-      )
-      .get() as { t: number }
-  ).t
 }
 
 describe('addCustomerPayment — happy paths (1.1)', () => {
@@ -553,7 +538,7 @@ describe('getCustomerPayments (1.5)', () => {
   })
 })
 
-describe('updateCustomerPayment (1.6) — reverses + re-issues the linked cash income (#1)', () => {
+describe('updateCustomerPayment (1.6) — documented gap: does NOT adjust cash_movements', () => {
   let db: Database.Database
   let cajero: SeededUser
   let customer: SeededCustomer
@@ -565,7 +550,7 @@ describe('updateCustomerPayment (1.6) — reverses + re-issues the linked cash i
     seedOpenRegister(db, cajero.id, 0)
   })
 
-  test('T1.6.1 — changing the amount adjusts the balance AND voids+reissues the cash income', () => {
+  test('T1.6.1 — changing amount adjusts balance by the delta and does NOT touch cash_movements (gap)', () => {
     addCustomerPayment({
       customerId: customer.id,
       userId: cajero.id,
@@ -574,26 +559,30 @@ describe('updateCustomerPayment (1.6) — reverses + re-issues the linked cash i
       callerUserId: cajero.id
     })
     const payment = db.prepare('SELECT id FROM customer_payments').get() as { id: number }
-    expect(activeIncomeTotal(db)).toBe(40_000)
 
-    updateCustomerPayment(payment.id, 25_000, 'edited', cajero.id)
+    const beforeMovementsAmount = (
+      db.prepare("SELECT amount FROM cash_movements WHERE type = 'income'").get() as {
+        amount: number
+      }
+    ).amount
+    expect(beforeMovementsAmount).toBe(40_000)
+
+    updateCustomerPayment(payment.id, 25_000, 'edited')
 
     const after = getCustomerById(customer.id) as CustomerRow
     // Original delta was +40k from -100k → -60k. New delta is +25k → -75k.
     expect(after.balance).toBe(-75_000)
 
-    // The arqueo now sees 25_000: the old income is voided, a new one issued.
-    expect(activeIncomeTotal(db)).toBe(25_000)
-    const row = db
-      .prepare('SELECT cash_movement_id FROM customer_payments WHERE id = ?')
-      .get(payment.id) as { cash_movement_id: number }
-    const linked = db
-      .prepare('SELECT amount FROM cash_movements WHERE id = ?')
-      .get(row.cash_movement_id) as { amount: number }
-    expect(linked.amount).toBe(25_000)
+    // Documented gap: the corresponding cash_movement still says 40_000.
+    const afterMovementsAmount = (
+      db.prepare("SELECT amount FROM cash_movements WHERE type = 'income'").get() as {
+        amount: number
+      }
+    ).amount
+    expect(afterMovementsAmount).toBe(40_000)
   })
 
-  test('T1.6.2 — changing only the note of a NON-cash payment does not move the balance', () => {
+  test('T1.6.2 — changing only the note does not move the balance', () => {
     addCustomerPayment({
       customerId: customer.id,
       userId: cajero.id,
@@ -604,7 +593,7 @@ describe('updateCustomerPayment (1.6) — reverses + re-issues the linked cash i
     const payment = db.prepare('SELECT id FROM customer_payments').get() as { id: number }
     const before = getCustomerById(customer.id) as CustomerRow
 
-    updateCustomerPayment(payment.id, 30_000, 'corregido', cajero.id)
+    updateCustomerPayment(payment.id, 30_000, 'corregido')
 
     const after = getCustomerById(customer.id) as CustomerRow
     expect(after.balance).toBe(before.balance)
@@ -615,32 +604,11 @@ describe('updateCustomerPayment (1.6) — reverses + re-issues the linked cash i
   })
 
   test('T1.6.3 — nonexistent payment id throws', () => {
-    expect(() => updateCustomerPayment(99_999, 1, null, cajero.id)).toThrow('Pago no encontrado')
-  })
-
-  test('T1.6.4 — editing a cash payment whose register is already closed is blocked (#2)', () => {
-    addCustomerPayment({
-      customerId: customer.id,
-      userId: cajero.id,
-      amount: 40_000,
-      affectsCash: true,
-      callerUserId: cajero.id
-    })
-    const payment = db.prepare('SELECT id FROM customer_payments').get() as { id: number }
-    const reg = db.prepare("SELECT id FROM cash_registers WHERE status = 'open'").get() as {
-      id: number
-    }
-    closeCashRegister(reg.id, 0, undefined, cajero.id)
-
-    expect(() => updateCustomerPayment(payment.id, 25_000, null, cajero.id)).toThrow(
-      /caja ya cerrada/
-    )
-    // nothing moved: balance still reflects the original payment
-    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-60_000)
+    expect(() => updateCustomerPayment(99_999, 1, null)).toThrow('Pago no encontrado')
   })
 })
 
-describe('deleteCustomerPayment (1.7) — voids the linked cash income (#1)', () => {
+describe('deleteCustomerPayment (1.7) — documented gap: does NOT touch cash_movements', () => {
   let db: Database.Database
   let cajero: SeededUser
   let customer: SeededCustomer
@@ -652,7 +620,7 @@ describe('deleteCustomerPayment (1.7) — voids the linked cash income (#1)', ()
     seedOpenRegister(db, cajero.id, 0)
   })
 
-  test('T1.7.1 — deleting a cash payment reverts the balance AND voids the income', () => {
+  test('T1.7.1 — deleting removes the payment row, reverts balance, leaves cash_movement untouched (gap)', () => {
     addCustomerPayment({
       customerId: customer.id,
       userId: cajero.id,
@@ -661,84 +629,30 @@ describe('deleteCustomerPayment (1.7) — voids the linked cash income (#1)', ()
       callerUserId: cajero.id
     })
     const payment = db.prepare('SELECT id FROM customer_payments').get() as { id: number }
-    expect(activeIncomeTotal(db)).toBe(20_000)
-
-    deleteCustomerPayment(payment.id, cajero.id)
-
-    expect(countRows(db, 'customer_payments')).toBe(0)
-    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-50_000)
-
-    // Append-only: original income row stays, but a void cancels it out so the
-    // arqueo no longer counts it.
-    expect(activeIncomeTotal(db)).toBe(0)
-    const incomeCount = (
+    const beforeIncomeCount = (
       db.prepare("SELECT COUNT(*) as c FROM cash_movements WHERE type = 'income'").get() as {
         c: number
       }
     ).c
-    expect(incomeCount).toBe(1)
-    const voidCount = (
-      db.prepare("SELECT COUNT(*) as c FROM cash_movements WHERE type = 'void'").get() as {
+    expect(beforeIncomeCount).toBe(1)
+
+    deleteCustomerPayment(payment.id)
+
+    expect(countRows(db, 'customer_payments')).toBe(0)
+    const after = getCustomerById(customer.id) as CustomerRow
+    expect(after.balance).toBe(-50_000)
+
+    // Gap: cash_movement is still there.
+    const afterIncomeCount = (
+      db.prepare("SELECT COUNT(*) as c FROM cash_movements WHERE type = 'income'").get() as {
         c: number
       }
     ).c
-    expect(voidCount).toBe(1)
+    expect(afterIncomeCount).toBe(1)
   })
 
-  test('T1.7.2 — deleting a NON-cash payment reverts balance without touching cash', () => {
-    addCustomerPayment({
-      customerId: customer.id,
-      userId: cajero.id,
-      amount: 30_000,
-      affectsCash: false,
-      callerUserId: cajero.id
-    })
-    const payment = db.prepare('SELECT id FROM customer_payments').get() as { id: number }
-
-    deleteCustomerPayment(payment.id, cajero.id)
-
-    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-50_000)
-    expect(activeIncomeTotal(db)).toBe(0)
-    const voidCount = (
-      db.prepare("SELECT COUNT(*) as c FROM cash_movements WHERE type = 'void'").get() as {
-        c: number
-      }
-    ).c
-    expect(voidCount).toBe(0)
-  })
-
-  test('T1.7.3 — deleting a nonexistent payment id throws', () => {
-    expect(() => deleteCustomerPayment(99_999, cajero.id)).toThrow('Pago no encontrado')
-  })
-
-  test('T1.7.4 — deleting a cash payment from a closed register is blocked (#2)', () => {
-    addCustomerPayment({
-      customerId: customer.id,
-      userId: cajero.id,
-      amount: 20_000,
-      affectsCash: true,
-      callerUserId: cajero.id
-    })
-    const payment = db.prepare('SELECT id FROM customer_payments').get() as { id: number }
-    const reg = db.prepare("SELECT id FROM cash_registers WHERE status = 'open'").get() as {
-      id: number
-    }
-    closeCashRegister(reg.id, 0, undefined, cajero.id)
-
-    expect(() => deleteCustomerPayment(payment.id, cajero.id)).toThrow(/caja ya cerrada/)
-    expect(countRows(db, 'customer_payments')).toBe(1)
-  })
-
-  test('T1.7.5 — deleting a legacy cash payment (unlinked) is blocked', () => {
-    // Simulate a pre-v11 row: affects_cash = 1 but no linked cash_movement_id.
-    const info = db
-      .prepare(
-        'INSERT INTO customer_payments (customer_id, user_id, amount, affects_cash, cash_movement_id) VALUES (?, ?, ?, 1, NULL)'
-      )
-      .run(customer.id, cajero.id, 10_000)
-    const pid = info.lastInsertRowid as number
-
-    expect(() => deleteCustomerPayment(pid, cajero.id)).toThrow(/antes de esta versión/)
+  test('T1.7.2 — deleting a nonexistent payment id throws', () => {
+    expect(() => deleteCustomerPayment(99_999)).toThrow('Pago no encontrado')
   })
 })
 
