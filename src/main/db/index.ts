@@ -326,6 +326,21 @@ const MIGRATIONS: Migration[] = [
           ON sales(payment_processor) WHERE payment_processor IS NOT NULL;
       `)
     }
+  },
+  {
+    version: 10,
+    name: 'add_customer_payments_affects_cash',
+    up: (db) => {
+      // 008-debt-payment-types: distinguish cash-affecting payments from
+      // salary-deduction (non-cash) ones. Idempotent under PRAGMA table_info
+      // so re-running on a fresh install that already has the column from
+      // schema.ts is a no-op.
+      const cols = db.prepare('PRAGMA table_info(customer_payments)').all() as { name: string }[]
+      const has = cols.some((c) => c.name === 'affects_cash')
+      if (!has) {
+        db.exec('ALTER TABLE customer_payments ADD COLUMN affects_cash INTEGER NOT NULL DEFAULT 1')
+      }
+    }
   }
 ]
 
@@ -475,3 +490,52 @@ export function getDb(): Database.Database {
 export function setDbForTesting(database: Database.Database): void {
   db = database
 }
+
+// Test-only: apply createTables + the full migration ledger to an in-memory
+// or file DB outside Electron. Skips the pre-migrate file backup (no real
+// dbPath to copy) but keeps every migration body identical to the boot path
+// so integration tests verify the same SQL that ships.
+export function runMigrationsForTesting(database: Database.Database): void {
+  database.pragma('foreign_keys = ON')
+  createTables(database)
+  backfillLegacyLedger(database)
+  const appliedRows = database.prepare('SELECT version FROM schema_migrations').all() as {
+    version: number
+  }[]
+  const applied = new Set(appliedRows.map((r) => r.version))
+  const pending = MIGRATIONS.filter((m) => !applied.has(m.version))
+  if (pending.length === 0) return
+  const recordApplied = database.prepare(
+    'INSERT INTO schema_migrations (version, name) VALUES (?, ?)'
+  )
+  for (const migration of pending) {
+    const runTxn = (): void => {
+      const txn = database.transaction(() => {
+        migration.up(database)
+        recordApplied.run(migration.version, migration.name)
+      })
+      txn()
+    }
+    if (migration.requiresForeignKeysOff) {
+      database.pragma('foreign_keys = OFF')
+      try {
+        runTxn()
+        const violations = database.pragma('foreign_key_check') as unknown[]
+        if (violations.length > 0) {
+          throw new Error(
+            `Migration v${migration.version} (${migration.name}) produced FK violations: ` +
+              JSON.stringify(violations)
+          )
+        }
+      } finally {
+        database.pragma('foreign_keys = ON')
+      }
+    } else {
+      runTxn()
+    }
+  }
+}
+
+// Test-only: ordered list of migrations exposed so partial-application tests
+// (e.g. "apply v1..v9, then v10") can target a specific ceiling.
+export const TEST_MIGRATIONS = MIGRATIONS

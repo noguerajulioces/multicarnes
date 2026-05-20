@@ -1,4 +1,5 @@
 import { getDb } from '../index'
+import { getOpenCashRegisterByUserId } from './cash'
 
 export function getAllCustomers(
   opts: { search?: string; isEmployee?: boolean; page?: number; perPage?: number } = {}
@@ -102,18 +103,57 @@ export function updateCustomer(
   return getCustomerById(id)
 }
 
-export function addCustomerPayment(
-  customerId: number,
-  userId: number,
-  amount: number,
+interface AddCustomerPaymentArgs {
+  customerId: number
+  userId: number
+  amount: number
   note?: string
-) {
+  affectsCash: boolean
+  callerUserId: number
+}
+
+export function addCustomerPayment(args: AddCustomerPaymentArgs) {
+  const { customerId, userId, amount, note, affectsCash, callerUserId } = args
+  if (amount <= 0) throw new Error('El monto debe ser mayor a cero.')
+
   const db = getDb()
+  const customer = getCustomerById(customerId) as { id: number; name: string } | undefined
+  if (!customer) throw new Error('Cliente no encontrado.')
+
+  let registerId: number | null = null
+  if (affectsCash) {
+    const register = getOpenCashRegisterByUserId(callerUserId) as { id: number } | null
+    if (!register) {
+      throw new Error('Necesitás una caja abierta para registrar pagos en efectivo.')
+    }
+    registerId = register.id
+  }
+
+  const noteValue = note || null
+  const description = `Pago de deuda — ${customer.name}` + (noteValue ? ` (${noteValue})` : '')
+
   const txn = db.transaction(() => {
     db.prepare(
-      'INSERT INTO customer_payments (customer_id, user_id, amount, note) VALUES (?, ?, ?, ?)'
-    ).run(customerId, userId, amount, note || null)
+      'INSERT INTO customer_payments (customer_id, user_id, amount, note, affects_cash) VALUES (?, ?, ?, ?, ?)'
+    ).run(customerId, userId, amount, noteValue, affectsCash ? 1 : 0)
     db.prepare('UPDATE customers SET balance = balance + ? WHERE id = ?').run(amount, customerId)
+    if (affectsCash && registerId !== null) {
+      db.prepare(
+        `INSERT INTO cash_movements (register_id, user_id, type, amount, description)
+         VALUES (?, ?, 'income', ?, ?)`
+      ).run(registerId, callerUserId, amount, description)
+    }
+    db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
+      callerUserId,
+      'add_customer_payment',
+      JSON.stringify({
+        customer_id: customerId,
+        amount,
+        affects_cash: affectsCash,
+        register_id: registerId,
+        note: noteValue
+      })
+    )
     return getCustomerById(customerId)
   })
   return txn()
@@ -196,8 +236,19 @@ export function deleteCustomer(id: number): { ok: true } | { ok: false; error: s
   return { ok: true }
 }
 
+interface CustomerPaymentRow {
+  id: number
+  customer_id: number
+  user_id: number
+  user_name: string | null
+  amount: number
+  note: string | null
+  affects_cash: number
+  created_at: string
+}
+
 export function getCustomerPayments(customerId: number) {
-  return getDb()
+  const rows = getDb()
     .prepare(
       `
     SELECT cp.*, u.name as user_name
@@ -207,7 +258,11 @@ export function getCustomerPayments(customerId: number) {
     ORDER BY cp.created_at DESC
   `
     )
-    .all(customerId)
+    .all(customerId) as CustomerPaymentRow[]
+  return rows.map((r) => ({
+    ...r,
+    affects_cash: r.affects_cash === 1
+  }))
 }
 
 export function getCustomerSales(customerId: number) {

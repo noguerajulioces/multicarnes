@@ -113,7 +113,13 @@ interface ApiCustomers {
     is_employee?: boolean
   }): Promise<Customer>
   update(id: number, data: Partial<Customer>): Promise<Customer>
-  addPayment(customerId: number, userId: number, amount: number, note?: string): Promise<Customer>
+  addPayment(
+    customerId: number,
+    userId: number,
+    amount: number,
+    note: string | undefined,
+    affectsCash: boolean
+  ): Promise<Customer>
   updatePayment(paymentId: number, amount: number, note?: string | null): Promise<Customer>
   deletePayment(paymentId: number): Promise<Customer>
   getPayments(customerId: number): Promise<CustomerPayment[]>

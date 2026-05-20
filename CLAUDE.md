@@ -1,5 +1,20 @@
 <!-- SPECKIT START -->
-Active feature: **007-receipt-share** — entrega del comprobante de venta por
+Active feature: **008-debt-payment-types** — el modal "Registrar Pago"
+del detalle del cliente ofrece dos modos: (1) **Efectivo (afecta caja)**
+inserta `customer_payments` + `cash_movements` (income) en la caja
+abierta del cobrador, dentro de una única `db.transaction()`; (2)
+**Descuento de sueldo (no afecta caja)** sólo inserta `customer_payments`.
+Disponible para todos los clientes y los tres roles operativos
+(Admin/Supervisor/Cajero — la matriz amplía `customers:addPayment` para
+incluir cajero). Migración aditiva v10:
+`customer_payments.affects_cash INTEGER NOT NULL DEFAULT 1`, sin backfill
+de movimientos históricos. Sin nuevas IPC; el parámetro `affectsCash` se
+agrega al payload de `customers:addPayment`.
+
+Plan: [specs/008-debt-payment-types/plan.md](specs/008-debt-payment-types/plan.md).
+Spec: [specs/008-debt-payment-types/spec.md](specs/008-debt-payment-types/spec.md).
+
+Prior feature: **007-receipt-share** — entrega del comprobante de venta por
 canales alternativos a la impresora térmica (que el cliente todavía no tiene):
 (1) WhatsApp como texto plano vía `wa.me/<phone>?text=<encoded>` abierto por
 el `setWindowOpenHandler` ya existente en `src/main/index.ts`; (2) descarga
@@ -8,11 +23,9 @@ como PDF reutilizando `downloadTicketPdf` existente. Disponible desde el
 modal post-venta y desde el detalle de venta en el historial. Una nueva IPC
 `sales:logShare` registra cada acción en `action_logs`. Sin migración SQLite,
 sin nuevas dependencias.
+Reference: [specs/007-receipt-share/](specs/007-receipt-share/).
 
-Plan: [specs/007-receipt-share/plan.md](specs/007-receipt-share/plan.md).
-Spec: [specs/007-receipt-share/spec.md](specs/007-receipt-share/spec.md).
-
-Prior feature: **006-notif-read-state** — header notification dropdown gains
+Earlier feature: **006-notif-read-state** — header notification dropdown gains
 a per-user "read" state with inbox semantics: the dropdown lists only rows
 with unread alerts, "marks as read" when the dropdown closes, and renders
 "Sin notificaciones pendientes" once everything is read. The bell badge

@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build:
-    name: Lint, typecheck & build
+    name: Lint, integration tests & build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,5 +25,13 @@ jobs:
       - run: npm ci
 
       - run: npm run lint
+
+      # Integration tests run vitest against an in-memory better-sqlite3. The
+      # pretest:integration hook rebuilds the native binding against the Node
+      # ABI; we flip it back to the Electron ABI before `npm run build` so the
+      # bundled artifact ships with the correct binary.
+      - run: npm run test:integration
+
+      - run: npm run rebuild:electron
 
       - run: npm run build

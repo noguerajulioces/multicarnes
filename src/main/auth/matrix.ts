@@ -66,7 +66,10 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   'customers:create': { kind: 'privileged', roles: ['admin', 'supervisor'] },
   'customers:update': { kind: 'privileged', roles: ['admin', 'supervisor'] },
   'customers:delete': { kind: 'privileged', roles: ['admin', 'supervisor'] },
-  'customers:addPayment': { kind: 'privileged', roles: ['admin', 'supervisor'] },
+  // 008-debt-payment-types: cajero is allowed to register payments (both the
+  // cash and the salary-deduction kinds). Editing/deleting payments stays
+  // admin/supervisor-only because those revert money already counted in cash.
+  'customers:addPayment': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'customers:updatePayment': { kind: 'privileged', roles: ['admin', 'supervisor'] },
   'customers:deletePayment': { kind: 'privileged', roles: ['admin', 'supervisor'] },
   'customers:getPayments': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
