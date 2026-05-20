@@ -2,7 +2,11 @@ import { describe, test, expect, beforeEach } from 'vitest'
 import type Database from 'better-sqlite3'
 import { createSale } from '../../src/main/db/queries/sales'
 import { closeCashRegister } from '../../src/main/db/queries/cash'
-import { createPurchaseOrder, receivePurchaseOrder } from '../../src/main/db/queries/purchases'
+import {
+  createPurchaseOrder,
+  receivePurchaseOrder,
+  cancelPurchaseOrder
+} from '../../src/main/db/queries/purchases'
 import { getProductById } from '../../src/main/db/queries/products'
 import { createTestDb, seedUser, seedOpenRegister, type SeededUser } from './_fixtures/db'
 
@@ -157,5 +161,27 @@ describe('receivePurchaseOrder — pending-only guard (#3a)', () => {
     expect(() => receivePurchaseOrder(order.id, supervisor.id)).toThrow(/órdenes pendientes/)
     // stock not added a second time
     expect((getProductById(productId) as { stock: number }).stock).toBe(110)
+  })
+
+  test('cancels a pending order, but rejects cancelling a received one (#3b)', () => {
+    const pending = createPurchaseOrder({
+      supplierId: null,
+      userId: supervisor.id,
+      items: [{ productId, quantity: 5, unitCost: 5_000, subtotal: 25_000 }],
+      total: 25_000,
+      receive: false
+    }) as { id: number }
+    const cancelled = cancelPurchaseOrder(pending.id) as { status: string }
+    expect(cancelled.status).toBe('cancelled')
+
+    const received = createPurchaseOrder({
+      supplierId: null,
+      userId: supervisor.id,
+      items: [{ productId, quantity: 5, unitCost: 5_000, subtotal: 25_000 }],
+      total: 25_000,
+      receive: true
+    }) as { id: number; status: string }
+    expect(received.status).toBe('received')
+    expect(() => cancelPurchaseOrder(received.id)).toThrow(/órdenes pendientes/)
   })
 })
