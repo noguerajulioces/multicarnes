@@ -51,13 +51,18 @@ export function registerCustomersIpc(): string[] {
   registerAuthorized(
     'customers:updatePayment',
     getRule('customers:updatePayment'),
-    (_e, _c, paymentId: number, amount: number, note?: string | null) =>
-      customersQuery.updateCustomerPayment(paymentId, amount, note)
+    (_e, ctx, paymentId: number, amount: number, note?: string | null) => {
+      if (ctx.userId === null) throw new Error('Sesión inválida.')
+      return customersQuery.updateCustomerPayment(paymentId, amount, note, ctx.userId)
+    }
   )
   registerAuthorized(
     'customers:deletePayment',
     getRule('customers:deletePayment'),
-    (_e, _c, paymentId: number) => customersQuery.deleteCustomerPayment(paymentId)
+    (_e, ctx, paymentId: number) => {
+      if (ctx.userId === null) throw new Error('Sesión inválida.')
+      return customersQuery.deleteCustomerPayment(paymentId, ctx.userId)
+    }
   )
   registerAuthorized(
     'customers:getPayments',

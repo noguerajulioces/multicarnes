@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest'
 import type Database from 'better-sqlite3'
-import { createSale } from '../../src/main/db/queries/sales'
+import { createSale, cancelSale } from '../../src/main/db/queries/sales'
 import { closeCashRegister } from '../../src/main/db/queries/cash'
 import {
   createPurchaseOrder,
@@ -183,5 +183,57 @@ describe('receivePurchaseOrder — pending-only guard (#3a)', () => {
     }) as { id: number; status: string }
     expect(received.status).toBe('received')
     expect(() => cancelPurchaseOrder(received.id)).toThrow(/órdenes pendientes/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// #2 — cancelSale must block cancelling a cash sale from a closed register.
+// ---------------------------------------------------------------------------
+describe('cancelSale — closed-register cash guard (#2)', () => {
+  let db: Database.Database
+  let cajero: SeededUser
+  let registerId: number
+  let productId: number
+
+  beforeEach(() => {
+    db = createTestDb()
+    cajero = seedUser(db, { role: 'cajero' })
+    registerId = seedOpenRegister(db, cajero.id, 0).id
+    productId = seedProduct(db, { price: 10_000, stock: 100 })
+  })
+
+  function cashSale(): { id: number } {
+    return createSale({
+      registerId,
+      userId: cajero.id,
+      customerId: null,
+      items: [{ productId, quantity: 2, unitPrice: 10_000, subtotal: 20_000 }],
+      subtotal: 20_000,
+      discount: 0,
+      total: 20_000,
+      paymentMethod: 'cash'
+    }) as { id: number }
+  }
+
+  test('cancels a cash sale while the register is open (and restocks)', () => {
+    const sale = cashSale()
+    expect((getProductById(productId) as { stock: number }).stock).toBe(98)
+
+    const cancelled = cancelSale(sale.id, cajero.id) as { status: string }
+    expect(cancelled.status).toBe('cancelled')
+    expect((getProductById(productId) as { stock: number }).stock).toBe(100)
+  })
+
+  test('blocks cancelling a cash sale once its register is closed', () => {
+    const sale = cashSale()
+    closeCashRegister(registerId, 20_000, undefined, cajero.id)
+
+    expect(() => cancelSale(sale.id, cajero.id)).toThrow(/caja ya cerrada/)
+    // sale stays completed and the stock is NOT restored
+    const row = db.prepare('SELECT status FROM sales WHERE id = ?').get(sale.id) as {
+      status: string
+    }
+    expect(row.status).toBe('completed')
+    expect((getProductById(productId) as { stock: number }).stock).toBe(98)
   })
 })

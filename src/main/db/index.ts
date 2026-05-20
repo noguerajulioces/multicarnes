@@ -341,6 +341,23 @@ const MIGRATIONS: Migration[] = [
         db.exec('ALTER TABLE customer_payments ADD COLUMN affects_cash INTEGER NOT NULL DEFAULT 1')
       }
     }
+  },
+  {
+    version: 11,
+    name: 'add_customer_payments_cash_movement_id',
+    up: (db) => {
+      // 009-business-phase1 (#1): link each cash-affecting customer payment to
+      // the cash_movements income it created, so editing/deleting the payment
+      // can reverse that income (void it) instead of silently desyncing the
+      // arqueo. Legacy rows stay NULL (unlinked) and are blocked from cash edits.
+      // Additive column → idempotent under PRAGMA table_info.
+      const cols = db.prepare('PRAGMA table_info(customer_payments)').all() as { name: string }[]
+      if (!cols.some((c) => c.name === 'cash_movement_id')) {
+        db.exec(
+          'ALTER TABLE customer_payments ADD COLUMN cash_movement_id INTEGER NULL REFERENCES cash_movements(id)'
+        )
+      }
+    }
   }
 ]
 
