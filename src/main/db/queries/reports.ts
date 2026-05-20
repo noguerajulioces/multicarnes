@@ -26,9 +26,21 @@ export function salesByPeriod(from: string, to: string, method?: string, userId?
 }
 
 export function topProducts(from: string, to: string, categoryId?: number) {
+  // total_revenue is gross (sum of line subtotals, at list/promo price).
+  // total_revenue_net distributes each sale's manual discount across its lines
+  // in proportion to each line's share of the sale subtotal, so the net column
+  // reconciles with the net sales total (Resumen). Rounded per line; the sum of
+  // net lines equals the sale total. (#7)
   let sql = `
     SELECT p.name as product_name, c.name as category_name,
-      SUM(si.quantity) as total_quantity, SUM(si.subtotal) as total_revenue
+      SUM(si.quantity) as total_quantity,
+      SUM(si.subtotal) as total_revenue,
+      SUM(
+        CASE WHEN s.subtotal > 0
+          THEN CAST(ROUND(si.subtotal * 1.0 * s.total / s.subtotal) AS INTEGER)
+          ELSE si.subtotal
+        END
+      ) as total_revenue_net
     FROM sale_items si
     JOIN products p ON si.product_id = p.id
     LEFT JOIN categories c ON p.category_id = c.id
