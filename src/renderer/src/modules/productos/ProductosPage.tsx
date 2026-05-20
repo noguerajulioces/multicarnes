@@ -116,14 +116,10 @@ export default function ProductosPage() {
         actions={
           <>
             <TourButton onClick={startTour} />
-            <button
-              data-tour="productos-new"
-              onClick={() => navigate('/productos/nuevo')}
-              className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-            >
+            <Button data-tour="productos-new" onClick={() => navigate('/productos/nuevo')}>
               <Plus size={18} />
               Nuevo Producto
-            </button>
+            </Button>
           </>
         }
       />
@@ -137,7 +133,7 @@ export default function ProductosPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 rounded-xl"
+            className="pl-10"
             placeholder="Buscar por nombre o código..."
           />
         </div>
@@ -145,7 +141,7 @@ export default function ProductosPage() {
           <Select
             value={filterCat}
             onChange={(e) => setFilterCat(e.target.value ? Number(e.target.value) : '')}
-            className="w-auto min-w-[200px] rounded-xl"
+            className="w-auto min-w-[200px]"
           >
             <option value="">Todas las categorías</option>
             {categories.map((c) => (
@@ -157,7 +153,7 @@ export default function ProductosPage() {
           <Select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as 'active' | 'inactive' | 'all')}
-            className="w-auto min-w-[150px] rounded-xl"
+            className="w-auto min-w-[150px]"
           >
             <option value="all">Todos</option>
             <option value="active">Activos</option>
@@ -194,8 +190,7 @@ export default function ProductosPage() {
 
       <Card
         data-tour="productos-table"
-        className="rounded-2xl overflow-hidden"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        className="overflow-hidden"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

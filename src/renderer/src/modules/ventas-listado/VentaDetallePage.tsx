@@ -163,7 +163,7 @@ export default function VentaDetallePage(): React.ReactElement {
       />
 
       {loading && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <TableSkeleton rows={5} columns={4} />
           </CardBody>
@@ -171,7 +171,7 @@ export default function VentaDetallePage(): React.ReactElement {
       )}
 
       {!loading && !sale && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <EmptyState
               icon={<FileText size={40} />}
@@ -214,7 +214,7 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
 
   return (
     <div className="space-y-5">
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card>
         <CardBody>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <DetailField label="Fecha" value={formatDateTime(sale.created_at)} mono />
@@ -239,8 +239,7 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
       </Card>
 
       <Card
-        className="rounded-2xl overflow-hidden"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        className="overflow-hidden"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -317,7 +316,7 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <p className="text-xs text-text-muted mb-3">Totales</p>
             <div className="space-y-1.5 text-sm">
@@ -362,7 +361,7 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
           </CardBody>
         </Card>
 
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <p className="text-xs text-text-muted mb-3">Pagos</p>
             {sale.payments && sale.payments.length > 0 ? (
@@ -403,7 +402,7 @@ function SaleDetailContent({ sale }: { sale: Sale }): React.ReactElement {
       </div>
 
       {sale.notes && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <p className="text-xs text-text-muted mb-1.5">Notas</p>
             <p className="text-sm whitespace-pre-wrap">{sale.notes}</p>

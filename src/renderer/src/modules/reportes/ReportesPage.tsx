@@ -487,8 +487,6 @@ export default function ReportesPage() {
 
       <Card
         data-tour="reportes-filters"
-        className="rounded-2xl"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
         <CardBody className="space-y-4">
           <div className="flex gap-3 items-end flex-wrap">
@@ -551,7 +549,7 @@ export default function ReportesPage() {
       </Card>
 
       {loading && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <TableSkeleton rows={6} columns={6} />
           </CardBody>
@@ -591,17 +589,17 @@ export default function ReportesPage() {
             />
           </div>
 
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card>
             <CardHeader>
               <h2 className="font-semibold text-text-main">Por día</h2>
             </CardHeader>
             <CardBody className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border text-left text-text-muted">
-                    <th className="pb-2 font-normal pr-3">Fecha</th>
-                    <th className="pb-2 font-normal pr-3 text-right">Tickets</th>
-                    <th className="pb-2 font-normal text-right">Total</th>
+                  <tr className={tableHeadCls}>
+                    <th className={thCls}>Fecha</th>
+                    <th className={`${thCls} text-right`}>Tickets</th>
+                    <th className={`${thCls} text-right`}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -613,12 +611,12 @@ export default function ReportesPage() {
                     </tr>
                   ) : (
                     summary.byDay.map((r) => (
-                      <tr key={r.day} className="border-b border-border last:border-0">
-                        <td className="py-2.5 pr-3 text-text-muted tabular-nums">
+                      <tr key={r.day} className={trCls}>
+                        <td className="px-4 py-3 text-text-muted tabular-nums">
                           {formatDate(r.day)}
                         </td>
-                        <td className="py-2.5 pr-3 text-right tabular-nums">{r.sales_count}</td>
-                        <td className="py-2.5 text-right font-medium tabular-nums">
+                        <td className="px-4 py-3 text-right tabular-nums">{r.sales_count}</td>
+                        <td className="px-4 py-3 text-right font-medium tabular-nums">
                           {formatGs(r.total)}
                         </td>
                       </tr>
@@ -630,17 +628,17 @@ export default function ReportesPage() {
           </Card>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+            <Card>
               <CardHeader>
                 <h2 className="font-semibold text-text-main">Por método de pago</h2>
               </CardHeader>
               <CardBody className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border text-left text-text-muted">
-                      <th className="pb-2 font-normal pr-3">Método</th>
-                      <th className="pb-2 font-normal pr-3 text-right">Tickets</th>
-                      <th className="pb-2 font-normal text-right">Total</th>
+                    <tr className={tableHeadCls}>
+                      <th className={thCls}>Método</th>
+                      <th className={`${thCls} text-right`}>Tickets</th>
+                      <th className={`${thCls} text-right`}>Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -653,14 +651,14 @@ export default function ReportesPage() {
                     ) : (
                       summary.byMethod.flatMap((r) => {
                         const rows = [
-                          <tr key={r.method} className="border-b border-border last:border-0">
-                            <td className="py-2.5 pr-3">
+                          <tr key={r.method} className={trCls}>
+                            <td className="px-4 py-3">
                               <Badge tone={methodTone[r.method as PaymentMethod] ?? 'neutral'}>
                                 {methodLabels[r.method] || r.method}
                               </Badge>
                             </td>
-                            <td className="py-2.5 pr-3 text-right tabular-nums">{r.sales_count}</td>
-                            <td className="py-2.5 text-right font-medium tabular-nums">
+                            <td className="px-4 py-3 text-right tabular-nums">{r.sales_count}</td>
+                            <td className="px-4 py-3 text-right font-medium tabular-nums">
                               {formatGs(r.total)}
                             </td>
                           </tr>
@@ -676,10 +674,10 @@ export default function ReportesPage() {
                                 key={`card-${p.processor}`}
                                 className="border-b border-border last:border-0 text-xs text-text-muted"
                               >
-                                <td className="py-1.5 pr-3 pl-6">
+                                <td className="py-1.5 px-4 pl-6">
                                   └ {processorLabels[p.processor] || p.processor}
                                 </td>
-                                <td className="py-1.5 pr-3 text-right tabular-nums">
+                                <td className="py-1.5 px-4 text-right tabular-nums">
                                   {p.sales_count}
                                 </td>
                                 <td className="py-1.5 text-right tabular-nums">
@@ -697,17 +695,17 @@ export default function ReportesPage() {
               </CardBody>
             </Card>
 
-            <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+            <Card>
               <CardHeader>
                 <h2 className="font-semibold text-text-main">Por cajero</h2>
               </CardHeader>
               <CardBody className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border text-left text-text-muted">
-                      <th className="pb-2 font-normal pr-3">Cajero</th>
-                      <th className="pb-2 font-normal pr-3 text-right">Tickets</th>
-                      <th className="pb-2 font-normal text-right">Total</th>
+                    <tr className={tableHeadCls}>
+                      <th className={thCls}>Cajero</th>
+                      <th className={`${thCls} text-right`}>Tickets</th>
+                      <th className={`${thCls} text-right`}>Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -719,10 +717,10 @@ export default function ReportesPage() {
                       </tr>
                     ) : (
                       summary.byUser.map((r) => (
-                        <tr key={r.user_id} className="border-b border-border last:border-0">
-                          <td className="py-2.5 pr-3 font-medium">{r.user_name || '—'}</td>
-                          <td className="py-2.5 pr-3 text-right tabular-nums">{r.sales_count}</td>
-                          <td className="py-2.5 text-right font-medium tabular-nums">
+                        <tr key={r.user_id} className={trCls}>
+                          <td className="px-4 py-3 font-medium">{r.user_name || '—'}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">{r.sales_count}</td>
+                          <td className="px-4 py-3 text-right font-medium tabular-nums">
                             {formatGs(r.total)}
                           </td>
                         </tr>
@@ -738,7 +736,7 @@ export default function ReportesPage() {
 
       {!loading && tab === 'comparativo' && comparison && (
         <div className="space-y-4">
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card>
             <CardBody className="text-xs text-text-muted">
               <span>
                 Período actual:{' '}
@@ -822,8 +820,7 @@ export default function ReportesPage() {
 
       {!loading && tab === 'fiados' && (
         <Card
-          className="rounded-2xl overflow-hidden"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="overflow-hidden"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -891,8 +888,7 @@ export default function ReportesPage() {
 
       {!loading && tab === 'productos' && (
         <Card
-          className="rounded-2xl overflow-hidden"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="overflow-hidden"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -932,8 +928,7 @@ export default function ReportesPage() {
 
       {!loading && tab === 'margen' && (
         <Card
-          className="rounded-2xl overflow-hidden"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="overflow-hidden"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -992,8 +987,7 @@ export default function ReportesPage() {
 
       {!loading && tab === 'stock' && (
         <Card
-          className="rounded-2xl overflow-hidden"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="overflow-hidden"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1046,8 +1040,7 @@ export default function ReportesPage() {
 
       {!loading && tab === 'caja' && (
         <Card
-          className="rounded-2xl overflow-hidden"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="overflow-hidden"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1118,7 +1111,7 @@ export default function ReportesPage() {
       )}
 
       {showEmpty && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <EmptyState
               icon={<FileText size={40} />}
@@ -1134,7 +1127,7 @@ export default function ReportesPage() {
       )}
 
       {!loading && isObjectTab && !objectTabHasData && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <EmptyState
               icon={<FileText size={40} />}
@@ -1164,7 +1157,7 @@ function TarjetasReport({ rows }: { rows: CardSalesRow[] }): React.ReactElement 
 
   if (rows.length === 0) {
     return (
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card>
         <CardBody>
           <EmptyState
             icon={<CreditCard size={40} />}
@@ -1178,29 +1171,29 @@ function TarjetasReport({ rows }: { rows: CardSalesRow[] }): React.ReactElement 
 
   return (
     <div className="space-y-5">
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card>
         <CardHeader>
           <h2 className="font-semibold text-text-main">Resumen por procesador</h2>
         </CardHeader>
         <CardBody className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-text-muted">
-                <th className="pb-2 font-normal pr-3">Procesador</th>
-                <th className="pb-2 font-normal pr-3 text-right">Ventas</th>
-                <th className="pb-2 font-normal text-right">Total</th>
+              <tr className={tableHeadCls}>
+                <th className={thCls}>Procesador</th>
+                <th className={`${thCls} text-right`}>Ventas</th>
+                <th className={`${thCls} text-right`}>Total</th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(byProcessor)
                 .sort((a, b) => b[1].total - a[1].total)
                 .map(([proc, t]) => (
-                  <tr key={proc} className="border-b border-border last:border-0">
-                    <td className="py-2.5 pr-3 font-medium">
+                  <tr key={proc} className={trCls}>
+                    <td className="px-4 py-3 font-medium">
                       {proc === 'unknown' ? '—' : processorLabels[proc] || proc}
                     </td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">{t.count}</td>
-                    <td className="py-2.5 text-right font-medium tabular-nums">
+                    <td className="px-4 py-3 text-right tabular-nums">{t.count}</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums">
                       {formatGs(t.total)}
                     </td>
                   </tr>
@@ -1208,9 +1201,9 @@ function TarjetasReport({ rows }: { rows: CardSalesRow[] }): React.ReactElement 
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-border bg-surface-muted/40">
-                <td className="px-0 py-3 font-semibold text-text-main">Total</td>
-                <td className="px-0 py-3 text-right tabular-nums font-semibold">{rows.length}</td>
-                <td className="px-0 py-3 text-right text-lg font-bold text-brand tabular-nums">
+                <td className="px-4 py-3 font-semibold text-text-main">Total</td>
+                <td className="px-4 py-3 text-right tabular-nums font-semibold">{rows.length}</td>
+                <td className="px-4 py-3 text-right text-lg font-bold text-brand tabular-nums">
                   {formatGs(grandTotal)}
                 </td>
               </tr>
@@ -1220,8 +1213,7 @@ function TarjetasReport({ rows }: { rows: CardSalesRow[] }): React.ReactElement 
       </Card>
 
       <Card
-        className="rounded-2xl overflow-hidden"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        className="overflow-hidden"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

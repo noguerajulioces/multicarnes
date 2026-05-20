@@ -12,8 +12,14 @@ import {
   CardBody,
   CardHeader,
   Skeleton,
+  Table,
   TableSkeleton,
-  TourButton
+  TBody,
+  Td,
+  Th,
+  THead,
+  TourButton,
+  Tr
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { compraDetalleTourSteps, compraDetallePendingTourSteps } from '../../lib/tour-steps'
@@ -96,7 +102,7 @@ export default function CompraDetallePage() {
           <ArrowLeft size={14} />
           Volver a Compras
         </button>
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardHeader className="flex justify-between items-start">
             <div className="space-y-2">
               <Skeleton className="h-6 w-32" />
@@ -128,8 +134,6 @@ export default function CompraDetallePage() {
 
       <Card
         data-tour="compra-detalle-header"
-        className="rounded-2xl"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
         <CardHeader className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
@@ -156,49 +160,43 @@ export default function CompraDetallePage() {
         </CardHeader>
 
         <CardBody data-tour="compra-detalle-items">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-text-muted text-left">
-                  <th className="pb-2 font-normal pr-3">
-                    <div className="inline-flex items-center gap-1.5">
-                      <Package size={12} />
-                      Producto
-                    </div>
-                  </th>
-                  <th className="pb-2 font-normal pr-3 text-right">Cantidad</th>
-                  <th className="pb-2 font-normal pr-3 text-right">Costo unit.</th>
-                  <th className="pb-2 font-normal text-right">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.items?.map((item) => (
-                  <tr key={item.id} className="border-b border-border last:border-0">
-                    <td className="py-2.5 pr-3 font-medium">{item.product_name}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">
-                      {formatQty(item.quantity, item.price_type ?? 'unit')}
-                    </td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">
-                      {formatGs(item.unit_cost)}
-                    </td>
-                    <td className="py-2.5 text-right font-medium tabular-nums">
-                      {formatGs(item.subtotal)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-border">
-                  <td colSpan={3} className="pt-3 text-right font-medium text-text-muted">
-                    Total
-                  </td>
-                  <td className="pt-3 text-right text-xl font-bold text-brand tabular-nums">
-                    {formatGs(order.total)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <Table>
+            <THead>
+              <Tr>
+                <Th>
+                  <div className="inline-flex items-center gap-1.5">
+                    <Package size={12} />
+                    Producto
+                  </div>
+                </Th>
+                <Th className="text-right">Cantidad</Th>
+                <Th className="text-right">Costo unit.</Th>
+                <Th className="text-right">Subtotal</Th>
+              </Tr>
+            </THead>
+            <TBody>
+              {order.items?.map((item) => (
+                <Tr key={item.id}>
+                  <Td className="font-medium">{item.product_name}</Td>
+                  <Td className="text-right tabular-nums">
+                    {formatQty(item.quantity, item.price_type ?? 'unit')}
+                  </Td>
+                  <Td className="text-right tabular-nums">{formatGs(item.unit_cost)}</Td>
+                  <Td className="text-right font-medium tabular-nums">{formatGs(item.subtotal)}</Td>
+                </Tr>
+              ))}
+            </TBody>
+            <tfoot>
+              <tr className="border-t-2 border-border">
+                <Td colSpan={3} className="text-right font-medium text-text-muted">
+                  Total
+                </Td>
+                <Td className="text-right text-xl font-bold text-brand tabular-nums">
+                  {formatGs(order.total)}
+                </Td>
+              </tr>
+            </tfoot>
+          </Table>
 
           {order.notes && (
             <div className="mt-4 flex items-start gap-2 px-3 py-2.5 bg-surface-muted rounded-lg">

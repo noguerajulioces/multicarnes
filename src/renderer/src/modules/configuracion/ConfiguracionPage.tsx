@@ -62,8 +62,6 @@ export default function ConfiguracionPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <Card
           data-tour="config-business"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -109,8 +107,6 @@ export default function ConfiguracionPage() {
 
         <Card
           data-tour="config-theme"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -148,8 +144,6 @@ export default function ConfiguracionPage() {
 
         <Card
           data-tour="config-login"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -187,8 +181,6 @@ export default function ConfiguracionPage() {
 
         <Card
           data-tour="config-printer"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -232,8 +224,6 @@ export default function ConfiguracionPage() {
 
         <Card
           data-tour="config-tutorials"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader>
             <div className="flex items-center gap-3">

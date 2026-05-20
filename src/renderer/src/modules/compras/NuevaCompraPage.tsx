@@ -16,7 +16,13 @@ import {
   MoneyInput,
   PageHeader,
   Select,
-  TourButton
+  Table,
+  TBody,
+  Td,
+  Th,
+  THead,
+  TourButton,
+  Tr
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { compraNuevaTourSteps } from '../../lib/tour-steps'
@@ -124,8 +130,6 @@ export default function NuevaCompraPage() {
 
       <Card
         data-tour="compra-nueva-supplier"
-        className="rounded-2xl"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
         <CardHeader>
           <h2 className="font-semibold text-text-main">Detalles de la orden</h2>
@@ -162,8 +166,6 @@ export default function NuevaCompraPage() {
 
       <Card
         data-tour="compra-nueva-items"
-        className="rounded-2xl"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
         <CardHeader className="flex items-center justify-between">
           <div>
@@ -186,78 +188,76 @@ export default function NuevaCompraPage() {
               description="Agregá al menos un producto para crear la orden."
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-text-muted border-b border-border">
-                    <th className="pb-2 font-normal pr-3">Producto</th>
-                    <th className="pb-2 font-normal pr-3 w-28">Cantidad</th>
-                    <th className="pb-2 font-normal pr-3 w-36">Costo unit.</th>
-                    <th className="pb-2 font-normal text-right w-32">Subtotal</th>
-                    <th className="pb-2 w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, idx) => {
-                    const pt = priceTypeInfo(item.priceType)
-                    return (
-                      <tr key={item.productId} className="border-b border-border last:border-0">
-                        <td className="py-3 pr-3 font-medium text-text-main">{item.productName}</td>
-                        <td className="py-3 pr-3">
-                          <div className="relative">
-                            <Input
-                              type="number"
-                              value={item.quantity}
-                              min={pt.inputStep}
-                              step={pt.inputStep}
-                              onChange={(e) =>
-                                updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
-                              }
-                              className="h-9 text-right text-sm tabular-nums pr-10"
-                            />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted pointer-events-none">
-                              {pt.unit}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 pr-3">
-                          <MoneyInput
-                            value={item.unitCost}
-                            onValueChange={(v) => updateItem(idx, 'unitCost', v)}
-                            className="h-9 text-right text-sm tabular-nums"
-                            placeholder="0"
+            <Table>
+              <THead>
+                <Tr>
+                  <Th>Producto</Th>
+                  <Th className="w-28">Cantidad</Th>
+                  <Th className="w-36">Costo unit.</Th>
+                  <Th className="text-right w-32">Subtotal</Th>
+                  <Th className="w-8"></Th>
+                </Tr>
+              </THead>
+              <TBody>
+                {items.map((item, idx) => {
+                  const pt = priceTypeInfo(item.priceType)
+                  return (
+                    <Tr key={item.productId}>
+                      <Td className="font-medium text-text-main">{item.productName}</Td>
+                      <Td>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            min={pt.inputStep}
+                            step={pt.inputStep}
+                            onChange={(e) =>
+                              updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)
+                            }
+                            className="h-9 text-right text-sm tabular-nums pr-10"
                           />
-                        </td>
-                        <td className="py-3 text-right font-medium tabular-nums">
-                          {formatGs(item.subtotal)}
-                        </td>
-                        <td className="py-3">
-                          <button
-                            type="button"
-                            onClick={() => removeItem(idx)}
-                            className="p-1.5 text-danger-500 hover:bg-danger-50 rounded-lg"
-                            aria-label="Quitar"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-border">
-                    <td colSpan={3} className="pt-3 text-right font-medium text-text-muted">
-                      Total
-                    </td>
-                    <td className="pt-3 text-right text-xl font-bold text-brand tabular-nums">
-                      {formatGs(total)}
-                    </td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted pointer-events-none">
+                            {pt.unit}
+                          </span>
+                        </div>
+                      </Td>
+                      <Td>
+                        <MoneyInput
+                          value={item.unitCost}
+                          onValueChange={(v) => updateItem(idx, 'unitCost', v)}
+                          className="h-9 text-right text-sm tabular-nums"
+                          placeholder="0"
+                        />
+                      </Td>
+                      <Td className="text-right font-medium tabular-nums">
+                        {formatGs(item.subtotal)}
+                      </Td>
+                      <Td>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(idx)}
+                          className="p-1.5 text-danger-500 hover:bg-danger-50 rounded-lg"
+                          aria-label="Quitar"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Td>
+                    </Tr>
+                  )
+                })}
+              </TBody>
+              <tfoot>
+                <tr className="border-t-2 border-border">
+                  <Td colSpan={3} className="text-right font-medium text-text-muted">
+                    Total
+                  </Td>
+                  <Td className="text-right text-xl font-bold text-brand tabular-nums">
+                    {formatGs(total)}
+                  </Td>
+                  <Td></Td>
+                </tr>
+              </tfoot>
+            </Table>
           )}
         </CardBody>
       </Card>

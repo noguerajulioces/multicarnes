@@ -29,8 +29,14 @@ import {
   Modal,
   MoneyInput,
   Skeleton,
+  Table,
   TableSkeleton,
-  TourButton
+  TBody,
+  Td,
+  Th,
+  THead,
+  TourButton,
+  Tr
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { clienteFichaTourSteps } from '../../lib/tour-steps'
@@ -172,22 +178,21 @@ export default function ClienteFichaPage() {
         <Skeleton className="h-5 w-40" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card
-            className="md:col-span-2 rounded-2xl"
-            style={{ boxShadow: 'var(--shadow-card-soft)' }}
+            className="md:col-span-2"
           >
             <CardBody className="space-y-3">
               <Skeleton className="h-7 w-48" />
               <Skeleton className="h-4 w-64" />
             </CardBody>
           </Card>
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card>
             <CardBody className="space-y-3">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-32" />
             </CardBody>
           </Card>
         </div>
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <TableSkeleton rows={5} columns={4} />
           </CardBody>
@@ -220,8 +225,7 @@ export default function ClienteFichaPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card
           data-tour="cliente-ficha-info"
-          className="lg:col-span-2 rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="lg:col-span-2"
         >
           <CardBody className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl bg-brand-light text-brand flex items-center justify-center text-lg font-bold shrink-0">
@@ -254,7 +258,6 @@ export default function ClienteFichaPage() {
         <Card
           data-tour="cliente-ficha-balance"
           className={cn('rounded-2xl border', owes ? 'border-danger-500/40' : 'border-border')}
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardBody>
             <div className="flex items-center gap-3 mb-3">
@@ -302,8 +305,6 @@ export default function ClienteFichaPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <Card
           data-tour="cliente-ficha-sales"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -316,22 +317,22 @@ export default function ClienteFichaPage() {
             </p>
           </CardHeader>
           <CardBody className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-text-muted text-left">
-                  <th className="pb-2 font-normal w-6"></th>
-                  <th className="pb-2 font-normal pr-3">Fecha</th>
-                  <th className="pb-2 font-normal pr-3 text-right">Total</th>
-                  <th className="pb-2 font-normal">Método</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <THead>
+                <Tr>
+                  <Th className="w-6"></Th>
+                  <Th>Fecha</Th>
+                  <Th className="text-right">Total</Th>
+                  <Th>Método</Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {sales.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-text-muted">
+                  <Tr>
+                    <Td colSpan={4} className="py-8 text-center text-text-muted">
                       Sin compras registradas
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ) : (
                   sales.map((s) => {
                     const isOpen = expandedSale === s.id
@@ -345,20 +346,20 @@ export default function ClienteFichaPage() {
                         : 0
                     return (
                       <Fragment key={s.id}>
-                        <tr
+                        <Tr
                           onClick={() => setExpandedSale(isOpen ? null : s.id)}
-                          className="border-b border-border last:border-0 hover:bg-surface-muted/40 cursor-pointer"
+                          className="cursor-pointer"
                         >
-                          <td className="py-2.5 pr-1 text-text-muted align-top">
+                          <Td className="text-text-muted align-top">
                             {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          </td>
-                          <td className="py-2.5 pr-3 text-text-muted tabular-nums align-top">
+                          </Td>
+                          <Td className="text-text-muted tabular-nums align-top">
                             {formatDateTime(s.created_at)}
-                          </td>
-                          <td className="py-2.5 pr-3 text-right font-medium tabular-nums align-top">
+                          </Td>
+                          <Td className="text-right font-medium tabular-nums align-top">
                             {formatGs(s.total)}
-                          </td>
-                          <td className="py-2.5 align-top">
+                          </Td>
+                          <Td className="align-top">
                             <Badge tone={methodTone[s.payment_method]}>
                               {methodLabel[s.payment_method]}
                             </Badge>
@@ -367,11 +368,11 @@ export default function ClienteFichaPage() {
                                 Fiado {formatGs(creditDue)}
                               </div>
                             )}
-                          </td>
-                        </tr>
+                          </Td>
+                        </Tr>
                         {isOpen && (
-                          <tr className="border-b border-border last:border-0 bg-surface-muted/30">
-                            <td colSpan={4} className="px-3 py-2">
+                          <tr className="bg-surface-muted/30">
+                            <td colSpan={4} className="px-4 py-2">
                               {items.length === 0 ? (
                                 <p className="text-xs text-text-muted py-2">
                                   Sin ítems registrados
@@ -405,15 +406,13 @@ export default function ClienteFichaPage() {
                     )
                   })
                 )}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </CardBody>
         </Card>
 
         <Card
           data-tour="cliente-ficha-payments"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -426,44 +425,41 @@ export default function ClienteFichaPage() {
             </p>
           </CardHeader>
           <CardBody className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-text-muted text-left">
-                  <th className="pb-2 font-normal pr-3">Fecha</th>
-                  <th className="pb-2 font-normal pr-3 text-right">Monto</th>
-                  <th className="pb-2 font-normal pr-3">Tipo</th>
-                  <th className="pb-2 font-normal">Nota</th>
-                  <th className="pb-2 font-normal w-12"></th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <THead>
+                <Tr>
+                  <Th>Fecha</Th>
+                  <Th className="text-right">Monto</Th>
+                  <Th>Tipo</Th>
+                  <Th>Nota</Th>
+                  <Th className="w-12"></Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {payments.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-text-muted">
+                  <Tr>
+                    <Td colSpan={5} className="py-8 text-center text-text-muted">
                       Sin pagos recibidos
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ) : (
                   payments.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="border-b border-border last:border-0 hover:bg-surface-muted/40"
-                    >
-                      <td className="py-2.5 pr-3 text-text-muted tabular-nums">
+                    <Tr key={p.id}>
+                      <Td className="text-text-muted tabular-nums">
                         {formatDateTime(p.created_at)}
-                      </td>
-                      <td className="py-2.5 pr-3 text-right font-medium text-success-700 tabular-nums">
+                      </Td>
+                      <Td className="text-right font-medium text-success-700 tabular-nums">
                         {formatGs(p.amount)}
-                      </td>
-                      <td className="py-2.5 pr-3 whitespace-nowrap">
+                      </Td>
+                      <Td className="whitespace-nowrap">
                         <Badge tone={p.affects_cash ? 'success' : 'warning'}>
                           {p.affects_cash ? 'Efectivo' : 'Descuento de sueldo'}
                         </Badge>
-                      </td>
-                      <td className="py-2.5 text-text-muted truncate max-w-[200px]">
+                      </Td>
+                      <Td className="text-text-muted truncate max-w-[200px]">
                         {p.note || <span className="text-text-disabled">—</span>}
-                      </td>
-                      <td className="py-2.5 text-right">
+                      </Td>
+                      <Td className="text-right">
                         <button
                           type="button"
                           onClick={() => openEditPayment(p)}
@@ -472,12 +468,12 @@ export default function ClienteFichaPage() {
                         >
                           <Edit2 size={14} />
                         </button>
-                      </td>
-                    </tr>
+                      </Td>
+                    </Tr>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </CardBody>
         </Card>
       </div>

@@ -76,13 +76,10 @@ export default function ComprasPage() {
               <Users size={16} />
               Proveedores
             </Button>
-            <button
-              onClick={() => navigate('/compras/nueva')}
-              className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-            >
+            <Button onClick={() => navigate('/compras/nueva')}>
               <Plus size={18} />
               Nueva Orden
-            </button>
+            </Button>
           </div>
         }
       />
@@ -107,8 +104,7 @@ export default function ComprasPage() {
 
       <Card
         data-tour="compras-table"
-        className="rounded-2xl overflow-hidden"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        className="overflow-hidden"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

@@ -1,4 +1,4 @@
-import { HTMLAttributes, TableHTMLAttributes } from 'react'
+import { HTMLAttributes, TableHTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from 'react'
 import { cn } from '../../lib/utils'
 
 export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
@@ -11,25 +11,27 @@ export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElem
 
 export function THead({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
   return (
-    <thead
-      className={cn('bg-surface-muted text-text-muted text-xs uppercase tracking-wide', className)}
+    <thead className={cn('bg-surface-muted/60 text-text-muted text-left', className)} {...props} />
+  )
+}
+
+export function TBody({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
+  return <tbody {...props} className={className} />
+}
+
+export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
+  return (
+    <tr
+      className={cn('border-t border-border hover:bg-surface-muted/40 transition-colors', className)}
       {...props}
     />
   )
 }
 
-export function TBody({ className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
-  return <tbody className={cn('divide-y divide-border', className)} {...props} />
+export function Th({ className, ...props }: ThHTMLAttributes<HTMLTableCellElement>) {
+  return <th className={cn('px-4 py-3 text-left font-medium', className)} {...props} />
 }
 
-export function Tr({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
-  return <tr className={cn('hover:bg-brand-light/40 transition-colors', className)} {...props} />
-}
-
-export function Th({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn('text-left font-medium px-3 py-2', className)} {...props} />
-}
-
-export function Td({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('px-3 py-2', className)} {...props} />
+export function Td({ className, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
+  return <td className={cn('px-4 py-3', className)} {...props} />
 }
