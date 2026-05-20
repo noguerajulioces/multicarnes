@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.6.8](https://github.com/noguerajulioces/multicarnes/compare/v1.6.0...v1.6.8) (2026-05-20)
+
+### Features
+
+* implement payment voiding functionality ([f1cf630](https://github.com/noguerajulioces/multicarnes/commit/f1cf63024394c25f0f165ebe5b76265687c3281a))
+* **reports:** net revenue column in "Más Vendidos" ([#7](https://github.com/noguerajulioces/multicarnes/issues/7)) ([5a8288d](https://github.com/noguerajulioces/multicarnes/commit/5a8288d7604ba51f02813d97fb718c0ff8ae96d6))
+
+### Bug Fixes
+
+* **business:** phase-0 integrity guards for cash, sales and purchases ([08823f3](https://github.com/noguerajulioces/multicarnes/commit/08823f312e81bc04b23a7a6a16e1f06c4f1e7878)), closes [#6](https://github.com/noguerajulioces/multicarnes/issues/6) [#3a](https://github.com/noguerajulioces/multicarnes/issues/3a) [#11](https://github.com/noguerajulioces/multicarnes/issues/11) [#4a](https://github.com/noguerajulioces/multicarnes/issues/4a) [#10](https://github.com/noguerajulioces/multicarnes/issues/10)
+* **business:** phase-1 — reverse cash on payment edit/delete + closed-register blocks ([a995201](https://github.com/noguerajulioces/multicarnes/commit/a995201aaa71072d8cb7b17c282ab7edeb729076)), closes [#1](https://github.com/noguerajulioces/multicarnes/issues/1) [#2](https://github.com/noguerajulioces/multicarnes/issues/2) [#2](https://github.com/noguerajulioces/multicarnes/issues/2)
+* **business:** phase-2 guards — cancel-pending-only + cash-model doc ([a8323cf](https://github.com/noguerajulioces/multicarnes/commit/a8323cf41905e9b61ca13411f3dc408e59c2e6ec)), closes [#3b](https://github.com/noguerajulioces/multicarnes/issues/3b) [#9](https://github.com/noguerajulioces/multicarnes/issues/9)
+
+### Refactoring
+
+* **ui:** unify tables, buttons and cards for visual coherence ([e107936](https://github.com/noguerajulioces/multicarnes/commit/e107936264d15ca0d1be65c71cd752c2456de6d9))
+
+### Build System
+
+* rebuild better-sqlite3 for Electron before dev/start ([b0a46da](https://github.com/noguerajulioces/multicarnes/commit/b0a46dae8c772ea67d4fe2897babda3fd33d6202))
+
 ## [1.6.0](https://github.com/noguerajulioces/multicarnes/compare/v1.5.0...v1.6.0) (2026-05-20)
 
 ### Features
