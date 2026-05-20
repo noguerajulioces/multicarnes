@@ -41,7 +41,7 @@ export default function TicketPreviewModal({
   cashReceived,
   change,
   onClose,
-  closeLabel = 'Registrar Venta'
+  closeLabel = 'Registrar Nueva Venta'
 }: Props) {
   const navigate = useNavigate()
   const [business, setBusiness] = useState({ name: '', address: '', phone: '' })

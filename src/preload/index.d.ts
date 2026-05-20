@@ -120,8 +120,7 @@ interface ApiCustomers {
     note: string | undefined,
     affectsCash: boolean
   ): Promise<Customer>
-  updatePayment(paymentId: number, amount: number, note?: string | null): Promise<Customer>
-  deletePayment(paymentId: number): Promise<Customer>
+  voidPayment(paymentId: number): Promise<Customer>
   getPayments(customerId: number): Promise<CustomerPayment[]>
   getSales(customerId: number): Promise<Sale[]>
   delete(id: number): Promise<{ ok: true } | { ok: false; error: string }>

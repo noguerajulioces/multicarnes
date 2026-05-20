@@ -61,9 +61,7 @@ const api = {
       note: string | undefined,
       affectsCash: boolean
     ) => ipcRenderer.invoke('customers:addPayment', customerId, userId, amount, note, affectsCash),
-    updatePayment: (paymentId: number, amount: number, note?: string | null) =>
-      ipcRenderer.invoke('customers:updatePayment', paymentId, amount, note),
-    deletePayment: (paymentId: number) => ipcRenderer.invoke('customers:deletePayment', paymentId),
+    voidPayment: (paymentId: number) => ipcRenderer.invoke('customers:voidPayment', paymentId),
     getPayments: (customerId: number) => ipcRenderer.invoke('customers:getPayments', customerId),
     getSales: (customerId: number) => ipcRenderer.invoke('customers:getSales', customerId),
     delete: (id: number) => ipcRenderer.invoke('customers:delete', id)

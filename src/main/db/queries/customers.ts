@@ -1,5 +1,6 @@
 import { getDb } from '../index'
 import { getOpenCashRegisterByUserId } from './cash'
+import { voidMovement } from './cash-movements'
 
 export function getAllCustomers(
   opts: { search?: string; isEmployee?: boolean; page?: number; perPage?: number } = {}
@@ -133,16 +134,23 @@ export function addCustomerPayment(args: AddCustomerPaymentArgs) {
   const description = `Pago de deuda — ${customer.name}` + (noteValue ? ` (${noteValue})` : '')
 
   const txn = db.transaction(() => {
-    db.prepare(
-      'INSERT INTO customer_payments (customer_id, user_id, amount, note, affects_cash) VALUES (?, ?, ?, ?, ?)'
-    ).run(customerId, userId, amount, noteValue, affectsCash ? 1 : 0)
-    db.prepare('UPDATE customers SET balance = balance + ? WHERE id = ?').run(amount, customerId)
+    // Insert the cash income first so its id can be linked onto the payment row.
+    // The link lets voidMovement (Movimientos de Caja) reverse exactly this
+    // payment on the customer side when the income is annulled.
+    let cashMovementId: number | null = null
     if (affectsCash && registerId !== null) {
-      db.prepare(
-        `INSERT INTO cash_movements (register_id, user_id, type, amount, description)
-         VALUES (?, ?, 'income', ?, ?)`
-      ).run(registerId, callerUserId, amount, description)
+      const mv = db
+        .prepare(
+          `INSERT INTO cash_movements (register_id, user_id, type, amount, description)
+           VALUES (?, ?, 'income', ?, ?)`
+        )
+        .run(registerId, callerUserId, amount, description)
+      cashMovementId = mv.lastInsertRowid as number
     }
+    db.prepare(
+      'INSERT INTO customer_payments (customer_id, user_id, amount, note, affects_cash, cash_movement_id) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(customerId, userId, amount, noteValue, affectsCash ? 1 : 0, cashMovementId)
+    db.prepare('UPDATE customers SET balance = balance + ? WHERE id = ?').run(amount, customerId)
     db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
       callerUserId,
       'add_customer_payment',
@@ -151,6 +159,7 @@ export function addCustomerPayment(args: AddCustomerPaymentArgs) {
         amount,
         affects_cash: affectsCash,
         register_id: registerId,
+        cash_movement_id: cashMovementId,
         note: noteValue
       })
     )
@@ -159,45 +168,76 @@ export function addCustomerPayment(args: AddCustomerPaymentArgs) {
   return txn()
 }
 
-export function updateCustomerPayment(
-  paymentId: number,
-  newAmount: number,
-  newNote?: string | null
-) {
+// Anular (append-only) a customer payment from the Cliente detail. Mirrors the
+// "Anular" flow in Movimientos de Caja and is the single way to undo a payment:
+//   - cash payment linked to an income → delegate to voidMovement, which voids
+//     that income AND (via cash_movement_id) restores the debt + appends the
+//     annulment row to the customer history. One source of truth, caja stays
+//     in sync.
+//   - non-cash payment (or a legacy cash one with no link) → there is no caja to
+//     touch: restore the debt and append the annulment row directly.
+// The original payment row is always kept; an annulment row (void_of → original)
+// is what marks it undone.
+export function voidCustomerPayment(paymentId: number, actorUserId: number) {
   const db = getDb()
-  const txn = db.transaction(() => {
-    const existing = db
-      .prepare('SELECT customer_id, amount FROM customer_payments WHERE id = ?')
-      .get(paymentId) as { customer_id: number; amount: number } | undefined
-    if (!existing) throw new Error('Pago no encontrado')
-    const delta = newAmount - existing.amount
-    db.prepare('UPDATE customer_payments SET amount = ?, note = ? WHERE id = ?').run(
-      newAmount,
-      newNote ?? null,
-      paymentId
+  const payment = db
+    .prepare(
+      'SELECT id, customer_id, amount, note, affects_cash, cash_movement_id, void_of FROM customer_payments WHERE id = ?'
     )
-    db.prepare('UPDATE customers SET balance = balance + ? WHERE id = ?').run(
-      delta,
-      existing.customer_id
-    )
-    return getCustomerById(existing.customer_id)
-  })
-  return txn()
-}
+    .get(paymentId) as
+    | {
+        id: number
+        customer_id: number
+        amount: number
+        note: string | null
+        affects_cash: number
+        cash_movement_id: number | null
+        void_of: number | null
+      }
+    | undefined
+  if (!payment) throw new Error('Pago no encontrado.')
+  if (payment.void_of != null) throw new Error('No se puede anular una anulación.')
+  const alreadyVoided = db
+    .prepare('SELECT 1 FROM customer_payments WHERE void_of = ?')
+    .get(paymentId) as { 1: number } | undefined
+  if (alreadyVoided) throw new Error('Este pago ya fue anulado.')
 
-export function deleteCustomerPayment(paymentId: number) {
-  const db = getDb()
+  if (payment.affects_cash === 1 && payment.cash_movement_id != null) {
+    // voidMovement does the whole job: cash void row + debt restore + annulment
+    // row on the customer history (it finds this payment via cash_movement_id).
+    voidMovement(payment.cash_movement_id, actorUserId)
+    return getCustomerById(payment.customer_id)
+  }
+
   const txn = db.transaction(() => {
-    const existing = db
-      .prepare('SELECT customer_id, amount FROM customer_payments WHERE id = ?')
-      .get(paymentId) as { customer_id: number; amount: number } | undefined
-    if (!existing) throw new Error('Pago no encontrado')
-    db.prepare('DELETE FROM customer_payments WHERE id = ?').run(paymentId)
     db.prepare('UPDATE customers SET balance = balance - ? WHERE id = ?').run(
-      existing.amount,
-      existing.customer_id
+      payment.amount,
+      payment.customer_id
     )
-    return getCustomerById(existing.customer_id)
+    const voidNote = payment.note ? `[ANULACIÓN] ${payment.note}` : '[ANULACIÓN] Pago anulado'
+    db.prepare(
+      `INSERT INTO customer_payments
+         (customer_id, user_id, amount, note, affects_cash, cash_movement_id, void_of)
+       VALUES (?, ?, ?, ?, ?, NULL, ?)`
+    ).run(
+      payment.customer_id,
+      actorUserId,
+      payment.amount,
+      voidNote,
+      payment.affects_cash,
+      payment.id
+    )
+    db.prepare('INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)').run(
+      actorUserId,
+      'void_customer_payment',
+      JSON.stringify({
+        payment_id: payment.id,
+        customer_id: payment.customer_id,
+        amount: payment.amount,
+        affects_cash: payment.affects_cash === 1
+      })
+    )
+    return getCustomerById(payment.customer_id)
   })
   return txn()
 }
@@ -244,6 +284,8 @@ interface CustomerPaymentRow {
   amount: number
   note: string | null
   affects_cash: number
+  void_of: number | null
+  is_voided: number
   created_at: string
 }
 
@@ -251,17 +293,19 @@ export function getCustomerPayments(customerId: number) {
   const rows = getDb()
     .prepare(
       `
-    SELECT cp.*, u.name as user_name
+    SELECT cp.*, u.name as user_name,
+      EXISTS (SELECT 1 FROM customer_payments v WHERE v.void_of = cp.id) AS is_voided
     FROM customer_payments cp
     LEFT JOIN users u ON cp.user_id = u.id
     WHERE cp.customer_id = ?
-    ORDER BY cp.created_at DESC
+    ORDER BY cp.created_at DESC, cp.id DESC
   `
     )
     .all(customerId) as CustomerPaymentRow[]
   return rows.map((r) => ({
     ...r,
-    affects_cash: r.affects_cash === 1
+    affects_cash: r.affects_cash === 1,
+    is_voided: r.is_voided === 1
   }))
 }
 

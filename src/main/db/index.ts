@@ -341,6 +341,42 @@ const MIGRATIONS: Migration[] = [
         db.exec('ALTER TABLE customer_payments ADD COLUMN affects_cash INTEGER NOT NULL DEFAULT 1')
       }
     }
+  },
+  {
+    version: 11,
+    name: 'add_customer_payments_cash_movement_id',
+    up: (db) => {
+      // Link each cash-affecting customer payment to the cash_movements (income)
+      // row it created, so voiding that income from the Movimientos de Caja page
+      // can reverse the payment on the customer side (restore the debt) instead
+      // of silently leaving the balance reduced. Legacy rows stay NULL and so
+      // are not reversible (no backfill, mirroring v10). Additive + idempotent
+      // under PRAGMA table_info → a no-op on installs that already got the column
+      // from schema.ts.
+      const cols = db.prepare('PRAGMA table_info(customer_payments)').all() as { name: string }[]
+      if (!cols.some((c) => c.name === 'cash_movement_id')) {
+        db.exec(
+          'ALTER TABLE customer_payments ADD COLUMN cash_movement_id INTEGER NULL REFERENCES cash_movements(id)'
+        )
+      }
+    }
+  },
+  {
+    version: 12,
+    name: 'add_customer_payments_void_of',
+    up: (db) => {
+      // Append-only annulment trail for debt payments, mirroring cash_movements:
+      // when a cash payment's income is voided from Movimientos de Caja, instead
+      // of deleting the payment we keep it and append a void row pointing back via
+      // void_of, so the customer's payment history shows "pago → anulación" just
+      // like the cash timeline. Additive + idempotent under PRAGMA table_info.
+      const cols = db.prepare('PRAGMA table_info(customer_payments)').all() as { name: string }[]
+      if (!cols.some((c) => c.name === 'void_of')) {
+        db.exec(
+          'ALTER TABLE customer_payments ADD COLUMN void_of INTEGER NULL REFERENCES customer_payments(id)'
+        )
+      }
+    }
   }
 ]
 

@@ -307,6 +307,10 @@ export interface CustomerPayment {
   amount: number
   note: string | null
   affects_cash: boolean
+  /** When set, this row is an annulment of the payment with this id (append-only void trail). */
+  void_of: number | null
+  /** True when another row annuls this payment (i.e. this payment was voided). */
+  is_voided: boolean
   created_at: string
 }
 

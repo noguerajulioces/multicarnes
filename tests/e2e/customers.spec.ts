@@ -180,7 +180,7 @@ test.describe('Customers', () => {
   // -----------------
   // customer-8-5 (P3) — delete payment refunds the debt back to the original amount
   // -----------------
-  test('customer-8-5 — deletePayment reverses the balance change', async () => {
+  test('customer-8-5 — voidPayment reverses the balance change', async () => {
     const { window, cleanup } = await launchApp()
     try {
       const admin = await loginAsSeedAdmin(window)
@@ -231,23 +231,23 @@ test.describe('Customers', () => {
       expect(payments.length).toBe(1)
       const paymentId = payments[0].id
 
-      const beforeDelete = (await ipc(
+      const beforeVoid = (await ipc(
         window,
         (id) => window.api.customers.getById(id),
         customer.id
       )) as CustomerFull
-      expect(Math.abs(beforeDelete.balance)).toBe(30_000)
+      expect(Math.abs(beforeVoid.balance)).toBe(30_000)
 
-      // Delete the payment.
-      await ipc(window, (id) => window.api.customers.deletePayment(id), paymentId)
+      // Anular the payment (append-only): restores the debt.
+      await ipc(window, (id) => window.api.customers.voidPayment(id), paymentId)
 
-      const afterDelete = (await ipc(
+      const afterVoid = (await ipc(
         window,
         (id) => window.api.customers.getById(id),
         customer.id
       )) as CustomerFull
       // Balance restored.
-      expect(Math.abs(afterDelete.balance)).toBe(50_000)
+      expect(Math.abs(afterVoid.balance)).toBe(50_000)
     } finally {
       await cleanup()
     }

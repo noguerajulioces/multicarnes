@@ -359,7 +359,7 @@ test.describe('008 — Debt payment types (Efectivo vs Descuento de sueldo)', ()
   // -----------------
   // Permissions — cashier role
   // -----------------
-  test('Permissions — cashier CAN addPayment (both kinds) but CANNOT updatePayment / deletePayment', async () => {
+  test('Permissions — cashier CAN addPayment (both kinds) but CANNOT voidPayment', async () => {
     const { window, cleanup } = await launchApp()
     try {
       const admin = await loginAsSeedAdmin(window)
@@ -440,12 +440,12 @@ test.describe('008 — Debt payment types (Efectivo vs Descuento de sueldo)', ()
       expect(payments).toHaveLength(2)
       const lastPaymentId = payments[0].id
 
-      // updatePayment and deletePayment are admin/supervisor only.
-      const updateRes = await ipc(
+      // voidPayment is admin/supervisor only.
+      const voidRes = await ipc(
         window,
         async (id) => {
           try {
-            await window.api.customers.updatePayment(id, 9_999, 'tampered')
+            await window.api.customers.voidPayment(id)
             return { ok: true }
           } catch (err) {
             return { ok: false, message: err instanceof Error ? err.message : String(err) }
@@ -453,21 +453,7 @@ test.describe('008 — Debt payment types (Efectivo vs Descuento de sueldo)', ()
         },
         lastPaymentId
       )
-      expect(updateRes.ok, 'cashier must NOT be able to updatePayment').toBe(false)
-
-      const deleteRes = await ipc(
-        window,
-        async (id) => {
-          try {
-            await window.api.customers.deletePayment(id)
-            return { ok: true }
-          } catch (err) {
-            return { ok: false, message: err instanceof Error ? err.message : String(err) }
-          }
-        },
-        lastPaymentId
-      )
-      expect(deleteRes.ok, 'cashier must NOT be able to deletePayment').toBe(false)
+      expect(voidRes.ok, 'cashier must NOT be able to voidPayment').toBe(false)
     } finally {
       await cleanup()
     }

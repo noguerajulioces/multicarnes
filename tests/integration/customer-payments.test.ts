@@ -2,11 +2,11 @@ import { describe, test, expect, beforeEach } from 'vitest'
 import type Database from 'better-sqlite3'
 import {
   addCustomerPayment,
-  updateCustomerPayment,
-  deleteCustomerPayment,
+  voidCustomerPayment,
   getCustomerPayments,
   getCustomerById
 } from '../../src/main/db/queries/customers'
+import { voidMovement } from '../../src/main/db/queries/cash-movements'
 import {
   createTestDb,
   seedUser,
@@ -538,51 +538,49 @@ describe('getCustomerPayments (1.5)', () => {
   })
 })
 
-describe('updateCustomerPayment (1.6) — documented gap: does NOT adjust cash_movements', () => {
+describe('voidCustomerPayment (1.6) — anular from the customer detail (append-only)', () => {
   let db: Database.Database
+  let admin: SeededUser
   let cajero: SeededUser
   let customer: SeededCustomer
 
   beforeEach(() => {
     db = createTestDb()
-    cajero = seedUser(db, { role: 'cajero' })
+    admin = seedUser(db, { role: 'admin', name: 'Admin-Void' })
+    cajero = seedUser(db, { role: 'cajero', name: 'Cajero-Pay' })
     customer = seedCustomer(db, { balance: -100_000 })
     seedOpenRegister(db, cajero.id, 0)
   })
 
-  test('T1.6.1 — changing amount adjusts balance by the delta and does NOT touch cash_movements (gap)', () => {
+  test('T1.6.1 — anulling a CASH payment voids the linked income and appends the annulment trail', () => {
     addCustomerPayment({
       customerId: customer.id,
       userId: cajero.id,
       amount: 40_000,
+      note: 'Abono',
       affectsCash: true,
       callerUserId: cajero.id
     })
     const payment = db.prepare('SELECT id FROM customer_payments').get() as { id: number }
+    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-60_000)
 
-    const beforeMovementsAmount = (
-      db.prepare("SELECT amount FROM cash_movements WHERE type = 'income'").get() as {
-        amount: number
-      }
-    ).amount
-    expect(beforeMovementsAmount).toBe(40_000)
+    voidCustomerPayment(payment.id, admin.id)
 
-    updateCustomerPayment(payment.id, 25_000, 'edited')
-
-    const after = getCustomerById(customer.id) as CustomerRow
-    // Original delta was +40k from -100k → -60k. New delta is +25k → -75k.
-    expect(after.balance).toBe(-75_000)
-
-    // Documented gap: the corresponding cash_movement still says 40_000.
-    const afterMovementsAmount = (
-      db.prepare("SELECT amount FROM cash_movements WHERE type = 'income'").get() as {
-        amount: number
-      }
-    ).amount
-    expect(afterMovementsAmount).toBe(40_000)
+    // Debt restored.
+    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-100_000)
+    // The cash income was voided (caja stays in sync).
+    const cashVoid = db
+      .prepare("SELECT COUNT(*) as c FROM cash_movements WHERE type = 'void'")
+      .get() as { c: number }
+    expect(cashVoid.c).toBe(1)
+    // History keeps the original (now voided) + the annulment row.
+    const history = getCustomerPayments(customer.id)
+    expect(history).toHaveLength(2)
+    expect(history.find((r) => r.id === payment.id)?.is_voided).toBe(true)
+    expect(history.find((r) => r.void_of === payment.id)?.note).toContain('[ANULACIÓN]')
   })
 
-  test('T1.6.2 — changing only the note does not move the balance', () => {
+  test('T1.6.2 — anulling a SALARY-DEDUCTION payment restores debt + appends trail, no cash touched', () => {
     addCustomerPayment({
       customerId: customer.id,
       userId: cajero.id,
@@ -591,68 +589,72 @@ describe('updateCustomerPayment (1.6) — documented gap: does NOT adjust cash_m
       callerUserId: cajero.id
     })
     const payment = db.prepare('SELECT id FROM customer_payments').get() as { id: number }
-    const before = getCustomerById(customer.id) as CustomerRow
+    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-70_000)
 
-    updateCustomerPayment(payment.id, 30_000, 'corregido')
+    voidCustomerPayment(payment.id, admin.id)
 
-    const after = getCustomerById(customer.id) as CustomerRow
-    expect(after.balance).toBe(before.balance)
-    const row = db.prepare('SELECT note FROM customer_payments WHERE id = ?').get(payment.id) as {
-      note: string
-    }
-    expect(row.note).toBe('corregido')
+    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-100_000)
+    // No cash movements created beyond the synthetic opening row.
+    expect(
+      (
+        db.prepare("SELECT COUNT(*) as c FROM cash_movements WHERE type != 'opening'").get() as {
+          c: number
+        }
+      ).c
+    ).toBe(0)
+    const history = getCustomerPayments(customer.id)
+    expect(history).toHaveLength(2)
+    expect(history.find((r) => r.id === payment.id)?.is_voided).toBe(true)
+    // The action log records a customer-side void.
+    const log = db
+      .prepare("SELECT COUNT(*) as c FROM action_logs WHERE action = 'void_customer_payment'")
+      .get() as { c: number }
+    expect(log.c).toBe(1)
   })
 
-  test('T1.6.3 — nonexistent payment id throws', () => {
-    expect(() => updateCustomerPayment(99_999, 1, null)).toThrow('Pago no encontrado')
+  test('T1.6.3 — legacy cash payment (no cash_movement_id link) restores debt without a caja void', () => {
+    // Simulate a pre-v11 cash payment: affects_cash = 1 but no link.
+    db.prepare(
+      'INSERT INTO customer_payments (customer_id, user_id, amount, affects_cash, cash_movement_id) VALUES (?, ?, ?, 1, NULL)'
+    ).run(customer.id, cajero.id, 50_000)
+    db.prepare('UPDATE customers SET balance = balance + 50000 WHERE id = ?').run(customer.id)
+    const legacy = db
+      .prepare('SELECT id FROM customer_payments ORDER BY id DESC LIMIT 1')
+      .get() as { id: number }
+
+    voidCustomerPayment(legacy.id, admin.id)
+
+    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-100_000)
+    expect(
+      (
+        db.prepare("SELECT COUNT(*) as c FROM cash_movements WHERE type = 'void'").get() as {
+          c: number
+        }
+      ).c
+    ).toBe(0)
+    expect(getCustomerPayments(customer.id).find((r) => r.void_of === legacy.id)).toBeDefined()
   })
-})
 
-describe('deleteCustomerPayment (1.7) — documented gap: does NOT touch cash_movements', () => {
-  let db: Database.Database
-  let cajero: SeededUser
-  let customer: SeededCustomer
+  test('T1.6.4 — guards: nonexistent, already-voided, and annulment rows cannot be voided', () => {
+    expect(() => voidCustomerPayment(99_999, admin.id)).toThrow('Pago no encontrado.')
 
-  beforeEach(() => {
-    db = createTestDb()
-    cajero = seedUser(db, { role: 'cajero' })
-    customer = seedCustomer(db, { balance: -50_000 })
-    seedOpenRegister(db, cajero.id, 0)
-  })
-
-  test('T1.7.1 — deleting removes the payment row, reverts balance, leaves cash_movement untouched (gap)', () => {
     addCustomerPayment({
       customerId: customer.id,
       userId: cajero.id,
       amount: 20_000,
-      affectsCash: true,
+      affectsCash: false,
       callerUserId: cajero.id
     })
     const payment = db.prepare('SELECT id FROM customer_payments').get() as { id: number }
-    const beforeIncomeCount = (
-      db.prepare("SELECT COUNT(*) as c FROM cash_movements WHERE type = 'income'").get() as {
-        c: number
-      }
-    ).c
-    expect(beforeIncomeCount).toBe(1)
+    voidCustomerPayment(payment.id, admin.id)
 
-    deleteCustomerPayment(payment.id)
-
-    expect(countRows(db, 'customer_payments')).toBe(0)
-    const after = getCustomerById(customer.id) as CustomerRow
-    expect(after.balance).toBe(-50_000)
-
-    // Gap: cash_movement is still there.
-    const afterIncomeCount = (
-      db.prepare("SELECT COUNT(*) as c FROM cash_movements WHERE type = 'income'").get() as {
-        c: number
-      }
-    ).c
-    expect(afterIncomeCount).toBe(1)
-  })
-
-  test('T1.7.2 — deleting a nonexistent payment id throws', () => {
-    expect(() => deleteCustomerPayment(99_999)).toThrow('Pago no encontrado')
+    // The original is now voided → cannot void again.
+    expect(() => voidCustomerPayment(payment.id, admin.id)).toThrow('Este pago ya fue anulado.')
+    // The annulment row itself cannot be voided.
+    const voidRow = getCustomerPayments(customer.id).find((r) => r.void_of === payment.id)!
+    expect(() => voidCustomerPayment(voidRow.id, admin.id)).toThrow(
+      'No se puede anular una anulación.'
+    )
   })
 })
 
@@ -747,5 +749,112 @@ describe('Migration v10 — affects_cash column (1.8)', () => {
     const cols = db.prepare('PRAGMA table_info(customer_payments)').all() as { name: string }[]
     const affectsCols = cols.filter((c) => c.name === 'affects_cash')
     expect(affectsCols.length).toBe(1)
+  })
+})
+
+describe('voidMovement — reverses the linked debt payment on the customer (1.9)', () => {
+  let db: Database.Database
+  let cajero: SeededUser
+  let customer: SeededCustomer
+
+  beforeEach(() => {
+    db = createTestDb()
+    cajero = seedUser(db, { role: 'cajero', name: 'Cajero-Void' })
+    customer = seedCustomer(db, { balance: -100_000, name: 'Cliente Deudor' })
+  })
+
+  test('T1.9.1 — a cash payment links to its income via cash_movement_id', () => {
+    seedOpenRegister(db, cajero.id, 0)
+    addCustomerPayment({
+      customerId: customer.id,
+      userId: cajero.id,
+      amount: 30_000,
+      affectsCash: true,
+      callerUserId: cajero.id
+    })
+    const payment = db
+      .prepare('SELECT cash_movement_id FROM customer_payments WHERE customer_id = ?')
+      .get(customer.id) as { cash_movement_id: number | null }
+    const income = db.prepare("SELECT id FROM cash_movements WHERE type = 'income'").get() as {
+      id: number
+    }
+    expect(payment.cash_movement_id).toBe(income.id)
+  })
+
+  test('T1.9.2 — voiding the income restores the debt AND appends an annulment row (append-only)', () => {
+    seedOpenRegister(db, cajero.id, 0)
+    addCustomerPayment({
+      customerId: customer.id,
+      userId: cajero.id,
+      amount: 30_000,
+      note: 'Abono',
+      affectsCash: true,
+      callerUserId: cajero.id
+    })
+    // Debt was reduced by the payment.
+    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-70_000)
+    const original = db
+      .prepare('SELECT id FROM customer_payments WHERE customer_id = ?')
+      .get(customer.id) as { id: number }
+
+    const income = db.prepare("SELECT id FROM cash_movements WHERE type = 'income'").get() as {
+      id: number
+    }
+    voidMovement(income.id, cajero.id)
+
+    // Debt is back to where it started.
+    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-100_000)
+
+    // The history KEEPS the original payment and appends an annulment row.
+    const history = getCustomerPayments(customer.id)
+    expect(history).toHaveLength(2)
+    const originalRow = history.find((r) => r.id === original.id)
+    const voidRow = history.find((r) => r.void_of === original.id)
+    expect(originalRow?.is_voided).toBe(true)
+    expect(voidRow).toBeDefined()
+    expect(voidRow?.amount).toBe(30_000)
+    expect(voidRow?.is_voided).toBe(false)
+    expect(voidRow?.note).toContain('[ANULACIÓN]')
+
+    // Append-only on the cash side too: a void row was created against the income.
+    const cashVoid = db
+      .prepare("SELECT amount FROM cash_movements WHERE type = 'void' AND void_of = ?")
+      .get(income.id) as { amount: number } | undefined
+    expect(cashVoid?.amount).toBe(30_000)
+    // The void action log records which payment/customer it reversed.
+    const log = db
+      .prepare("SELECT details FROM action_logs WHERE action = 'void_cash_movement'")
+      .get() as { details: string }
+    expect(JSON.parse(log.details)).toMatchObject({ reversed_customer_id: customer.id })
+  })
+
+  test('T1.9.3 — salary-deduction payments have no income to void (cash_movement_id NULL)', () => {
+    seedOpenRegister(db, cajero.id, 0)
+    addCustomerPayment({
+      customerId: customer.id,
+      userId: cajero.id,
+      amount: 30_000,
+      affectsCash: false,
+      callerUserId: cajero.id
+    })
+    const payment = db
+      .prepare('SELECT cash_movement_id FROM customer_payments WHERE customer_id = ?')
+      .get(customer.id) as { cash_movement_id: number | null }
+    expect(payment.cash_movement_id).toBeNull()
+    expect(countRows(db, 'cash_movements')).toBe(1) // only the synthetic opening row
+  })
+
+  test('T1.9.4 — voiding an income unrelated to any payment leaves customers untouched', () => {
+    const register = seedOpenRegister(db, cajero.id, 0)
+    // A plain income not tied to a customer_payment (e.g. a manual entry).
+    const mv = db
+      .prepare(
+        `INSERT INTO cash_movements (register_id, user_id, type, amount, description)
+         VALUES (?, ?, 'income', ?, 'Ingreso manual')`
+      )
+      .run(register.id, cajero.id, 50_000)
+
+    expect(() => voidMovement(mv.lastInsertRowid as number, cajero.id)).not.toThrow()
+    expect((getCustomerById(customer.id) as CustomerRow).balance).toBe(-100_000)
   })
 })

@@ -228,6 +228,12 @@ export function voidMovement(originalId: number, actorUserId: number): CashMovem
   // Step 5: insert inverse + action_logs entry inside one transaction.
   // (auth_audit is written by registerAuthorized's guard; here we record the
   //  per-event human-readable detail.)
+  // If this income originated from a cash debt payment (customer_payments links
+  // back via cash_movement_id), reverse that payment too: restore the customer's
+  // debt and append an annulment row to its payment history (void_of → the
+  // original), so the customer detail shows "pago → anulación" just like the cash
+  // timeline. The original payment row is kept for the audit trail. Legacy
+  // payments (made before the link existed) stay NULL and are not reversed.
   const inverseId = db.transaction((): number => {
     const result = db
       .prepare(
@@ -244,6 +250,41 @@ export function voidMovement(originalId: number, actorUserId: number): CashMovem
       )
     const newId = result.lastInsertRowid as number
 
+    const linkedPayment = db
+      .prepare(
+        'SELECT id, customer_id, amount, note, affects_cash FROM customer_payments WHERE cash_movement_id = ? AND void_of IS NULL'
+      )
+      .get(original.id) as
+      | {
+          id: number
+          customer_id: number
+          amount: number
+          note: string | null
+          affects_cash: number
+        }
+      | undefined
+    if (linkedPayment) {
+      db.prepare('UPDATE customers SET balance = balance - ? WHERE id = ?').run(
+        linkedPayment.amount,
+        linkedPayment.customer_id
+      )
+      const voidNote = linkedPayment.note
+        ? `[ANULACIÓN] ${linkedPayment.note}`
+        : '[ANULACIÓN] Pago anulado desde Movimientos de Caja'
+      db.prepare(
+        `INSERT INTO customer_payments
+           (customer_id, user_id, amount, note, affects_cash, cash_movement_id, void_of)
+         VALUES (?, ?, ?, ?, ?, NULL, ?)`
+      ).run(
+        linkedPayment.customer_id,
+        actorUserId,
+        linkedPayment.amount,
+        voidNote,
+        linkedPayment.affects_cash,
+        linkedPayment.id
+      )
+    }
+
     db.prepare(`INSERT INTO action_logs (user_id, action, details) VALUES (?, ?, ?)`).run(
       actorUserId,
       'void_cash_movement',
@@ -252,7 +293,9 @@ export function voidMovement(originalId: number, actorUserId: number): CashMovem
         inverse_id: newId,
         original_type: original.type,
         amount: original.amount,
-        actor_role: actor?.role ?? null
+        actor_role: actor?.role ?? null,
+        reversed_customer_payment_id: linkedPayment?.id ?? null,
+        reversed_customer_id: linkedPayment?.customer_id ?? null
       })
     )
 

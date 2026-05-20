@@ -2,15 +2,15 @@ import { Fragment, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
+  Ban,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   CreditCard,
-  Edit2,
   Phone,
   MapPin,
   ShoppingBag,
-  Trash2,
+  Undo2,
   Wallet
 } from 'lucide-react'
 import { confirm } from '../../lib/confirm'
@@ -72,9 +72,6 @@ export default function ClienteFichaPage() {
   const [payNote, setPayNote] = useState('')
   const [payAffectsCash, setPayAffectsCash] = useState(true)
   const [expandedSale, setExpandedSale] = useState<number | null>(null)
-  const [editPayment, setEditPayment] = useState<CustomerPayment | null>(null)
-  const [editAmount, setEditAmount] = useState(0)
-  const [editNote, setEditNote] = useState('')
 
   useEffect(() => {
     loadData()
@@ -121,49 +118,25 @@ export default function ClienteFichaPage() {
     loadData()
   }
 
-  const openEditPayment = (p: CustomerPayment): void => {
-    setEditPayment(p)
-    setEditAmount(p.amount)
-    setEditNote(p.note || '')
-  }
-
-  const closeEditPayment = (): void => {
-    setEditPayment(null)
-    setEditAmount(0)
-    setEditNote('')
-  }
-
-  const handleSavePayment = async (): Promise<void> => {
-    if (!editPayment || !editAmount) return
-    try {
-      await window.api.customers.updatePayment(editPayment.id, editAmount, editNote || null)
-    } catch (err) {
-      handleApiError(err)
-      return
-    }
-    closeEditPayment()
-    loadData()
-    toast.success('Pago actualizado')
-  }
-
-  const handleDeletePayment = async (): Promise<void> => {
-    if (!editPayment) return
+  const handleVoidPayment = async (p: CustomerPayment): Promise<void> => {
+    const message = p.affects_cash
+      ? 'Se restaurará la deuda del cliente y se anulará el ingreso en la caja. Queda registrado en el historial.'
+      : 'Se restaurará la deuda del cliente. Queda registrado en el historial.'
     const ok = await confirm({
-      title: 'Eliminar pago',
-      message: 'Se restará del saldo del cliente. Esta acción no se puede deshacer.',
-      confirmLabel: 'Eliminar',
+      title: 'Anular pago',
+      message,
+      confirmLabel: 'Anular',
       danger: true
     })
     if (!ok) return
     try {
-      await window.api.customers.deletePayment(editPayment.id)
+      await window.api.customers.voidPayment(p.id)
     } catch (err) {
       handleApiError(err)
       return
     }
-    closeEditPayment()
     loadData()
-    toast.success('Pago eliminado')
+    toast.success('Pago anulado')
   }
 
   const { startTour } = usePageTour({
@@ -177,9 +150,7 @@ export default function ClienteFichaPage() {
       <div className="space-y-5">
         <Skeleton className="h-5 w-40" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card
-            className="md:col-span-2"
-          >
+          <Card className="md:col-span-2">
             <CardBody className="space-y-3">
               <Skeleton className="h-7 w-48" />
               <Skeleton className="h-4 w-64" />
@@ -202,6 +173,9 @@ export default function ClienteFichaPage() {
   }
 
   const owes = customer.balance < 0
+  // Annulment rows (void_of != null) are markers, not payments — exclude them
+  // from the "pagos recibidos" count.
+  const receivedCount = payments.filter((p) => p.void_of == null).length
   const initials = customer.name
     .split(/\s+/)
     .filter(Boolean)
@@ -223,10 +197,7 @@ export default function ClienteFichaPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card
-          data-tour="cliente-ficha-info"
-          className="lg:col-span-2"
-        >
+        <Card data-tour="cliente-ficha-info" className="lg:col-span-2">
           <CardBody className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl bg-brand-light text-brand flex items-center justify-center text-lg font-bold shrink-0">
               {initials || customer.name.charAt(0).toUpperCase()}
@@ -303,9 +274,7 @@ export default function ClienteFichaPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <Card
-          data-tour="cliente-ficha-sales"
-        >
+        <Card data-tour="cliente-ficha-sales">
           <CardHeader>
             <div className="flex items-center gap-2">
               <ShoppingBag size={16} className="text-text-muted" />
@@ -411,17 +380,15 @@ export default function ClienteFichaPage() {
           </CardBody>
         </Card>
 
-        <Card
-          data-tour="cliente-ficha-payments"
-        >
+        <Card data-tour="cliente-ficha-payments">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Wallet size={16} className="text-text-muted" />
               <h2 className="font-semibold text-text-main">Historial de Pagos</h2>
             </div>
             <p className="text-xs text-text-muted mt-0.5">
-              {payments.length} pago{payments.length === 1 ? '' : 's'} recibido
-              {payments.length === 1 ? '' : 's'}
+              {receivedCount} pago{receivedCount === 1 ? '' : 's'} recibido
+              {receivedCount === 1 ? '' : 's'}
             </p>
           </CardHeader>
           <CardBody className="overflow-x-auto">
@@ -443,34 +410,65 @@ export default function ClienteFichaPage() {
                     </Td>
                   </Tr>
                 ) : (
-                  payments.map((p) => (
-                    <Tr key={p.id}>
-                      <Td className="text-text-muted tabular-nums">
-                        {formatDateTime(p.created_at)}
-                      </Td>
-                      <Td className="text-right font-medium text-success-700 tabular-nums">
-                        {formatGs(p.amount)}
-                      </Td>
-                      <Td className="whitespace-nowrap">
-                        <Badge tone={p.affects_cash ? 'success' : 'warning'}>
-                          {p.affects_cash ? 'Efectivo' : 'Descuento de sueldo'}
-                        </Badge>
-                      </Td>
-                      <Td className="text-text-muted truncate max-w-[200px]">
-                        {p.note || <span className="text-text-disabled">—</span>}
-                      </Td>
-                      <Td className="text-right">
-                        <button
-                          type="button"
-                          onClick={() => openEditPayment(p)}
-                          className="p-1.5 hover:bg-surface-muted rounded-lg text-text-muted hover:text-text-main transition-colors"
-                          title="Editar pago"
+                  payments.map((p) => {
+                    const isVoidRow = p.void_of != null
+                    return (
+                      <Tr key={p.id}>
+                        <Td className="text-text-muted tabular-nums">
+                          {formatDateTime(p.created_at)}
+                        </Td>
+                        <Td
+                          className={cn(
+                            'text-right font-medium tabular-nums',
+                            isVoidRow
+                              ? 'text-danger-700'
+                              : p.is_voided
+                                ? 'text-text-disabled line-through'
+                                : 'text-success-700'
+                          )}
                         >
-                          <Edit2 size={14} />
-                        </button>
-                      </Td>
-                    </Tr>
-                  ))
+                          {isVoidRow ? `−${formatGs(p.amount)}` : formatGs(p.amount)}
+                        </Td>
+                        <Td className="whitespace-nowrap">
+                          {isVoidRow ? (
+                            <Badge tone="neutral">
+                              <span className="inline-flex items-center gap-1">
+                                <Undo2 size={12} />
+                                Anulación
+                              </span>
+                            </Badge>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <Badge tone={p.affects_cash ? 'success' : 'warning'}>
+                                {p.affects_cash ? 'Efectivo' : 'Descuento de sueldo'}
+                              </Badge>
+                              {p.is_voided && <Badge tone="neutral">Anulado</Badge>}
+                            </div>
+                          )}
+                        </Td>
+                        <Td
+                          className={cn(
+                            'text-text-muted truncate max-w-[200px]',
+                            p.is_voided && 'line-through'
+                          )}
+                        >
+                          {p.note || <span className="text-text-disabled">—</span>}
+                        </Td>
+                        <Td className="text-right">
+                          {!isVoidRow && !p.is_voided && (
+                            <button
+                              type="button"
+                              onClick={() => handleVoidPayment(p)}
+                              className="p-1.5 hover:bg-danger-50 rounded-lg text-text-muted hover:text-danger-700 transition-colors"
+                              title="Anular pago"
+                            >
+                              <Ban size={14} />
+                            </button>
+                          )}
+                        </Td>
+                      </Tr>
+                    )
+                  })
                 )}
               </TBody>
             </Table>
@@ -575,55 +573,6 @@ export default function ClienteFichaPage() {
             />
           </div>
         </div>
-      </Modal>
-
-      <Modal
-        open={editPayment != null}
-        onClose={closeEditPayment}
-        size="sm"
-        title="Editar pago"
-        footer={
-          <div className="flex justify-between w-full">
-            <Button variant="secondary" onClick={handleDeletePayment}>
-              <Trash2 size={14} /> Eliminar
-            </Button>
-            <div className="flex gap-3">
-              <Button variant="secondary" onClick={closeEditPayment}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSavePayment} disabled={!editAmount}>
-                Guardar
-              </Button>
-            </div>
-          </div>
-        }
-      >
-        {editPayment && (
-          <div className="space-y-4">
-            <p className="text-xs text-text-muted">
-              Pago original: {formatGs(editPayment.amount)} ·{' '}
-              {formatDateTime(editPayment.created_at)}
-            </p>
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">Monto (Gs.)</label>
-              <MoneyInput
-                value={editAmount}
-                onValueChange={setEditAmount}
-                className="h-12 text-right text-lg tabular-nums"
-                placeholder="0"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1.5">Nota</label>
-              <Input
-                value={editNote}
-                onChange={(e) => setEditNote(e.target.value)}
-                placeholder="Forma de pago, observaciones..."
-              />
-            </div>
-          </div>
-        )}
       </Modal>
     </div>
   )
