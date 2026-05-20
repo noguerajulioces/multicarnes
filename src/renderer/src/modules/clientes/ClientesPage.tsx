@@ -146,14 +146,10 @@ export default function ClientesPage() {
         actions={
           <>
             <TourButton onClick={startTour} />
-            <button
-              data-tour="clientes-new"
-              onClick={handleNew}
-              className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-            >
+            <Button data-tour="clientes-new" onClick={handleNew}>
               <Plus size={18} />
               Nuevo Cliente
-            </button>
+            </Button>
           </>
         }
       />
@@ -167,14 +163,14 @@ export default function ClientesPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 rounded-xl"
+            className="pl-10"
             placeholder="Buscar por nombre, teléfono o documento..."
           />
         </div>
         <Select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value as 'all' | 'customers' | 'employees')}
-          className="w-auto min-w-[160px] rounded-xl"
+          className="w-auto min-w-[160px]"
         >
           <option value="all">Todos</option>
           <option value="customers">Solo clientes</option>
@@ -184,8 +180,7 @@ export default function ClientesPage() {
 
       <Card
         data-tour="clientes-table"
-        className="rounded-2xl overflow-hidden"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        className="overflow-hidden"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

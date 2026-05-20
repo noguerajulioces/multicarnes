@@ -350,12 +350,9 @@ export default function VentasPage() {
             <p className="text-sm text-text-muted mt-1 mb-6">
               Debe abrir una caja antes de empezar a vender.
             </p>
-            <button
-              onClick={() => navigate('/caja/apertura')}
-              className="w-full bg-brand text-white py-3 rounded-xl font-medium hover:bg-brand-hover transition-colors shadow-sm"
-            >
+            <Button size="lg" className="w-full" onClick={() => navigate('/caja/apertura')}>
               Abrir caja
-            </button>
+            </Button>
           </div>
         </div>
       </div>

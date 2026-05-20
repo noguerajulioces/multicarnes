@@ -157,7 +157,7 @@ export default function MovimientosCajaPage(): React.JSX.Element {
       />
 
       {error && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <p className="text-sm text-danger-700">{error}</p>
           </CardBody>
@@ -165,7 +165,7 @@ export default function MovimientosCajaPage(): React.JSX.Element {
       )}
 
       {loading && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <TableSkeleton rows={6} columns={7} />
           </CardBody>
@@ -174,8 +174,7 @@ export default function MovimientosCajaPage(): React.JSX.Element {
 
       {!loading && hasData && (
         <Card
-          className="rounded-2xl overflow-hidden"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="overflow-hidden"
         >
           <MovimientosTable
             rows={rows}
@@ -198,7 +197,7 @@ export default function MovimientosCajaPage(): React.JSX.Element {
       )}
 
       {!loading && !error && !hasData && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <EmptyState
               icon={<History size={40} />}

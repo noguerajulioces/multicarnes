@@ -100,8 +100,7 @@ export default function PerfilPage() {
 
       <Card
         data-tour="perfil-info"
-        className="rounded-2xl p-6"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        className="p-6"
       >
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-brand-light text-brand text-xl font-semibold flex items-center justify-center shrink-0">
@@ -131,8 +130,7 @@ export default function PerfilPage() {
 
       <Card
         data-tour="perfil-pin"
-        className="rounded-2xl p-6"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        className="p-6"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex gap-3 min-w-0">

@@ -158,8 +158,7 @@ export default function ProductoFormPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card
           data-tour="producto-form-image"
-          className="rounded-2xl lg:col-span-1 self-start"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="lg:col-span-1 self-start"
         >
           <CardHeader>
             <h2 className="font-semibold text-text-main">Imagen</h2>
@@ -193,8 +192,6 @@ export default function ProductoFormPage() {
         <div className="lg:col-span-2 space-y-5">
           <Card
             data-tour="producto-form-basic"
-            className="rounded-2xl"
-            style={{ boxShadow: 'var(--shadow-card-soft)' }}
           >
             <CardHeader>
               <h2 className="font-semibold text-text-main">Información básica</h2>
@@ -258,8 +255,6 @@ export default function ProductoFormPage() {
 
           <Card
             data-tour="producto-form-pricing"
-            className="rounded-2xl"
-            style={{ boxShadow: 'var(--shadow-card-soft)' }}
           >
             <CardHeader>
               <h2 className="font-semibold text-text-main">Precio y stock</h2>
@@ -344,7 +339,7 @@ export default function ProductoFormPage() {
           </Card>
 
           {/* 005-promotional-pricing */}
-          <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+          <Card>
             <CardHeader>
               <h2 className="font-semibold text-text-main">Promoción</h2>
               <p className="text-xs text-text-muted">

@@ -173,7 +173,7 @@ export default function VentasListadoPage() {
         }
       />
 
-      <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+      <Card>
         <CardBody className="space-y-4">
           <div className="flex gap-3 items-end flex-wrap">
             <div>
@@ -216,7 +216,7 @@ export default function VentasListadoPage() {
       </Card>
 
       {loading && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <TableSkeleton rows={6} columns={7} />
           </CardBody>
@@ -225,8 +225,7 @@ export default function VentasListadoPage() {
 
       {!loading && hasData && (
         <Card
-          className="rounded-2xl overflow-hidden"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="overflow-hidden"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -320,7 +319,7 @@ export default function VentasListadoPage() {
       )}
 
       {showEmpty && (
-        <Card className="rounded-2xl" style={{ boxShadow: 'var(--shadow-card-soft)' }}>
+        <Card>
           <CardBody>
             <EmptyState
               icon={<FileText size={40} />}

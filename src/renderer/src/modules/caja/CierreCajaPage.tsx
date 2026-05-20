@@ -5,7 +5,7 @@ import { useCashStore } from '../../store/cash.store'
 import { useAuthStore } from '../../store/auth.store'
 import { daysOpen, formatDate, formatGs, isRegisterStale } from '../../lib/utils'
 import { toast } from '../../lib/toast'
-import { MoneyInput, TourButton } from '../../components/ui'
+import { Button, MoneyInput, TourButton } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaCierreTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
@@ -125,7 +125,7 @@ export default function CierreCajaPage() {
             <Coins size={20} />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-text-main leading-tight">
+            <h1 className="text-xl font-bold text-text-main leading-tight">
               Cierre de Caja / Arqueo
             </h1>
             <p className="text-xs text-text-muted">
@@ -229,20 +229,17 @@ export default function CierreCajaPage() {
 
             <div data-tour="caja-cierre-confirm" className="flex gap-3 mt-4">
               {!stale && (
-                <button
-                  onClick={() => navigate('/caja')}
-                  className="flex-1 border border-border rounded-xl py-2.5 font-medium text-text-main hover:bg-surface-muted transition-colors"
-                >
+                <Button variant="secondary" className="flex-1" onClick={() => navigate('/caja')}>
                   Volver
-                </button>
+                </Button>
               )}
-              <button
+              <Button
+                className="flex-1"
                 onClick={handleClose}
                 disabled={loading || !touched || (stale && notes.trim().length === 0)}
-                className="flex-1 bg-brand text-white py-2.5 rounded-xl font-medium hover:bg-brand-hover disabled:opacity-50 transition-colors shadow-sm"
               >
                 {loading ? 'Cerrando...' : 'Confirmar Cierre'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

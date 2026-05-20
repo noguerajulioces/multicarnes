@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ShoppingCart, Wallet, Receipt, AlertTriangle, Package } from 'lucide-react'
 import { formatGs } from '../../lib/utils'
-import { Card, CardBody, CardHeader, KpiCard, TourButton } from '../../components/ui'
+import { Button, Card, CardBody, CardHeader, KpiCard, TourButton } from '../../components/ui'
 import { useAuthStore } from '../../store/auth.store'
 import { usePageTour } from '../../lib/use-page-tour'
 import { dashboardManagerTourSteps, dashboardCajeroTourSteps } from '../../lib/tour-steps'
@@ -218,14 +218,10 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <TourButton onClick={startTour} />
-            <button
-              data-tour="dash-new-sale"
-              onClick={() => navigate('/pos')}
-              className="bg-brand text-white px-5 py-3 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-            >
+            <Button size="lg" data-tour="dash-new-sale" onClick={() => navigate('/pos')}>
               <Plus size={20} />
               Nueva Venta
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -250,8 +246,6 @@ export default function DashboardPage() {
 
         <Card
           data-tour="dash-stock"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -276,14 +270,10 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <TourButton onClick={startTour} />
-          <button
-            data-tour="dash-new-sale"
-            onClick={() => navigate('/pos')}
-            className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-          >
+          <Button data-tour="dash-new-sale" onClick={() => navigate('/pos')}>
             <Plus size={18} />
             Nueva Venta
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -327,8 +317,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card
           data-tour="dash-sales-chart"
-          className="xl:col-span-2 rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="xl:col-span-2"
         >
           <CardHeader className="flex items-center justify-between">
             <div>
@@ -344,8 +333,6 @@ export default function DashboardPage() {
 
         <Card
           data-tour="dash-top-products"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader className="flex items-center justify-between">
             <div>
@@ -363,8 +350,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card
           data-tour="dash-recent-sales"
-          className="xl:col-span-2 rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+          className="xl:col-span-2"
         >
           <CardHeader>
             <h2 className="font-semibold text-text-main">Ventas Recientes</h2>
@@ -377,8 +363,6 @@ export default function DashboardPage() {
 
         <Card
           data-tour="dash-stock"
-          className="rounded-2xl"
-          style={{ boxShadow: 'var(--shadow-card-soft)' }}
         >
           <CardHeader className="flex items-center justify-between">
             <div className="flex items-center gap-2">

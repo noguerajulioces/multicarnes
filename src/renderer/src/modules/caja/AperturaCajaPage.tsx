@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
 import { confirm } from '../../lib/confirm'
-import { MoneyInput, TourButton } from '../../components/ui'
+import { Button, MoneyInput, TourButton } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaAperturaTourSteps } from '../../lib/tour-steps'
 
@@ -83,14 +83,15 @@ export default function AperturaCajaPage() {
           </p>
         </div>
 
-        <button
+        <Button
           data-tour="caja-apertura-submit"
           type="submit"
+          size="lg"
           disabled={loading}
-          className="w-full bg-brand text-white py-3 rounded-xl font-medium hover:bg-brand-hover disabled:opacity-50 transition-colors shadow-sm"
+          className="w-full"
         >
           {loading ? 'Abriendo...' : 'Abrir Caja'}
-        </button>
+        </Button>
       </form>
     </div>
   )

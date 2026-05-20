@@ -110,8 +110,6 @@ export default function BackupPage() {
         <div className="space-y-5">
           <Card
             data-tour="backup-actions"
-            className="rounded-2xl"
-            style={{ boxShadow: 'var(--shadow-card-soft)' }}
           >
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -148,8 +146,6 @@ export default function BackupPage() {
 
           <Card
             data-tour="backup-folder"
-            className="rounded-2xl"
-            style={{ boxShadow: 'var(--shadow-card-soft)' }}
           >
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -185,8 +181,6 @@ export default function BackupPage() {
         <div className="space-y-5">
           <Card
             data-tour="backup-schedule"
-            className="rounded-2xl"
-            style={{ boxShadow: 'var(--shadow-card-soft)' }}
           >
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -268,8 +262,6 @@ export default function BackupPage() {
 
           <Card
             data-tour="backup-history"
-            className="rounded-2xl"
-            style={{ boxShadow: 'var(--shadow-card-soft)' }}
           >
             <CardHeader>
               <div className="flex items-center gap-3">

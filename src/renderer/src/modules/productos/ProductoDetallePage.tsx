@@ -197,8 +197,6 @@ export default function ProductoDetallePage() {
 
       <Card
         data-tour="producto-detalle-header"
-        className="rounded-2xl"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
         <CardBody className="flex flex-col sm:flex-row gap-5">
           <div className="w-32 h-32 rounded-2xl overflow-hidden border border-border bg-surface-muted shrink-0 flex items-center justify-center">
@@ -292,8 +290,6 @@ export default function ProductoDetallePage() {
 
       <Card
         data-tour="producto-detalle-movements"
-        className="rounded-2xl"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
         <CardHeader>
           <h2 className="font-semibold text-text-main">Movimientos de stock</h2>
@@ -354,8 +350,6 @@ export default function ProductoDetallePage() {
 
       <Card
         data-tour="producto-detalle-sales"
-        className="rounded-2xl"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
         <CardHeader>
           <h2 className="font-semibold text-text-main">Últimas ventas</h2>

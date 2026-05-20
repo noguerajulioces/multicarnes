@@ -16,7 +16,13 @@ import {
   Modal,
   MoneyInput,
   PageHeader,
-  TourButton
+  Table,
+  TBody,
+  Td,
+  Th,
+  THead,
+  TourButton,
+  Tr
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaTourSteps, cajaManagerTourSteps } from '../../lib/tour-steps'
@@ -112,13 +118,9 @@ export default function CajaPage() {
           <>
             <TourButton onClick={startTour} />
             {canClose && (
-              <button
-                data-tour="caja-close"
-                onClick={() => navigate('/caja/cierre')}
-                className="bg-brand text-white px-4 py-2.5 rounded-xl font-medium hover:bg-brand-hover flex items-center gap-2 shadow-sm transition-colors"
-              >
+              <Button data-tour="caja-close" onClick={() => navigate('/caja/cierre')}>
                 Cerrar Caja
-              </button>
+              </Button>
             )}
           </>
         }
@@ -166,8 +168,6 @@ export default function CajaPage() {
 
       <Card
         data-tour="caja-movements-list"
-        className="rounded-2xl"
-        style={{ boxShadow: 'var(--shadow-card-soft)' }}
       >
         <CardHeader>
           <h2 className="font-semibold text-text-main">Movimientos del Turno</h2>
@@ -177,45 +177,38 @@ export default function CajaPage() {
           </p>
         </CardHeader>
         <CardBody>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-text-muted border-b border-border">
-                  <th className="pb-2 font-normal pr-3">Hora</th>
-                  <th className="pb-2 font-normal pr-3">Tipo</th>
-                  <th className="pb-2 font-normal pr-3">Descripción</th>
-                  <th className="pb-2 font-normal text-right">Monto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {movements.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-sm text-text-muted">
-                      Sin movimientos en este turno
-                    </td>
-                  </tr>
-                ) : (
-                  movements.map((m) => (
-                    <tr
-                      key={m.id}
-                      className="border-b border-border last:border-0 hover:bg-surface-muted/50"
-                    >
-                      <td className="py-2.5 pr-3 text-text-muted tabular-nums">
-                        {formatDateTime(m.created_at)}
-                      </td>
-                      <td className="py-2.5 pr-3">
-                        <Badge tone={TYPE_META[m.type].tone}>{TYPE_META[m.type].label}</Badge>
-                      </td>
-                      <td className="py-2.5 pr-3">{m.description}</td>
-                      <td className="py-2.5 text-right font-medium tabular-nums">
-                        {formatGs(m.amount)}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <THead>
+              <Tr>
+                <Th>Hora</Th>
+                <Th>Tipo</Th>
+                <Th>Descripción</Th>
+                <Th className="text-right">Monto</Th>
+              </Tr>
+            </THead>
+            <TBody>
+              {movements.length === 0 ? (
+                <Tr>
+                  <Td colSpan={4} className="py-8 text-center text-text-muted">
+                    Sin movimientos en este turno
+                  </Td>
+                </Tr>
+              ) : (
+                movements.map((m) => (
+                  <Tr key={m.id}>
+                    <Td className="text-text-muted tabular-nums">
+                      {formatDateTime(m.created_at)}
+                    </Td>
+                    <Td>
+                      <Badge tone={TYPE_META[m.type].tone}>{TYPE_META[m.type].label}</Badge>
+                    </Td>
+                    <Td>{m.description}</Td>
+                    <Td className="text-right font-medium tabular-nums">{formatGs(m.amount)}</Td>
+                  </Tr>
+                ))
+              )}
+            </TBody>
+          </Table>
         </CardBody>
       </Card>
 
