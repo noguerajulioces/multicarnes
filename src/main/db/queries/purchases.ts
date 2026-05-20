@@ -138,6 +138,11 @@ export function getPurchaseOrderById(id: number) {
   return order
 }
 
+// Cash model (decision #9): purchase orders never touch cash_registers /
+// cash_movements. The shop pays suppliers outside the POS till (on account or
+// separate cash), so creating/receiving a purchase only affects stock + cost
+// history — never the drawer arqueo. If suppliers ever get paid from the till,
+// this is the place to emit a cash 'expense' movement.
 export function createPurchaseOrder(data: {
   supplierId: number | null
   userId: number
@@ -212,6 +217,17 @@ export function receivePurchaseOrder(id: number, userId: number) {
       throw new Error('receivePurchaseOrder: userId must reference an active user')
     }
 
+    // Only a pending order can be received. Without this guard a second
+    // 'receive' (double-click, stale page, second window) would add the stock
+    // again and write a duplicate stock_adjustments row.
+    const order = db.prepare('SELECT status FROM purchase_orders WHERE id = ?').get(id) as
+      | { status: string }
+      | undefined
+    if (!order) throw new Error('Orden de compra no encontrada')
+    if (order.status !== 'pending') {
+      throw new Error('Solo se pueden recibir órdenes pendientes.')
+    }
+
     const items = db.prepare('SELECT * FROM purchase_items WHERE order_id = ?').all(id) as {
       product_id: number
       quantity: number
@@ -245,6 +261,17 @@ export function receivePurchaseOrder(id: number, userId: number) {
 export function cancelPurchaseOrder(id: number) {
   const db = getDb()
   const txn = db.transaction(() => {
+    // Only a pending order can be cancelled (decision #3b). A received order
+    // already added its stock; reversing it here could drive stock negative if
+    // some was already sold, so undoing a reception is left to a manual stock
+    // adjustment rather than a silent cancel.
+    const order = db.prepare('SELECT status FROM purchase_orders WHERE id = ?').get(id) as
+      | { status: string }
+      | undefined
+    if (!order) throw new Error('Orden de compra no encontrada')
+    if (order.status !== 'pending') {
+      throw new Error('Solo se pueden cancelar órdenes pendientes.')
+    }
     db.prepare("UPDATE purchase_orders SET status = 'cancelled' WHERE id = ?").run(id)
     return getPurchaseOrderById(id)
   })

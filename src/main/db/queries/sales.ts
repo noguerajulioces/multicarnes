@@ -63,6 +63,24 @@ export function createSale(data: CreateSaleData) {
       throw new Error('La caja indicada no está abierta. Abrí una nueva caja antes de continuar.')
     }
 
+    // The repository is the source of truth for money. Re-validate the
+    // renderer-supplied amounts so a cart bug or a tampered renderer can't
+    // persist a sale whose totals don't add up. Mirrors the cart's own
+    // clamped formula (total = max(0, subtotal - discount)).
+    const itemsSubtotal = data.items.reduce((sum, it) => sum + it.subtotal, 0)
+    if (itemsSubtotal !== data.subtotal) {
+      throw new Error('Subtotal inconsistente con los ítems de la venta.')
+    }
+    if (data.total !== Math.max(0, data.subtotal - data.discount)) {
+      throw new Error('El total no coincide con subtotal menos descuento.')
+    }
+    if (data.paymentMethod === 'mixed') {
+      const paid = (data.payments ?? []).reduce((sum, p) => sum + p.amount, 0)
+      if (paid !== data.total) {
+        throw new Error('La suma de los pagos no coincide con el total de la venta.')
+      }
+    }
+
     // 006-card-payments: validate processor/reference per method. For mixed
     // sales the top-level fields stay NULL — each sale_payments row carries
     // its own processor/reference.
@@ -366,31 +384,6 @@ export function getDaySalesTotal() {
     )
     .get() as { total: number; count: number }
   return result
-}
-
-export function getDayCashSalesTotal(registerId: number) {
-  const result = getDb()
-    .prepare(
-      `
-    SELECT COALESCE(SUM(sp.amount), 0) as total
-    FROM sale_payments sp
-    JOIN sales s ON sp.sale_id = s.id
-    WHERE s.register_id = ? AND sp.method = 'cash' AND s.status = 'completed'
-  `
-    )
-    .get(registerId) as { total: number }
-
-  const directCash = getDb()
-    .prepare(
-      `
-    SELECT COALESCE(SUM(total), 0) as total
-    FROM sales
-    WHERE register_id = ? AND payment_method = 'cash' AND status = 'completed'
-  `
-    )
-    .get(registerId) as { total: number }
-
-  return result.total + directCash.total
 }
 
 // 007-receipt-share: append-only audit row when the renderer shares a sale

@@ -27,7 +27,7 @@ export function registerCustomersIpc(): string[] {
       _e,
       ctx,
       customerId: number,
-      userId: number,
+      _userId: number,
       amount: number,
       note: string | undefined,
       affectsCash: boolean
@@ -35,9 +35,12 @@ export function registerCustomersIpc(): string[] {
       // ctx.userId is non-null here because the matrix marks this channel as
       // 'privileged' — the guard rejects unauthenticated calls before reaching us.
       if (ctx.userId === null) throw new Error('Sesión inválida.')
+      // Attribute the payment to the authenticated caller, not the
+      // renderer-supplied userId (_userId), so the customer_payments row and
+      // its cash_movements income can never be charged to different users.
       return customersQuery.addCustomerPayment({
         customerId,
-        userId,
+        userId: ctx.userId,
         amount,
         note,
         affectsCash,
