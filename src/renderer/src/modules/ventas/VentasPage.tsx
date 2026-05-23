@@ -143,6 +143,14 @@ export default function VentasPage() {
     loadProducts(productsPage, search || undefined, activeCategory)
   }, [productsPage])
 
+  // Mantener el cursor en el buscador siempre que no haya un modal abierto, para
+  // poder escribir o escanear el siguiente producto sin tener que volver a hacer clic.
+  useEffect(() => {
+    if (!showCobro && !quantityModal && !showHeld) {
+      searchRef.current?.focus()
+    }
+  }, [showCobro, quantityModal, showHeld])
+
   useEffect(() => {
     const target = loadMoreRef.current
     if (!target) return
@@ -168,6 +176,7 @@ export default function VentasPage() {
         const barcode = barcodeBuffer.current
         barcodeBuffer.current = ''
         setScannerActive(false)
+        setSearch('')
 
         // Código generado por balanza electrónica (EAN-13 con peso embebido)
         const balance = parseBalanceCode(barcode)
@@ -329,6 +338,7 @@ export default function VentasPage() {
     if (qty <= 0) return
     addItem(quantityModal, qty)
     closeQuantityModal()
+    setSearch('')
     searchRef.current?.focus()
   }
 
