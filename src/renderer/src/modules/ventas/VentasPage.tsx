@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
@@ -78,7 +78,9 @@ export default function VentasPage() {
   const searchRef = useRef<HTMLInputElement>(null)
   const discountRef = useRef<HTMLInputElement>(null)
   const barcodeBuffer = useRef('')
-  const barcodeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const burstStart = useRef(0)
+  const lastKeyTime = useRef(0)
+  const finalizeTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const scannerTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const PRODUCTS_PER_PAGE = 30
@@ -166,63 +168,113 @@ export default function VentasPage() {
     return () => observer.disconnect()
   }, [loadingMore, products.length, productsTotal])
 
-  // Barcode scanner support
+  const openQuantityModal = useCallback((product: Product) => {
+    setQuantityModal(product)
+    setInputMode('qty')
+    setAmountInput(0)
+    setQuantity(product.price_type === 'kg' ? '' : '1')
+  }, [])
+
+  // Resuelve un código (escaneado o pegado) contra el catálogo y lo agrega al
+  // carrito de inmediato. Limpia el buscador para dejarlo listo para la próxima
+  // lectura.
+  //
+  // Estrategia en dos pasos para no confundir productos envasados con etiquetas
+  // de balanza (ambos son EAN-13):
+  //   1. Match EXACTO del código completo → producto con código fijo (envasado).
+  //   2. Si no hay match, lo interpreta como etiqueta de balanza de peso
+  //      variable (7 dígitos producto + 5 peso en gramos + verificador) y busca
+  //      el producto por sus 7 dígitos, agregándolo con el peso embebido.
+  const processScannedCode = useCallback(
+    async (code: string) => {
+      setScannerActive(false)
+      setSearch('')
+
+      // 1) Producto con código de barras fijo (envasado / por unidad)
+      const exact = await window.api.products.getByBarcode(code)
+      if (exact) {
+        if (exact.price_type === 'kg') {
+          // Por kg pero se escaneó un código fijo: pedimos el peso a mano.
+          openQuantityModal(exact)
+        } else {
+          addItem(exact, 1)
+          toast.success(`${exact.name} agregado`)
+          searchRef.current?.focus()
+        }
+        return
+      }
+
+      // 2) Etiqueta de balanza con peso embebido (EAN-13 de peso variable)
+      const balance = parseBalanceCode(code)
+      if (balance) {
+        const p = await window.api.products.getByBarcode(balance.productCode)
+        if (p && p.price_type === 'kg') {
+          addItem(p, balance.weightKg)
+          toast.success(`${p.name}: ${balance.weightKg.toFixed(3)} kg agregado`)
+          searchRef.current?.focus()
+          return
+        }
+        if (p) {
+          toast.warning(`${p.name} no está configurado como producto por kg`)
+          return
+        }
+      }
+
+      toast.warning(`Código ${code} no encontrado`)
+    },
+    [addItem, openQuantityModal]
+  )
+
+  // Barcode scanner support.
+  //
+  // Un lector de código de barras "teclea" la lectura mucho más rápido que una
+  // persona y, según el modelo, agrega o no un Enter al final. Por eso NO
+  // dependemos del Enter: detectamos el escaneo por la velocidad de tecleo
+  // (promedio de ms entre teclas) y lo confirmamos de dos formas: al recibir
+  // Enter, o tras una breve pausa sin más teclas (para lectores sin Enter).
+  // Así el producto entra al carrito de inmediato en ambos casos, mientras que
+  // escribir un nombre a mano sigue filtrando la lista sin agregar nada.
   useEffect(() => {
+    const SCAN_AVG_GAP_MS = 50 // ≤ esto entre teclas ⇒ velocidad de lector
+    const IDLE_FINALIZE_MS = 120 // pausa que cierra un escaneo sin Enter
+    const MIN_SCAN_LEN = 4 // largo mínimo para auto-confirmar sin Enter
+
+    const finalizeScan = (viaEnter: boolean) => {
+      clearTimeout(finalizeTimer.current)
+      const code = barcodeBuffer.current
+      barcodeBuffer.current = ''
+      const len = code.length
+      const avgGap = len > 1 ? (lastKeyTime.current - burstStart.current) / (len - 1) : Infinity
+      const isScannerSpeed = avgGap <= SCAN_AVG_GAP_MS
+      const minLen = viaEnter ? 3 : MIN_SCAN_LEN
+      // Si fue tecleo humano (lento) o muy corto, lo dejamos como búsqueda.
+      if (len < minLen || !isScannerSpeed) return
+      processScannedCode(code)
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (showCobro || quantityModal) return
       if (e.target !== searchRef.current && (e.target as HTMLElement).tagName === 'INPUT') return
 
-      if (e.key === 'Enter' && barcodeBuffer.current.length >= 3) {
-        const barcode = barcodeBuffer.current
-        barcodeBuffer.current = ''
-        setScannerActive(false)
-        setSearch('')
-
-        // Código generado por balanza electrónica (EAN-13 con peso embebido)
-        const balance = parseBalanceCode(barcode)
-        if (balance) {
-          window.api.products.getByBarcode(balance.productCode).then((p) => {
-            if (p && p.price_type === 'kg') {
-              addItem(p, balance.weightKg)
-              toast.success(`${p.name}: ${balance.weightKg.toFixed(3)} kg agregado`)
-            } else if (p) {
-              toast.warning(`${p.name} no es un producto por kg`)
-            } else {
-              toast.warning(`Código de balanza ${balance.productCode} no encontrado`)
-            }
-          })
-          return
-        }
-
-        // Lectura normal de código de barras
-        window.api.products.getByBarcode(barcode).then((p) => {
-          if (p) {
-            if (p.price_type === 'kg') {
-              openQuantityModal(p)
-            } else {
-              addItem(p, 1)
-              toast.success(`${p.name} agregado`)
-            }
-          } else {
-            toast.warning(`Código ${barcode} no encontrado`)
-          }
-        })
+      if (e.key === 'Enter') {
+        if (barcodeBuffer.current.length >= 3) finalizeScan(true)
         return
       }
       if (e.key.length === 1) {
+        const now = Date.now()
+        if (barcodeBuffer.current === '') burstStart.current = now
         barcodeBuffer.current += e.key
+        lastKeyTime.current = now
         setScannerActive(true)
-        clearTimeout(barcodeTimer.current)
-        barcodeTimer.current = setTimeout(() => {
-          barcodeBuffer.current = ''
-        }, 100)
         clearTimeout(scannerTimer.current)
         scannerTimer.current = setTimeout(() => setScannerActive(false), 300)
+        clearTimeout(finalizeTimer.current)
+        finalizeTimer.current = setTimeout(() => finalizeScan(false), IDLE_FINALIZE_MS)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showCobro, quantityModal, addItem])
+  }, [showCobro, quantityModal, processScannedCode])
 
   const cancelCart = async () => {
     if (items.length === 0) return
@@ -303,13 +355,6 @@ export default function VentasPage() {
     return () => window.removeEventListener('keydown', handler)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length, showCobro, quantityModal, showHeld])
-
-  const openQuantityModal = (product: Product) => {
-    setQuantityModal(product)
-    setInputMode('qty')
-    setAmountInput(0)
-    setQuantity(product.price_type === 'kg' ? '' : '1')
-  }
 
   const closeQuantityModal = () => {
     setQuantityModal(null)
@@ -614,6 +659,16 @@ export default function VentasPage() {
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onPaste={(e) => {
+                // Pegar un código numérico equivale a escanearlo: lo agrega al
+                // carrito en vez de dejarlo como término de búsqueda. Pegar
+                // texto con letras (un nombre) sigue filtrando normalmente.
+                const text = e.clipboardData.getData('text').trim()
+                if (/^\d{3,}$/.test(text)) {
+                  e.preventDefault()
+                  processScannedCode(text)
+                }
+              }}
               className="pl-11 h-12 text-base rounded-xl"
               placeholder="Buscar por nombre o código de barras..."
               autoFocus
