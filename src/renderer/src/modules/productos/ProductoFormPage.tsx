@@ -245,9 +245,26 @@ export default function ProductoFormPage() {
                   <label className="block text-sm text-text-muted mb-1.5">Código de barras</label>
                   <Input
                     value={form.barcode}
-                    onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-                    placeholder="Opcional"
+                    onChange={(e) => {
+                      let v = e.target.value.trim()
+                      // Producto por kg: si escanean/pegan la etiqueta completa de
+                      // la balanza (EAN-13 = 7 dígitos producto + 5 peso + 1
+                      // verificador), guardamos solo los 7 del producto. Así el
+                      // código queda constante y el escaneo en ventas matchea
+                      // siempre, sin importar el peso de cada pesada.
+                      if (form.price_type === 'kg' && /^\d{13}$/.test(v)) {
+                        v = v.slice(0, 7)
+                      }
+                      setForm({ ...form, barcode: v })
+                    }}
+                    placeholder={form.price_type === 'kg' ? 'Código de 7 dígitos' : 'Opcional'}
                   />
+                  {form.price_type === 'kg' && (
+                    <p className="text-xs text-text-muted mt-1">
+                      Por kg: ingresá los <strong>7 dígitos</strong> del producto. Si escaneás la
+                      etiqueta completa de la balanza, tomamos los primeros 7 automáticamente.
+                    </p>
+                  )}
                 </div>
               </div>
             </CardBody>
