@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatGs, cn } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
-import { priceTypeInfo, formatQty } from '../../lib/price-types'
+import { priceTypeInfo, formatQty, roundQty } from '../../lib/price-types'
 import { isPromoActive } from '../../lib/promo'
 import type { Product, Category } from '@shared/types'
 import {
@@ -91,7 +91,10 @@ export default function ProductosPage() {
   const adjustEntered = adjustModal && newStock !== '' ? parseFloat(newStock) : NaN
   const resultingStock =
     adjustModal && !Number.isNaN(adjustEntered)
-      ? applyStockAdjust(adjustMode, adjustModal.stock, adjustEntered)
+      ? roundQty(
+          applyStockAdjust(adjustMode, adjustModal.stock, adjustEntered),
+          adjustModal.price_type
+        )
       : null
   const stockDiff =
     resultingStock !== null && adjustModal ? resultingStock - adjustModal.stock : null
@@ -386,7 +389,11 @@ export default function ProductosPage() {
                       type="button"
                       onClick={() => {
                         setAdjustMode(mode)
-                        setNewStock(mode === 'set' ? String(adjustModal.stock) : '')
+                        setNewStock(
+                          mode === 'set'
+                            ? String(roundQty(adjustModal.stock, adjustModal.price_type))
+                            : ''
+                        )
                       }}
                       className={cn(
                         'px-2 py-1.5 rounded-md text-sm font-medium transition-colors',

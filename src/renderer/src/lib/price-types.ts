@@ -40,6 +40,17 @@ export function priceTypeInfo(code: PriceType | string): PriceTypeInfo {
   return PRICE_TYPES[code as PriceType] ?? PRICE_TYPES.unit
 }
 
+/**
+ * Redondea una cantidad a los decimales propios del tipo de precio (kg→3, l→2,
+ * unit→0), eliminando la basura de punto flotante (p. ej. 7.800000000000001 →
+ * 7.8). Útil al prellenar inputs o antes de persistir el stock resultante.
+ */
+export function roundQty(qty: number, code: PriceType | string): number {
+  const { decimals } = priceTypeInfo(code)
+  const factor = 10 ** decimals
+  return Math.round(qty * factor) / factor
+}
+
 export function formatQty(qty: number, code: PriceType | string): string {
   const info = priceTypeInfo(code)
   // Locale es-PY usa "," decimal y "." de miles, evitando que "10.000 kg" se lea como 10 mil.
