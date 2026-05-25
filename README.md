@@ -1,43 +1,52 @@
 # Multicarnes POS
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.6.9-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 ![Electron](https://img.shields.io/badge/Electron-39-47848F.svg?logo=electron&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6.svg?logo=typescript&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6.svg?logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-7-646CFF.svg?logo=vite&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind-4-38B2AC.svg?logo=tailwindcss&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57.svg?logo=sqlite&logoColor=white)
 ![License](https://img.shields.io/badge/license-Proprietary-red.svg)
 
-Desktop Point of Sale (POS) system for **Multicarnes S.R.L.** (Encarnación, Paraguay), built with Electron, React, and TypeScript. Manages sales, cash registers, products, purchases, customers, reports, and users, with a local SQLite database and thermal printing support.
+Desktop Point of Sale (POS) system for **Multicarnes S.R.L.** (Encarnación, Paraguay), built with Electron, React, and TypeScript. Manages sales, cash registers, products, purchases, customers, reports, and users on a local SQLite database, with thermal printing, barcode/scale input, and self-updating packaged builds.
 
 ## Features
 
-- **Sales (POS)** with name or barcode search, support for products by kg or by unit, discounts, and payments in cash, transfer, credit (fiado), or mixed.
+- **Sales (POS)** with name or barcode search, products priced by kg or by unit, variable-weight scale barcodes, discounts, and payments in cash, transfer, credit (fiado), or mixed. Tickets can be held per cashier and resumed later.
+- **Promotional pricing** per product (fixed Gs. or % off, optional date range), applied automatically at the register; the receipt prints an "Ahorrás" line when a sale used promo prices.
 - **Cash management** with opening (zero balance allowed with explicit confirmation), closing, and reconciliation, manual income/expense logging, and shift summaries.
-- **Products and stock** with categories, low-stock alerts, audited adjustments, and traceability.
+- **Cash movements history** ("Movimientos de Caja") with server-side pagination, role-aware filters, append-only voiding (anular), and Excel export.
+- **Products and stock** with categories, low-stock alerts, and audited stock adjustments in three modes (sumar / restar / reemplazar), with full traceability.
 - **Purchases and suppliers** with purchase orders, goods reception, and cost history.
-- **Customers** with credit balances, payment recording, and full activity sheet.
-- **Reports** for sales by period, top products, profit margins, stock movements, and cash closures, exportable to Excel and PDF.
-- **Users and roles** (Admin, Supervisor, Cashier) with PIN authentication hashed with bcrypt.
+- **Customers** with credit (fiado) balances and payment recording in two modes — **cash** (affects the cash register) or **salary deduction** (does not) — plus a full activity sheet.
+- **Receipt delivery** beyond the thermal printer: share by **WhatsApp** (plain text via `wa.me`), download as **PNG image**, or as **PDF**, from the post-sale modal and the sales history detail.
+- **Reports** for sales by period, top products (with net revenue), profit margins, stock movements, and cash closures, with charts (Recharts) and Excel / PDF export.
+- **Users and roles** (Admin, Supervisor, Cashier) with PIN authentication hashed with bcrypt, and **server-side IPC authorization** for privileged operations.
 - **Self-service profile** at `/perfil` (avatar in header or user block in sidebar) so any user can review their account and change their own PIN, with current-PIN verification.
-- **Receipt rendering pipeline** — a single source of truth produces three outputs: an on-screen preview, a downloadable PDF (`jspdf`), and an ESC/POS print stream (`node-thermal-printer`) for 58 mm / 80 mm thermal printers.
-- **Backups** of the database, automated on cash closure with manual restore.
+- **Header notifications** with a per-user read state (debtor customers and below-minimum stock), and an onboarding tour for first-time users.
+- **Backups** of the database, automated on cash closure with manual restore, plus automatic pre-migration backups.
+- **Auto-update** for packaged builds via `electron-updater`, with file logging via `electron-log`.
 
 ## Tech stack
 
-| Layer             | Technology                             |
-| ----------------- | -------------------------------------- |
-| Desktop framework | Electron + electron-vite               |
-| UI                | React 19 + TypeScript + Tailwind CSS 4 |
-| Global state      | Zustand                                |
-| Routing           | React Router DOM                       |
-| Database          | SQLite (`better-sqlite3`)              |
-| Security          | bcryptjs (PIN hash)                    |
-| Printing          | node-thermal-printer                   |
-| Reports           | xlsx + jsPDF                           |
-| Packaging         | electron-builder                       |
+| Layer             | Technology                                  |
+| ----------------- | ------------------------------------------- |
+| Desktop framework | Electron 39 + electron-vite                 |
+| UI                | React 19 + TypeScript 5.9 + Tailwind CSS 4  |
+| Global state      | Zustand                                     |
+| Routing           | React Router DOM 7                          |
+| Database          | SQLite (`better-sqlite3`)                   |
+| Security          | bcryptjs (PIN hash)                         |
+| Printing          | node-thermal-printer (ESC/POS)              |
+| Charts            | Recharts                                    |
+| Reports / export  | xlsx + jsPDF                                |
+| Dates             | date-fns                                    |
+| Onboarding        | @reactour/tour                              |
+| Updates / logging | electron-updater + electron-log             |
+| Testing           | Vitest (integration) + Playwright (e2e)     |
+| Packaging         | electron-builder                            |
 
 Currency: **Guaraníes (Gs.)** — integers, no decimals.
 
@@ -45,13 +54,20 @@ Currency: **Guaraníes (Gs.)** — integers, no decimals.
 
 ```
 pos-multicarnes/
-├── docs/            # Technical documentation (DB schema, ER diagram, etc.)
+├── docs/            # Technical documentation (DB schema, spec, user manual, QA)
+├── specs/           # Feature specs (001–008), one folder per shipped feature
+├── .specify/        # Constitution, functional spec, and gap analysis
+├── tests/
+│   ├── integration/ # Vitest tests against a real SQLite DB
+│   └── e2e/         # Playwright end-to-end tests
+├── scripts/         # Auxiliary scripts (auth smoke test, etc.)
 ├── src/
-│   ├── main/        # Electron main process (DB, IPC, services)
-│   │   ├── db/      # SQLite schema, seed, and queries
-│   │   └── ipc/     # IPC handlers per module
+│   ├── main/        # Electron main process
+│   │   ├── db/      # SQLite schema, versioned migrations, seed, queries
+│   │   ├── ipc/     # IPC handlers per module
+│   │   └── updater.ts
 │   ├── preload/     # Secure main ↔ renderer bridge
-│   ├── renderer/    # React app (modules, stores, components)
+│   ├── renderer/    # React app (modules, stores, components, lib)
 │   └── shared/      # Shared TypeScript types
 ├── resources/       # Icons and packaged resources
 ├── build/           # Build resources (entitlements, etc.)
@@ -63,8 +79,10 @@ pos-multicarnes/
 
 - **Node.js** ≥ 20
 - **npm** ≥ 10
-- On Windows, native build tools for `better-sqlite3` (`windows-build-tools` or Visual Studio Build Tools).
+- On Windows, native build tools for `better-sqlite3` (Visual Studio Build Tools).
 - On macOS, Xcode Command Line Tools.
+
+> `better-sqlite3` is a native module. The `predev` / `prestart` / `postinstall` scripts run `electron-builder install-app-deps` so the binary matches Electron's ABI. Integration tests run against Node, so `pretest:integration` rebuilds it for Node first. If you hit a `NODE_MODULE_VERSION` mismatch, re-run the relevant rebuild step (`npm run rebuild:node` or `npm run rebuild:electron`).
 
 ## Installation
 
@@ -84,11 +102,25 @@ Auxiliary commands:
 npm run lint          # ESLint
 npm run format        # Prettier
 npm run typecheck     # Type-check main + renderer
+npm run smoke:auth    # Quick auth smoke test (tsx)
 ```
+
+## Testing
+
+```bash
+npm run test:integration          # Vitest, against a real SQLite DB
+npm run test:integration:watch    # Watch mode
+npm run test:integration:coverage # With coverage (v8)
+npm run test:e2e                  # Playwright end-to-end
+npm test                          # Integration + e2e
+```
+
+Integration tests live in [`tests/integration/`](tests/integration) and exercise the main-process IPC/query layer against a temporary SQLite database. End-to-end tests in [`tests/e2e/`](tests/e2e) drive the packaged app with Playwright (auth, sales, cash, products, customers, purchases, reports, users, backup, authorization, and more).
 
 ## Production build
 
 ```bash
+npm run build         # typecheck + electron-vite build
 npm run build:win     # Windows (NSIS installer)
 npm run build:mac     # macOS (dmg)
 npm run build:linux   # Linux (AppImage / snap / deb)
@@ -97,12 +129,23 @@ npm run build:unpack  # Unpacked build (for inspection)
 
 Artifacts are generated under `dist/`.
 
+## Release
+
+Releases are automated with **release-it** (Conventional Commits):
+
+```bash
+npm run release       # bump version + changelog + commit + tag + push
+```
+
+Pushing the `vX.Y.Z` tag triggers the CI build. See [`CHANGELOG.md`](CHANGELOG.md) for the full history.
+
 ## Database
 
 - Local SQLite database created automatically at `app.getPath('userData')/pos.db` on first launch.
 - Synchronous access via `better-sqlite3` from the main process.
 - The renderer **never** queries the DB directly: all communication goes through IPC (`module:action`).
-- Sale operations are wrapped in transactions to guarantee stock and cash consistency.
+- Sale and payment operations are wrapped in transactions to guarantee stock and cash consistency.
+- **Versioned migrations** (currently up to v12) apply additively on startup; a pre-migration backup of the DB is written before each upgrade.
 
 Initial data (seed):
 
@@ -110,18 +153,21 @@ Initial data (seed):
 
 ## Roles and permissions
 
-| Module                          | Admin | Supervisor | Cashier |
-| ------------------------------- | :---: | :--------: | :-----: |
-| Login / Dashboard               |   ✓   |     ✓      |    ✓    |
-| Cash register (open / view)     |   ✓   |     ✓      |    ✓    |
-| Cash closure                    |   ✓   |     ✓      |    ✗    |
-| Sales                           |   ✓   |     ✓      |    ✓    |
-| Profile / change own PIN        |   ✓   |     ✓      |    ✓    |
-| Products (edit)                 |   ✓   |     ✓      |    ✗    |
-| Purchases / Customers / Reports |   ✓   |     ✓      |    ✗    |
-| Users / Settings                |   ✓   |     ✗      |    ✗    |
+| Module                                | Admin | Supervisor | Cashier |
+| ------------------------------------- | :---: | :--------: | :-----: |
+| Login / Dashboard                     |   ✓   |     ✓      |    ✓    |
+| Cash register (open / view)           |   ✓   |     ✓      |    ✓    |
+| Cash closure                          |   ✓   |     ✓      |    ✗    |
+| Sales                                 |   ✓   |     ✓      |    ✓    |
+| Customer payments (cash / deduction)  |   ✓   |     ✓      |    ✓    |
+| Profile / change own PIN              |   ✓   |     ✓      |    ✓    |
+| Products (edit / adjust stock)        |   ✓   |     ✓      |    ✗    |
+| Purchases / Customers / Reports       |   ✓   |     ✓      |    ✗    |
+| Users / Settings                      |   ✓   |     ✗      |    ✗    |
 
-## Receipt printing
+Authorization is enforced **server-side** in the IPC layer, not just hidden in the UI.
+
+## Receipt printing & sharing
 
 The receipt pipeline is centralised in [`src/renderer/src/lib/ticket.ts`](src/renderer/src/lib/ticket.ts), which converts a `Sale` plus business settings into a paper-aware list of formatted lines. From that single representation:
 
@@ -129,17 +175,21 @@ The receipt pipeline is centralised in [`src/renderer/src/lib/ticket.ts`](src/re
 - [`ticket-pdf.ts`](src/renderer/src/lib/ticket-pdf.ts) exports the same lines to a PDF sized to the paper width.
 - [`print.ipc.ts`](src/main/ipc/print.ipc.ts) sends the lines to a thermal printer via `node-thermal-printer`.
 
-After confirming a sale, [`TicketPreviewModal`](src/renderer/src/modules/ventas/TicketPreviewModal.tsx) opens with the preview and three actions: **PDF**, **Imprimir** and **Nueva Venta**. The print button checks for a configured printer in advance; if none is set, it is replaced by **Configurar impresora**, which navigates to Settings. The IPC handler returns `{ ok, error? }` instead of throwing, keeping the dev console free of stack traces for expected failures (no printer configured, printer offline).
+After confirming a sale, [`TicketPreviewModal`](src/renderer/src/modules/ventas/TicketPreviewModal.tsx) opens with the preview and actions to print, export PDF, or start a new sale. The print button checks for a configured printer in advance; if none is set, it is replaced by **Configurar impresora**, which navigates to Settings. The IPC handler returns `{ ok, error? }` instead of throwing, keeping the dev console free of stack traces for expected failures (no printer configured, printer offline).
+
+When no printer is available, the receipt can be delivered by **WhatsApp** (plain text), **PNG image**, or **PDF** from the same modal and from the sales history detail.
 
 To configure a printer, go to **Configuración → Impresora térmica** and fill in the OS-reported printer name and paper width.
 
 ## Documentation
 
-All project documentation lives in [`docs/`](docs/README.md). Start at the [docs index](docs/README.md) — it links to the database schema, the technical specification, and the QA guide.
+All project documentation lives in [`docs/`](docs/README.md). Start at the [docs index](docs/README.md) — it links to:
 
-## Quality assurance
+- [`database.md`](docs/database.md) — schema, ER diagram (Mermaid), table reference, transactional flows, and migrations.
+- [`MANUAL.md`](docs/MANUAL.md) — end-user manual.
+- [`qa/`](docs/qa/README.md) — manual QA guide and per-module test cases.
 
-Manual QA artifacts live in [`docs/qa/`](docs/qa/README.md): release smoke checklist, per-module test cases (login, sales, cash, products, customers, purchases, users, reports, backup, configuration), and the bug report template.
+Per-feature design docs live under [`specs/`](specs), and the locked-stack rules, functional inventory, and risk register live under [`.specify/`](.specify/memory).
 
 ## Recommended IDE
 
@@ -147,41 +197,7 @@ Manual QA artifacts live in [`docs/qa/`](docs/qa/README.md): release smoke check
 
 ## Changelog
 
-All notable changes to this project are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-### [Unreleased]
-
-#### Added
-
-- Onboarding tour for first-time users (`@reactour/tour`).
-- Self-service profile page at `/perfil` with PIN change protected by current-PIN verification; reachable from the avatar dropdown in the header and from the user block in the sidebar (which now reflects the active route).
-- Receipt rendering pipeline: shared text generator + on-screen preview + PDF export + thermal print, all driven by the same source. Preview modal opens automatically after a successful sale.
-- Smooth POS entry transition (branded splash with fade-in) when navigating to `/ventas`, regardless of cash register state.
-- Configurable minimum display time and fade-out for the boot splash window so the brand introduction is not cut short on fast renders.
-
-#### Changed
-
-- Cash register opening now allows a zero starting balance with an explicit confirmation dialog; pressing Enter submits the form.
-- Print IPC contract returns `{ ok, error? }` instead of throwing, eliminating noisy stack traces in the dev console for expected failures.
-- Windows / macOS icon configuration cleaned up and made explicit in `electron-builder.yml`; runtime icon for `BrowserWindow` selected per platform.
-
-### [1.0.0] — 2026-04
-
-#### Added
-
-- Sales module (POS) with barcode reader, kg/unit pricing, discounts, and split payments (cash, transfer, credit, mixed).
-- Cash register module with opening, manual movements, closure, and reconciliation.
-- Product, category, and stock management with low-stock alerts and audited adjustments.
-- Purchases module with suppliers, purchase orders, and goods reception.
-- Customer module with credit (fiado) balances, payment recording, and history.
-- Reports for sales, top products, margins, stock movements, and cash closures, with Excel and PDF export.
-- User management with role-based access (Admin / Supervisor / Cashier) and bcrypt-hashed PINs.
-- Thermal printing of receipts (58 mm / 80 mm).
-- Automatic database backup on cash closure and manual restore from settings.
-
-#### Fixed
-
-- PDF export forced to portrait orientation regardless of column count.
+See [`CHANGELOG.md`](CHANGELOG.md) — generated from Conventional Commits and following [Semantic Versioning](https://semver.org/).
 
 ## Author
 
