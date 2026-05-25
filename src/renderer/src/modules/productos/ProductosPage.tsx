@@ -30,6 +30,13 @@ import {
 import { usePageTour } from '../../lib/use-page-tour'
 import { productosTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
+import {
+  type StockAdjustMode,
+  STOCK_ADJUST_MODES,
+  applyStockAdjust,
+  stockAdjustInputLabel,
+  stockAdjustReasonPlaceholder
+} from '../../lib/stock-adjust'
 
 const PER_PAGE = 50
 
@@ -46,6 +53,7 @@ export default function ProductosPage() {
   const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('all')
   const [filterPromo, setFilterPromo] = useState(false)
   const [adjustModal, setAdjustModal] = useState<Product | null>(null)
+  const [adjustMode, setAdjustMode] = useState<StockAdjustMode>('add')
   const [newStock, setNewStock] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
 
@@ -78,15 +86,25 @@ export default function ProductosPage() {
     })
   }, [search, filterCat, filterStock, filterStatus, filterPromo, page])
 
+  // The field holds the incoming/outgoing quantity (add/subtract) or the new
+  // absolute total (set); the IPC always receives the resulting absolute stock.
+  const adjustEntered = adjustModal && newStock !== '' ? parseFloat(newStock) : NaN
+  const resultingStock =
+    adjustModal && !Number.isNaN(adjustEntered)
+      ? applyStockAdjust(adjustMode, adjustModal.stock, adjustEntered)
+      : null
+  const stockDiff =
+    resultingStock !== null && adjustModal ? resultingStock - adjustModal.stock : null
+  const stockWouldGoNegative = resultingStock !== null && resultingStock < 0
+
   const handleAdjust = async (): Promise<void> => {
-    if (!adjustModal || !newStock || !adjustReason || !user) return
+    if (!adjustModal || !adjustReason || !user || resultingStock === null) return
+    if (stockWouldGoNegative) {
+      handleApiError(new Error('El stock no puede quedar negativo.'))
+      return
+    }
     try {
-      await window.api.products.adjustStock(
-        adjustModal.id,
-        parseFloat(newStock),
-        adjustReason,
-        user.id
-      )
+      await window.api.products.adjustStock(adjustModal.id, resultingStock, adjustReason, user.id)
     } catch (err) {
       handleApiError(err)
       return
@@ -100,11 +118,10 @@ export default function ProductosPage() {
 
   const closeAdjustModal = (): void => {
     setAdjustModal(null)
+    setAdjustMode('add')
     setNewStock('')
     setAdjustReason('')
   }
-
-  const stockDiff = adjustModal && newStock !== '' ? parseFloat(newStock) - adjustModal.stock : null
 
   const { startTour } = usePageTour({ key: 'productos', steps: productosTourSteps })
 
@@ -287,7 +304,9 @@ export default function ProductosPage() {
                         <button
                           onClick={() => {
                             setAdjustModal(p)
-                            setNewStock(String(p.stock))
+                            setAdjustMode('add')
+                            setNewStock('')
+                            setAdjustReason('')
                           }}
                           className="p-1.5 hover:bg-surface-muted rounded-lg text-text-muted hover:text-text-main transition-colors"
                           title="Ajustar stock"
@@ -339,7 +358,10 @@ export default function ProductosPage() {
             <Button variant="secondary" onClick={closeAdjustModal}>
               Cancelar
             </Button>
-            <Button onClick={handleAdjust} disabled={!newStock || !adjustReason}>
+            <Button
+              onClick={handleAdjust}
+              disabled={resultingStock === null || stockWouldGoNegative || !adjustReason}
+            >
               Guardar
             </Button>
           </div>
@@ -357,29 +379,67 @@ export default function ProductosPage() {
                   </p>
                 </div>
 
+                <div className="grid grid-cols-3 gap-1 p-1 bg-surface-muted rounded-lg">
+                  {STOCK_ADJUST_MODES.map(({ mode, label }) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        setAdjustMode(mode)
+                        setNewStock(mode === 'set' ? String(adjustModal.stock) : '')
+                      }}
+                      className={cn(
+                        'px-2 py-1.5 rounded-md text-sm font-medium transition-colors',
+                        adjustMode === mode
+                          ? 'bg-surface text-text-main shadow-sm'
+                          : 'text-text-muted hover:text-text-main'
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 <div>
-                  <label className="block text-sm text-text-muted mb-1.5">Nuevo stock</label>
+                  <label className="block text-sm text-text-muted mb-1.5">
+                    {stockAdjustInputLabel(adjustMode, adjPt.unit)}
+                  </label>
                   <Input
                     type="number"
                     value={newStock}
                     onChange={(e) => setNewStock(e.target.value)}
                     step={adjPt.inputStep}
+                    min="0"
+                    placeholder={adjustMode === 'set' ? '' : 'Ej: 10'}
                     className="text-right tabular-nums"
                     autoFocus
                   />
-                  {stockDiff !== null && !Number.isNaN(stockDiff) && (
-                    <div
-                      className={cn(
-                        'mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium',
-                        stockDiff >= 0
-                          ? 'bg-success-50 text-success-700'
-                          : 'bg-danger-50 text-danger-700'
+                  {resultingStock !== null && (
+                    <div className="mt-2 flex items-center gap-2 text-sm">
+                      <span className="text-text-muted">Nuevo total:</span>
+                      <span className="font-semibold tabular-nums text-text-main">
+                        {formatQty(resultingStock, adjustModal.price_type)}
+                      </span>
+                      {stockDiff !== null && (
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium',
+                            stockDiff >= 0
+                              ? 'bg-success-50 text-success-700'
+                              : 'bg-danger-50 text-danger-700'
+                          )}
+                        >
+                          {stockDiff >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                          {stockDiff >= 0 ? '+' : ''}
+                          {formatQty(stockDiff, adjustModal.price_type)}
+                        </span>
                       )}
-                    >
-                      {stockDiff >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      {stockDiff >= 0 ? '+' : ''}
-                      {formatQty(stockDiff, adjustModal.price_type)}
                     </div>
+                  )}
+                  {stockWouldGoNegative && (
+                    <p className="mt-1.5 text-xs text-danger-600">
+                      No podés restar más de lo que hay en stock.
+                    </p>
                   )}
                 </div>
 
@@ -390,7 +450,7 @@ export default function ProductosPage() {
                   <Input
                     value={adjustReason}
                     onChange={(e) => setAdjustReason(e.target.value)}
-                    placeholder="Compra, merma, conteo, etc."
+                    placeholder={stockAdjustReasonPlaceholder(adjustMode)}
                     invalid={!adjustReason && newStock !== ''}
                   />
                   {!adjustReason && (

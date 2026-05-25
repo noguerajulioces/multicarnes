@@ -34,9 +34,16 @@ import { usePageTour } from '../../lib/use-page-tour'
 import { productoDetalleTourSteps } from '../../lib/tour-steps'
 import { confirm } from '../../lib/confirm'
 import { toast } from '../../lib/toast'
-import { formatGs, formatDateTime } from '../../lib/utils'
+import { formatGs, formatDateTime, cn } from '../../lib/utils'
 import { priceTypeInfo, formatQty } from '../../lib/price-types'
 import { useAuthStore } from '../../store/auth.store'
+import {
+  type StockAdjustMode,
+  STOCK_ADJUST_MODES,
+  applyStockAdjust,
+  stockAdjustInputLabel,
+  stockAdjustReasonPlaceholder
+} from '../../lib/stock-adjust'
 import type {
   Product,
   ProductLastPurchase,
@@ -59,7 +66,8 @@ export default function ProductoDetallePage() {
   const [loading, setLoading] = useState(true)
 
   const [showAdjust, setShowAdjust] = useState(false)
-  const [adjustValue, setAdjustValue] = useState('0')
+  const [adjustMode, setAdjustMode] = useState<StockAdjustMode>('add')
+  const [adjustValue, setAdjustValue] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
   const [adjustSaving, setAdjustSaving] = useState(false)
 
@@ -89,16 +97,24 @@ export default function ProductoDetallePage() {
 
   const openAdjust = (): void => {
     if (!product) return
-    setAdjustValue(String(product.stock))
+    setAdjustMode('add')
+    setAdjustValue('')
     setAdjustReason('')
     setShowAdjust(true)
   }
 
   const submitAdjust = async (): Promise<void> => {
     if (!product || !user) return
-    const newStock = parseFloat(adjustValue)
-    if (isNaN(newStock) || newStock < 0) {
+    const entered = parseFloat(adjustValue)
+    if (isNaN(entered)) {
       toast.error('Cantidad inválida')
+      return
+    }
+    // add/subtract apply the incoming/outgoing quantity, set replaces the
+    // total; the IPC always receives the resulting absolute stock.
+    const newStock = applyStockAdjust(adjustMode, product.stock, entered)
+    if (newStock < 0) {
+      toast.error('El stock no puede quedar negativo')
       return
     }
     if (!adjustReason.trim()) {
@@ -180,6 +196,13 @@ export default function ProductoDetallePage() {
     lastPurchase && product.price > 0
       ? ((product.price - lastPurchase.unit_cost) / product.price) * 100
       : null
+
+  const adjustEntered = adjustValue !== '' ? parseFloat(adjustValue) : NaN
+  const adjustResulting = !Number.isNaN(adjustEntered)
+    ? applyStockAdjust(adjustMode, product.stock, adjustEntered)
+    : null
+  const adjustDelta = adjustResulting !== null ? adjustResulting - product.stock : null
+  const adjustWouldGoNegative = adjustResulting !== null && adjustResulting < 0
 
   return (
     <div className="max-w-6xl mx-auto space-y-5">
@@ -411,7 +434,10 @@ export default function ProductoDetallePage() {
             <Button variant="secondary" onClick={() => setShowAdjust(false)}>
               Cancelar
             </Button>
-            <Button onClick={submitAdjust} disabled={adjustSaving}>
+            <Button
+              onClick={submitAdjust}
+              disabled={adjustSaving || adjustResulting === null || adjustWouldGoNegative}
+            >
               {adjustSaving ? 'Guardando...' : 'Confirmar'}
             </Button>
           </div>
@@ -424,9 +450,31 @@ export default function ProductoDetallePage() {
               {formatQty(product.stock, product.price_type)}
             </span>
           </div>
+
+          <div className="grid grid-cols-3 gap-1 p-1 bg-surface-muted rounded-lg">
+            {STOCK_ADJUST_MODES.map(({ mode, label }) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => {
+                  setAdjustMode(mode)
+                  setAdjustValue(mode === 'set' ? String(product.stock) : '')
+                }}
+                className={cn(
+                  'px-2 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  adjustMode === mode
+                    ? 'bg-surface text-text-main shadow-sm'
+                    : 'text-text-muted hover:text-text-main'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div>
             <label className="block text-sm text-text-muted mb-1.5">
-              Nuevo stock ({stockUnit})
+              {stockAdjustInputLabel(adjustMode, stockUnit)}
             </label>
             <Input
               type="number"
@@ -434,16 +482,37 @@ export default function ProductoDetallePage() {
               onChange={(e) => setAdjustValue(e.target.value)}
               step={ptInfo.inputStep}
               min="0"
+              placeholder={adjustMode === 'set' ? '' : 'Ej: 10'}
               className="text-right tabular-nums"
               autoFocus
             />
+            {adjustResulting !== null && (
+              <div className="mt-2 flex items-center gap-2 text-sm">
+                <span className="text-text-muted">Nuevo total:</span>
+                <span className="font-semibold tabular-nums text-text-main">
+                  {formatQty(adjustResulting, product.price_type)}
+                </span>
+                {adjustDelta !== null && (
+                  <Badge tone={adjustDelta >= 0 ? 'success' : 'danger'}>
+                    {adjustDelta >= 0 ? '+' : ''}
+                    {formatQty(adjustDelta, product.price_type)}
+                  </Badge>
+                )}
+              </div>
+            )}
+            {adjustWouldGoNegative && (
+              <p className="mt-1.5 text-xs text-danger-600">
+                No podés restar más de lo que hay en stock.
+              </p>
+            )}
           </div>
+
           <div>
             <label className="block text-sm text-text-muted mb-1.5">Motivo</label>
             <Input
               value={adjustReason}
               onChange={(e) => setAdjustReason(e.target.value)}
-              placeholder="Ej: merma, recuento físico, error de carga"
+              placeholder={stockAdjustReasonPlaceholder(adjustMode)}
             />
           </div>
         </div>
