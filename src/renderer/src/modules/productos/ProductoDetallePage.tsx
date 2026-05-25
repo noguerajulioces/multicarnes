@@ -35,7 +35,7 @@ import { productoDetalleTourSteps } from '../../lib/tour-steps'
 import { confirm } from '../../lib/confirm'
 import { toast } from '../../lib/toast'
 import { formatGs, formatDateTime, cn } from '../../lib/utils'
-import { priceTypeInfo, formatQty } from '../../lib/price-types'
+import { priceTypeInfo, formatQty, roundQty } from '../../lib/price-types'
 import { useAuthStore } from '../../store/auth.store'
 import {
   type StockAdjustMode,
@@ -199,7 +199,7 @@ export default function ProductoDetallePage() {
 
   const adjustEntered = adjustValue !== '' ? parseFloat(adjustValue) : NaN
   const adjustResulting = !Number.isNaN(adjustEntered)
-    ? applyStockAdjust(adjustMode, product.stock, adjustEntered)
+    ? roundQty(applyStockAdjust(adjustMode, product.stock, adjustEntered), product.price_type)
     : null
   const adjustDelta = adjustResulting !== null ? adjustResulting - product.stock : null
   const adjustWouldGoNegative = adjustResulting !== null && adjustResulting < 0
@@ -458,7 +458,9 @@ export default function ProductoDetallePage() {
                 type="button"
                 onClick={() => {
                   setAdjustMode(mode)
-                  setAdjustValue(mode === 'set' ? String(product.stock) : '')
+                  setAdjustValue(
+                    mode === 'set' ? String(roundQty(product.stock, product.price_type)) : ''
+                  )
                 }}
                 className={cn(
                   'px-2 py-1.5 rounded-md text-sm font-medium transition-colors',
