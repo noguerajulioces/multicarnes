@@ -119,13 +119,18 @@ export default function VentasListadoPage() {
     rows.map((s) => {
       const isCredit = s.payment_method === 'credit'
       const creditPaid = isCredit && s.customer_balance != null && s.customer_balance >= 0
+      const cancelled = s.status === 'cancelled'
       return {
         ...s,
         _fecha: formatDateTime(s.created_at),
         _num: `#${s.id}`,
         customer_name: s.customer_name || '-',
         _total: formatGs(s.total),
-        _method: creditPaid ? 'Fiado · Pagado' : methodCellLabel(s)
+        _method: cancelled
+          ? `Anulada · ${methodCellLabel(s)}`
+          : creditPaid
+            ? 'Fiado · Pagado'
+            : methodCellLabel(s)
       }
     })
 
@@ -245,9 +250,14 @@ export default function VentasListadoPage() {
                   const isCredit = s.payment_method === 'credit'
                   const creditPaid =
                     isCredit && s.customer_balance != null && s.customer_balance >= 0
+                  const cancelled = s.status === 'cancelled'
                   const isPrinting = printingId === s.id
                   return (
-                    <tr key={s.id} className={trCls} onClick={() => goToDetail(s.id)}>
+                    <tr
+                      key={s.id}
+                      className={`${trCls} ${cancelled ? 'opacity-60' : ''}`}
+                      onClick={() => goToDetail(s.id)}
+                    >
                       <td className={`${tdCls} text-text-muted tabular-nums`}>
                         {formatDateTime(s.created_at)}
                       </td>
@@ -257,11 +267,15 @@ export default function VentasListadoPage() {
                           <span className="text-text-disabled">Consumidor final</span>
                         )}
                       </td>
-                      <td className={`${tdCls} text-right font-medium tabular-nums`}>
+                      <td
+                        className={`${tdCls} text-right font-medium tabular-nums ${cancelled ? 'line-through' : ''}`}
+                      >
                         {formatGs(s.total)}
                       </td>
                       <td className={tdCls}>
-                        {creditPaid ? (
+                        {cancelled ? (
+                          <Badge tone="danger">Anulada</Badge>
+                        ) : creditPaid ? (
                           <Badge tone="success">Fiado · Pagado</Badge>
                         ) : (
                           <Badge tone={methodTone[s.payment_method]}>{methodCellLabel(s)}</Badge>
@@ -307,7 +321,11 @@ export default function VentasListadoPage() {
                     Página actual: {data.length} de {total} ventas
                   </td>
                   <td className="px-4 py-3 text-right text-lg font-bold text-brand tabular-nums">
-                    {formatGs(data.reduce((s, v) => s + v.total, 0))}
+                    {formatGs(
+                      data
+                        .filter((v) => v.status !== 'cancelled')
+                        .reduce((s, v) => s + v.total, 0)
+                    )}
                   </td>
                   <td colSpan={3}></td>
                 </tr>
