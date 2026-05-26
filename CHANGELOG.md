@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.7.1](https://github.com/noguerajulioces/multicarnes/compare/v1.6.9...v1.7.1) (2026-05-26)
+
+### Features
+
+* **productos:** modos sumar/restar/reemplazar en ajuste de stock ([9b19d9c](https://github.com/noguerajulioces/multicarnes/commit/9b19d9c21db765144100730a1f7f4fb177f2a1ac))
+* **ventas:** autofocus buscador y limpieza tras escanear/confirmar ([32384ba](https://github.com/noguerajulioces/multicarnes/commit/32384ba37b730634782c8d94a8cafa6ef0207654))
+* **ventas:** improve barcode input handling for kg products ([56d2489](https://github.com/noguerajulioces/multicarnes/commit/56d2489205cf6216465ed77bf5ded6cf347ab9c7))
+* **ventas:** lectura de código de barras robusta + balanza de peso variable ([4bf0d00](https://github.com/noguerajulioces/multicarnes/commit/4bf0d0001ad810efeaea4ffbfa252a17bc86deca))
+
+### Bug Fixes
+
+* **productos:** redondear stock por tipo de precio en ajuste ([03984b0](https://github.com/noguerajulioces/multicarnes/commit/03984b0e4ebc449c706e0aa1fa47542c0e7ee254))
+
+### Documentation
+
+* **readme:** actualizar a v1.6.9 (features 001-008, stack, testing) ([d06c909](https://github.com/noguerajulioces/multicarnes/commit/d06c909c7d3c4873bf032b02fde6a9876f5b3618))
+
 ## [1.6.9](https://github.com/noguerajulioces/multicarnes/compare/v1.6.0...v1.6.9) (2026-05-20)
 
 ### Features
