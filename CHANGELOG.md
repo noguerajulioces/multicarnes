@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.7.3](https://github.com/noguerajulioces/multicarnes/compare/v1.7.2...v1.7.3) (2026-05-27)
+
+### Bug Fixes
+
+* set default filter status to 'active' in ProductosPage ([ece543d](https://github.com/noguerajulioces/multicarnes/commit/ece543dbc0b457adc12f2b98aaec59cd44e272f7))
+
 ## [1.7.2](https://github.com/noguerajulioces/multicarnes/compare/v1.7.1...v1.7.2) (2026-05-26)
 
 ## [1.7.1](https://github.com/noguerajulioces/multicarnes/compare/v1.6.9...v1.7.1) (2026-05-26)
