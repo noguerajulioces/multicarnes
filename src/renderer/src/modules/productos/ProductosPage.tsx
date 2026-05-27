@@ -50,7 +50,7 @@ export default function ProductosPage() {
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState<number | ''>('')
   const [filterStock, setFilterStock] = useState(false)
-  const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('all')
+  const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('active')
   const [filterPromo, setFilterPromo] = useState(false)
   const [adjustModal, setAdjustModal] = useState<Product | null>(null)
   const [adjustMode, setAdjustMode] = useState<StockAdjustMode>('add')
