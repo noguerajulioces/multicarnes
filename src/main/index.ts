@@ -27,6 +27,10 @@ import { pathToFileURL } from 'url'
 let splashWindow: BrowserWindow | null = null
 let splashShownAt = 0
 
+// Module-scoped so the single-instance 'second-instance' handler can reach the
+// live window to restore/focus it. Nulled on 'closed'.
+let mainWindow: BrowserWindow | null = null
+
 // Minimum time the splash stays visible after it actually appears, in ms.
 // If the renderer is ready sooner, we wait this long; if it takes longer,
 // no extra delay is added.
@@ -82,7 +86,7 @@ function closeSplashWithFade(onClosed: () => void): void {
 }
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
@@ -96,41 +100,47 @@ function createWindow(): void {
       sandbox: false
     }
   })
+  mainWindow = win
 
-  mainWindow.on('ready-to-show', () => {
+  win.on('ready-to-show', () => {
     const elapsed = splashShownAt > 0 ? Date.now() - splashShownAt : SPLASH_MIN_MS
     const remaining = Math.max(0, SPLASH_MIN_MS - elapsed)
     setTimeout(() => {
       // The window may have been closed (quit during splash, e2e teardown,
       // OS-initiated kill) while this timeout was queued — accessing the
       // BrowserWindow after destruction throws "Object has been destroyed".
-      if (mainWindow.isDestroyed()) return
+      if (win.isDestroyed()) return
       closeSplashWithFade(() => {
-        if (mainWindow.isDestroyed()) return
-        mainWindow.maximize()
-        mainWindow.show()
+        if (win.isDestroyed()) return
+        win.maximize()
+        win.show()
       })
     }, remaining)
   })
 
-  mainWindow.on('maximize', () => {
-    if (mainWindow.isDestroyed()) return
-    mainWindow.webContents.send('window:state', true)
+  win.on('maximize', () => {
+    if (win.isDestroyed()) return
+    win.webContents.send('window:state', true)
   })
-  mainWindow.on('unmaximize', () => {
-    if (mainWindow.isDestroyed()) return
-    mainWindow.webContents.send('window:state', false)
+  win.on('unmaximize', () => {
+    if (win.isDestroyed()) return
+    win.webContents.send('window:state', false)
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  win.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
+  // Clear the module reference so 'second-instance' / 'activate' know to recreate.
+  win.on('closed', () => {
+    mainWindow = null
+  })
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    win.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
 
@@ -153,7 +163,41 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'product-img', privileges: { bypassCSP: true, supportFetchAPI: true } }
 ])
 
-app.whenReady().then(() => {
+// Single-instance lock: the app must not run 2+ times. Users who minimize the
+// window and relaunch should be returned to the existing window rather than
+// spawning a duplicate (a second instance would also fight over the SQLite
+// file). Requested synchronously before whenReady, as Electron requires.
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  // Another instance already owns the lock — quit immediately and skip all
+  // boot work (DB, IPC, window). Electron forwards this launch to the primary
+  // instance via the 'second-instance' event registered below.
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    // Fired in the PRIMARY instance when a second launch is attempted: restore
+    // (if minimized) and focus the existing window instead of opening another.
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      if (!mainWindow.isVisible()) mainWindow.show()
+      mainWindow.focus()
+    } else {
+      // Edge (macOS): the window was closed but the app is still running.
+      createWindow()
+    }
+  })
+
+  app.whenReady().then(onAppReady)
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit()
+    }
+  })
+}
+
+function onAppReady(): void {
   electronApp.setAppUserModelId('com.multicarnes.pos')
 
   // macOS dev: the Dock takes the icon from the Electron binary's bundle, not
@@ -223,10 +267,4 @@ app.whenReady().then(() => {
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
+}

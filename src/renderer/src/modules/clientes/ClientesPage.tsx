@@ -12,6 +12,7 @@ import {
   EmptyState,
   Input,
   Modal,
+  MoneyInput,
   PageHeader,
   Pagination,
   Select,
@@ -28,7 +29,18 @@ const emptyForm: {
   document: string
   document_type: DocumentType
   is_employee: boolean
-} = { name: '', phone: '', address: '', document: '', document_type: 'CI', is_employee: false }
+  credit_limit_enabled: boolean
+  credit_limit_amount: number
+} = {
+  name: '',
+  phone: '',
+  address: '',
+  document: '',
+  document_type: 'CI',
+  is_employee: false,
+  credit_limit_enabled: false,
+  credit_limit_amount: 0
+}
 
 const PER_PAGE = 50
 
@@ -96,7 +108,9 @@ export default function ClientesPage() {
       address: c.address || '',
       document: c.document || '',
       document_type: c.document_type || 'CI',
-      is_employee: !!c.is_employee
+      is_employee: !!c.is_employee,
+      credit_limit_enabled: !!c.credit_limit_enabled,
+      credit_limit_amount: c.credit_limit_amount ?? 0
     })
     setEditId(c.id)
     setShowForm(true)
@@ -178,10 +192,7 @@ export default function ClientesPage() {
         </Select>
       </div>
 
-      <Card
-        data-tour="clientes-table"
-        className="overflow-hidden"
-      >
+      <Card data-tour="clientes-table" className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -361,6 +372,26 @@ export default function ClientesPage() {
             />
             <span className="text-text-main">Es empleado</span>
           </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.credit_limit_enabled}
+              onChange={(e) => setForm({ ...form, credit_limit_enabled: e.target.checked })}
+              className="w-4 h-4 rounded accent-brand"
+            />
+            <span className="text-text-main">Límite de fiado</span>
+          </label>
+          {form.credit_limit_enabled && (
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Monto máximo de deuda</label>
+              <MoneyInput
+                value={form.credit_limit_amount}
+                onValueChange={(v) => setForm({ ...form, credit_limit_amount: v })}
+                className="text-right tabular-nums"
+                placeholder="0"
+              />
+            </div>
+          )}
         </div>
       </Modal>
     </div>

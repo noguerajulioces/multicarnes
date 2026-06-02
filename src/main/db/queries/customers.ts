@@ -43,10 +43,12 @@ export function createCustomer(data: {
   document?: string
   document_type?: 'CI' | 'RUC' | null
   is_employee?: boolean
+  credit_limit_enabled?: boolean
+  credit_limit_amount?: number | null
 }) {
   const result = getDb()
     .prepare(
-      'INSERT INTO customers (name, phone, address, document, document_type, is_employee) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO customers (name, phone, address, document, document_type, is_employee, credit_limit_enabled, credit_limit_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     )
     .run(
       data.name,
@@ -54,7 +56,11 @@ export function createCustomer(data: {
       data.address || null,
       data.document || null,
       data.document ? data.document_type || null : null,
-      data.is_employee ? 1 : 0
+      data.is_employee ? 1 : 0,
+      data.credit_limit_enabled ? 1 : 0,
+      // Store NULL when the limit is off so a disabled limit never carries a
+      // stale amount the sale-time check could misread.
+      data.credit_limit_enabled ? (data.credit_limit_amount ?? null) : null
     )
   return getCustomerById(result.lastInsertRowid as number)
 }
@@ -68,6 +74,8 @@ export function updateCustomer(
     document?: string
     document_type?: 'CI' | 'RUC' | null
     is_employee?: boolean
+    credit_limit_enabled?: boolean
+    credit_limit_amount?: number | null
   }
 ) {
   const db = getDb()
@@ -95,6 +103,15 @@ export function updateCustomer(
   if (data.is_employee !== undefined) {
     fields.push('is_employee = ?')
     params.push(data.is_employee ? 1 : 0)
+  }
+  if (data.credit_limit_enabled !== undefined) {
+    fields.push('credit_limit_enabled = ?')
+    params.push(data.credit_limit_enabled ? 1 : 0)
+    // Write the amount together with the toggle: clear it to NULL when the
+    // limit is disabled so a later re-enable starts clean and the sale-time
+    // check can treat enabled===1 as "amount is meaningful".
+    fields.push('credit_limit_amount = ?')
+    params.push(data.credit_limit_enabled ? (data.credit_limit_amount ?? null) : null)
   }
 
   if (fields.length > 0) {

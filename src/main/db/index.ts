@@ -377,6 +377,24 @@ const MIGRATIONS: Migration[] = [
         )
       }
     }
+  },
+  {
+    version: 13,
+    name: 'add_customers_credit_limit_columns',
+    up: (db) => {
+      // Per-customer credit limit (límite de fiado): a toggle + an optional
+      // amount in Gs. Additive + idempotent under PRAGMA table_info — fresh
+      // installs already get the columns from schema.ts, so this only matters
+      // for upgraded installs. Mirrors the v8 promo-columns template.
+      const cols = db.prepare('PRAGMA table_info(customers)').all() as { name: string }[]
+      const has = (n: string): boolean => cols.some((c) => c.name === n)
+      if (!has('credit_limit_enabled')) {
+        db.exec('ALTER TABLE customers ADD COLUMN credit_limit_enabled INTEGER NOT NULL DEFAULT 0')
+      }
+      if (!has('credit_limit_amount')) {
+        db.exec('ALTER TABLE customers ADD COLUMN credit_limit_amount INTEGER')
+      }
+    }
   }
 ]
 

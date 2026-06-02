@@ -261,6 +261,24 @@ export default function ClienteFichaPage() {
             >
               {formatGs(customer.balance)}
             </p>
+            {customer.credit_limit_enabled && customer.credit_limit_amount != null && (
+              <div className="mt-3 text-xs text-text-muted space-y-0.5">
+                <p>
+                  Límite de fiado:{' '}
+                  <span className="tabular-nums text-text-main">
+                    {formatGs(customer.credit_limit_amount)}
+                  </span>
+                </p>
+                <p>
+                  Disponible:{' '}
+                  <span className="tabular-nums text-text-main">
+                    {formatGs(
+                      Math.max(0, customer.credit_limit_amount - Math.max(0, -customer.balance))
+                    )}
+                  </span>
+                </p>
+              </div>
+            )}
             <Button
               className="mt-4 w-full rounded-xl"
               size="md"
