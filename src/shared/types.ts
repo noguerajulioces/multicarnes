@@ -73,6 +73,8 @@ export interface Customer {
   document_type: DocumentType | null
   is_employee: boolean
   balance: number
+  credit_limit_enabled?: boolean
+  credit_limit_amount?: number | null
   created_at?: string
 }
 

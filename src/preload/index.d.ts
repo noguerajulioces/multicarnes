@@ -111,6 +111,8 @@ interface ApiCustomers {
     document?: string
     document_type?: 'CI' | 'RUC' | null
     is_employee?: boolean
+    credit_limit_enabled?: boolean
+    credit_limit_amount?: number | null
   }): Promise<Customer>
   update(id: number, data: Partial<Customer>): Promise<Customer>
   addPayment(

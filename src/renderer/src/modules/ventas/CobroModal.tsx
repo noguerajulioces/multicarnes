@@ -96,6 +96,26 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
   const mixedHasCredit = mixedLines.some((l) => l.method === 'credit' && l.amount > 0)
   const mixedActiveLines = mixedLines.filter((l) => l.amount > 0)
 
+  // Credit portion of THIS sale (mirror of the server-side formula in
+  // createSale). Used to pre-check the customer's límite de fiado so the
+  // cashier sees the block before submitting; the server throw is authoritative.
+  const creditPortion =
+    paymentMethod === 'credit'
+      ? totalAmount
+      : paymentMethod === 'mixed'
+        ? mixedLines.filter((l) => l.method === 'credit').reduce((s, l) => s + (l.amount || 0), 0)
+        : 0
+
+  const creditLimitError = ((): string | null => {
+    if (!selectedCustomer || creditPortion <= 0) return null
+    if (!selectedCustomer.credit_limit_enabled || selectedCustomer.credit_limit_amount == null)
+      return null
+    const currentDebt = Math.max(0, -selectedCustomer.balance)
+    if (currentDebt + creditPortion <= selectedCustomer.credit_limit_amount) return null
+    const available = Math.max(0, selectedCustomer.credit_limit_amount - currentDebt)
+    return `Supera el límite de fiado (${formatGs(selectedCustomer.credit_limit_amount)}). Disponible: ${formatGs(available)}.`
+  })()
+
   const mixedLinesValid = (): boolean => {
     if (mixedActiveLines.length < 2) return false
     if (mixedTotal !== totalAmount) return false
@@ -116,6 +136,7 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
       if (!mixedLinesValid()) return false
       if (mixedHasCredit && !selectedCustomer) return false
     }
+    if (creditLimitError) return false
     return true
   }
 
@@ -405,6 +426,12 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
           </div>
         )}
 
+        {paymentMethod === 'credit' && selectedCustomer && creditLimitError && (
+          <div className="px-3 py-2 bg-danger-50 rounded-lg text-sm text-danger-700">
+            {creditLimitError}
+          </div>
+        )}
+
         {paymentMethod === 'mixed' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
@@ -544,6 +571,12 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
             {mixedHasCredit && !selectedCustomer && (
               <div className="px-3 py-2 bg-warning-50 rounded-lg text-sm text-warning-700">
                 Seleccioná un cliente para registrar la porción Fiado.
+              </div>
+            )}
+
+            {selectedCustomer && creditLimitError && (
+              <div className="px-3 py-2 bg-danger-50 rounded-lg text-sm text-danger-700">
+                {creditLimitError}
               </div>
             )}
           </div>

@@ -45,6 +45,8 @@ export function createTables(db: Database.Database): void {
       document_type TEXT,
       is_employee   INTEGER NOT NULL DEFAULT 0,
       balance       INTEGER NOT NULL DEFAULT 0,
+      credit_limit_enabled INTEGER NOT NULL DEFAULT 0,
+      credit_limit_amount  INTEGER,
       created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
 

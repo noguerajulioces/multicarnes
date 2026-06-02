@@ -90,6 +90,45 @@ export function createSale(data: CreateSaleData) {
       validatePaymentDetails(data.paymentMethod, topProcessor, topReference)
     }
 
+    // Per-customer credit limit (límite de fiado). Authoritative hard block,
+    // computed before any write so a throw rolls the whole sale back (stock
+    // untouched). The renderer mirrors this check for UX, but this is the
+    // source of truth. Basis = total outstanding debt: current debt + this
+    // sale's credit portion must not exceed the customer's enabled limit.
+    if (data.customerId) {
+      let creditAmount = 0
+      if (data.paymentMethod === 'credit') {
+        creditAmount = data.total
+      } else if (data.paymentMethod === 'mixed' && data.payments) {
+        creditAmount = data.payments
+          .filter((p) => p.method === 'credit')
+          .reduce((sum, p) => sum + p.amount, 0)
+      }
+      if (creditAmount > 0) {
+        const cust = db
+          .prepare(
+            'SELECT balance, credit_limit_enabled, credit_limit_amount FROM customers WHERE id = ?'
+          )
+          .get(data.customerId) as
+          | { balance: number; credit_limit_enabled: number; credit_limit_amount: number | null }
+          | undefined
+        if (cust && cust.credit_limit_enabled === 1 && cust.credit_limit_amount != null) {
+          // balance<0 means the customer owes; a positive ("a favor") balance
+          // is not debt, so it caps at 0 and does not enlarge the limit.
+          const currentDebt = Math.max(0, -cust.balance)
+          const newOutstanding = currentDebt + creditAmount
+          if (newOutstanding > cust.credit_limit_amount) {
+            const available = Math.max(0, cust.credit_limit_amount - currentDebt)
+            throw new Error(
+              `Límite de fiado superado. Límite: ${formatGs(cust.credit_limit_amount)}, ` +
+                `deuda actual: ${formatGs(currentDebt)}, disponible: ${formatGs(available)}. ` +
+                `Esta venta a crédito de ${formatGs(creditAmount)} no se puede registrar.`
+            )
+          }
+        }
+      }
+    }
+
     const result = db
       .prepare(
         `
