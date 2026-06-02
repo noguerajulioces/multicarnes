@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.8.0](https://github.com/noguerajulioces/multicarnes/compare/v1.7.3...v1.8.0) (2026-06-02)
+
+### Features
+
+* per-customer credit limit + single-instance lock ([#25](https://github.com/noguerajulioces/multicarnes/issues/25)) ([9b826d2](https://github.com/noguerajulioces/multicarnes/commit/9b826d2a5be2de08205ef2143a3095120d1a1e65))
+
 ## [1.7.3](https://github.com/noguerajulioces/multicarnes/compare/v1.7.2...v1.7.3) (2026-05-27)
 
 ### Bug Fixes
