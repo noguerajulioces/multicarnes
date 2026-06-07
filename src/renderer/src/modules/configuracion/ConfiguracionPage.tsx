@@ -1,8 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { AppSetting } from '@shared/types'
 import { useThemeStore } from '../../store/theme.store'
 import { useTourStore } from '../../store/tour.store'
-import { Sun, Moon, Store, Palette, KeyRound, Printer, HelpCircle, RotateCcw } from 'lucide-react'
+import {
+  Sun,
+  Moon,
+  Store,
+  Palette,
+  KeyRound,
+  Printer,
+  HelpCircle,
+  RotateCcw,
+  RefreshCw
+} from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
   Button,
@@ -21,6 +31,8 @@ import { handleApiError } from '../../lib/api-error'
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
+  const [printers, setPrinters] = useState<{ name: string; displayName: string }[]>([])
+  const [loadingPrinters, setLoadingPrinters] = useState(false)
   const theme = useThemeStore((s) => s.theme)
   const setTheme = useThemeStore((s) => s.setTheme)
   const resetAllTours = useTourStore((s) => s.resetAll)
@@ -34,6 +46,21 @@ export default function ConfiguracionPage() {
       setSettings(map)
     })
   }, [])
+
+  const loadPrinters = useCallback(async (): Promise<void> => {
+    setLoadingPrinters(true)
+    try {
+      setPrinters(await window.api.print.listPrinters())
+    } catch (err) {
+      handleApiError(err)
+    } finally {
+      setLoadingPrinters(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadPrinters()
+  }, [loadPrinters])
 
   const saveSetting = async (key: string, value: string): Promise<void> => {
     setSettings({ ...settings, [key]: value })
@@ -198,14 +225,39 @@ export default function ConfiguracionPage() {
           </CardHeader>
           <CardBody className="space-y-4">
             <div>
-              <label className="block text-sm text-text-muted mb-1.5">Nombre de la impresora</label>
-              <Input
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm text-text-muted">Impresora</label>
+                <button
+                  type="button"
+                  onClick={loadPrinters}
+                  disabled={loadingPrinters}
+                  className="inline-flex items-center gap-1 text-xs text-brand hover:underline disabled:opacity-50"
+                >
+                  <RefreshCw size={12} className={loadingPrinters ? 'animate-spin' : undefined} />
+                  Actualizar
+                </button>
+              </div>
+              <Select
                 value={settings.thermal_printer_name || ''}
                 onChange={(e) => saveSetting('thermal_printer_name', e.target.value)}
-                placeholder="Ej: POS-80"
-              />
+              >
+                <option value="">— Seleccioná una impresora —</option>
+                {settings.thermal_printer_name &&
+                  !printers.some((p) => p.name === settings.thermal_printer_name) && (
+                    <option value={settings.thermal_printer_name}>
+                      {settings.thermal_printer_name} (no detectada)
+                    </option>
+                  )}
+                {printers.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.displayName}
+                  </option>
+                ))}
+              </Select>
               <p className="text-xs text-text-muted mt-1">
-                Tal como aparece en el sistema operativo
+                {printers.length === 0
+                  ? 'No se detectaron impresoras. Conectá la impresora y tocá Actualizar.'
+                  : 'Se detectan automáticamente las impresoras instaladas en el sistema.'}
               </p>
             </div>
             <div>

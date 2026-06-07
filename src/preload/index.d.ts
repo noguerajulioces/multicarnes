@@ -252,12 +252,18 @@ interface PrintTicketLine {
   emphasized?: boolean
 }
 
+interface PrinterChoice {
+  name: string
+  displayName: string
+}
+
 interface ApiPrint {
   ticket(payload: {
     lines: PrintTicketLine[]
     cut?: boolean
   }): Promise<{ ok: true } | { ok: false; error: string }>
   hasConfig(): Promise<boolean>
+  listPrinters(): Promise<PrinterChoice[]>
 }
 
 interface HeldTicketRow {
