@@ -130,6 +130,7 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   'notify:show': { kind: 'public' },
   'print:ticket': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   'print:hasConfig': { kind: 'public' },
+  'print:listPrinters': { kind: 'public' },
   'window:minimize': { kind: 'public' },
   'window:maximizeToggle': { kind: 'public' },
   'window:close': { kind: 'public' },

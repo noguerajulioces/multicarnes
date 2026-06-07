@@ -138,7 +138,8 @@ const api = {
   },
   print: {
     ticket: (payload: unknown) => ipcRenderer.invoke('print:ticket', payload),
-    hasConfig: () => ipcRenderer.invoke('print:hasConfig')
+    hasConfig: () => ipcRenderer.invoke('print:hasConfig'),
+    listPrinters: () => ipcRenderer.invoke('print:listPrinters')
   },
   heldTickets: {
     list: () => ipcRenderer.invoke('held:list'),

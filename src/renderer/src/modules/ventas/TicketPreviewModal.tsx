@@ -80,19 +80,24 @@ export default function TicketPreviewModal({
 
   const handlePrint = async (): Promise<void> => {
     setPrinting(true)
-    const result = await window.api.print.ticket({
-      lines: ticket.lines.map((l) => ({
-        text: l.text,
-        bold: l.bold,
-        emphasized: l.emphasized
-      })),
-      cut: true
-    })
-    setPrinting(false)
-    if (result.ok) {
-      toast.success('Ticket enviado a la impresora')
-    } else {
-      toast.error(result.error)
+    try {
+      const result = await window.api.print.ticket({
+        lines: ticket.lines.map((l) => ({
+          text: l.text,
+          bold: l.bold,
+          emphasized: l.emphasized
+        })),
+        cut: true
+      })
+      if (result.ok) {
+        toast.success('Ticket enviado a la impresora')
+      } else {
+        toast.error(result.error)
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo imprimir el ticket.')
+    } finally {
+      setPrinting(false)
     }
   }
 

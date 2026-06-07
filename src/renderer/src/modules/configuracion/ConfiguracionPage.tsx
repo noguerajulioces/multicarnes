@@ -1,8 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { AppSetting } from '@shared/types'
 import { useThemeStore } from '../../store/theme.store'
 import { useTourStore } from '../../store/tour.store'
-import { Sun, Moon, Store, Palette, KeyRound, Printer, HelpCircle, RotateCcw } from 'lucide-react'
+import {
+  Sun,
+  Moon,
+  Store,
+  Palette,
+  KeyRound,
+  Printer,
+  HelpCircle,
+  RotateCcw,
+  RefreshCw
+} from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
   Button,
@@ -19,8 +29,46 @@ import { usePageTour } from '../../lib/use-page-tour'
 import { configTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
 
+// Sample ticket used by the "Imprimir prueba" button. Lines are padded to the
+// selected column width so the divider spans the full paper and the amount
+// column hits the right edge — that's what makes width/cut miscalibration
+// visible without having to ring up a real sale.
+function buildTestTicketLines(
+  cols: number,
+  businessName: string
+): { text: string; bold?: boolean }[] {
+  const divider = '-'.repeat(cols)
+  const center = (s: string): string =>
+    s.length >= cols ? s.slice(0, cols) : ' '.repeat(Math.floor((cols - s.length) / 2)) + s
+  const row = (l: string, r: string): string => {
+    const space = cols - l.length - r.length
+    return space > 1 ? l + ' '.repeat(space) + r : `${l} ${r}`.slice(0, cols)
+  }
+  return [
+    { text: center('PRUEBA DE IMPRESION'), bold: true },
+    { text: center(businessName || 'Multicarnes') },
+    { text: divider },
+    { text: 'Producto de ejemplo' },
+    { text: row('  1 x 10.000', '10.000') },
+    { text: 'Otro producto' },
+    { text: row('  2 x 5.000', '10.000') },
+    { text: divider },
+    { text: row('TOTAL Gs.', '20.000'), bold: true },
+    { text: divider },
+    { text: center('Si la linea de guiones llega') },
+    { text: center('justo al borde, el ancho') },
+    { text: center('esta bien calibrado.') },
+    { text: '' },
+    { text: center('Impresion OK!') },
+    { text: '' }
+  ]
+}
+
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
+  const [printers, setPrinters] = useState<{ name: string; displayName: string }[]>([])
+  const [loadingPrinters, setLoadingPrinters] = useState(false)
+  const [testing, setTesting] = useState(false)
   const theme = useThemeStore((s) => s.theme)
   const setTheme = useThemeStore((s) => s.setTheme)
   const resetAllTours = useTourStore((s) => s.resetAll)
@@ -34,6 +82,49 @@ export default function ConfiguracionPage() {
       setSettings(map)
     })
   }, [])
+
+  const loadPrinters = useCallback(async (notify = false): Promise<void> => {
+    setLoadingPrinters(true)
+    try {
+      const list = await window.api.print.listPrinters()
+      setPrinters(list)
+      if (notify) {
+        toast.success(
+          list.length === 0
+            ? 'No se detectaron impresoras instaladas.'
+            : `${list.length} impresora${list.length === 1 ? '' : 's'} detectada${list.length === 1 ? '' : 's'}.`
+        )
+      }
+    } catch (err) {
+      handleApiError(err)
+    } finally {
+      setLoadingPrinters(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadPrinters()
+  }, [loadPrinters])
+
+  const handleTestPrint = async (): Promise<void> => {
+    setTesting(true)
+    try {
+      const cols = settings.thermal_printer_width === '58' ? 32 : 48
+      const result = await window.api.print.ticket({
+        lines: buildTestTicketLines(cols, settings.business_name || ''),
+        cut: true
+      })
+      if (result.ok) {
+        toast.success('Prueba enviada a la impresora')
+      } else {
+        toast.error(result.error)
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo imprimir la prueba.')
+    } finally {
+      setTesting(false)
+    }
+  }
 
   const saveSetting = async (key: string, value: string): Promise<void> => {
     setSettings({ ...settings, [key]: value })
@@ -198,14 +289,39 @@ export default function ConfiguracionPage() {
           </CardHeader>
           <CardBody className="space-y-4">
             <div>
-              <label className="block text-sm text-text-muted mb-1.5">Nombre de la impresora</label>
-              <Input
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm text-text-muted">Impresora</label>
+                <button
+                  type="button"
+                  onClick={() => loadPrinters(true)}
+                  disabled={loadingPrinters}
+                  className="inline-flex items-center gap-1 text-xs text-brand hover:underline disabled:opacity-50"
+                >
+                  <RefreshCw size={12} className={loadingPrinters ? 'animate-spin' : undefined} />
+                  {loadingPrinters ? 'Buscando…' : 'Actualizar'}
+                </button>
+              </div>
+              <Select
                 value={settings.thermal_printer_name || ''}
                 onChange={(e) => saveSetting('thermal_printer_name', e.target.value)}
-                placeholder="Ej: POS-80"
-              />
+              >
+                <option value="">— Seleccioná una impresora —</option>
+                {settings.thermal_printer_name &&
+                  !printers.some((p) => p.name === settings.thermal_printer_name) && (
+                    <option value={settings.thermal_printer_name}>
+                      {settings.thermal_printer_name} (no detectada)
+                    </option>
+                  )}
+                {printers.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.displayName}
+                  </option>
+                ))}
+              </Select>
               <p className="text-xs text-text-muted mt-1">
-                Tal como aparece en el sistema operativo
+                {printers.length === 0
+                  ? 'No se detectaron impresoras. Conectá la impresora y tocá Actualizar.'
+                  : 'Se detectan automáticamente las impresoras instaladas en el sistema.'}
               </p>
             </div>
             <div>
@@ -218,6 +334,22 @@ export default function ConfiguracionPage() {
                 <option value="58">58 mm</option>
                 <option value="80">80 mm</option>
               </Select>
+            </div>
+            <div className="pt-1">
+              <Button
+                variant="secondary"
+                onClick={handleTestPrint}
+                disabled={testing || !settings.thermal_printer_name}
+                className="rounded-xl"
+              >
+                <Printer size={14} />
+                {testing ? 'Imprimiendo…' : 'Imprimir prueba'}
+              </Button>
+              <p className="text-xs text-text-muted mt-1.5">
+                {settings.thermal_printer_name
+                  ? 'Imprime un ticket de muestra para verificar el ancho y el corte.'
+                  : 'Seleccioná una impresora para habilitar la prueba.'}
+              </p>
             </div>
           </CardBody>
         </Card>
