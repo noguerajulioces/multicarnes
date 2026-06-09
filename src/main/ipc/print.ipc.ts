@@ -29,10 +29,11 @@ function getSetting(key: string): string {
 type PrintResult = { ok: true } | { ok: false; error: string }
 
 // Paper geometry per width setting. `printMm` is the printable head width; it
-// sizes the monospace font so that exactly `cols` Courier characters fill the
-// line (Courier advance width is 0.6em), keeping the HTML output aligned the
-// same way the ESC/POS path used to pad it. `paperMm` is the physical roll
-// width, used as the print page width.
+// sizes the monospace font so that exactly `cols` characters fill the line
+// (initial estimate assumes a 0.6em advance; printTicket re-fits the font size
+// to the measured advance of whichever family resolves), keeping the HTML
+// output aligned the same way the ESC/POS path used to pad it. `paperMm` is
+// the physical roll width, used as the print page width.
 const PAPER = {
   '58': { paperMm: 58, printMm: 48, cols: 32 },
   '80': { paperMm: 80, printMm: 72, cols: 48 }
@@ -45,6 +46,12 @@ function escapeHtml(s: string): string {
 function buildTicketHtml(lines: PrintLine[], widthKey: '58' | '80'): string {
   const geo = PAPER[widthKey]
   const fontMm = geo.printMm / (geo.cols * 0.6)
+  // The head only prints the centered `printMm` band of the roll, but page
+  // x=0 maps to the physical paper edge — offset the body by the hardware
+  // margin or the first ~2-3 characters land in the unprintable zone.
+  // Centering (instead of shrinking the page to printMm) is symmetric, so it
+  // also survives drivers that rotate the page 180°.
+  const sideMm = (geo.paperMm - geo.printMm) / 2
   const body = lines
     .map((l) => {
       const txt = escapeHtml(l.text) || '&nbsp;'
@@ -58,7 +65,8 @@ function buildTicketHtml(lines: PrintLine[], widthKey: '58' | '80'): string {
     html, body { margin: 0; padding: 0 }
     body {
       width: ${geo.printMm}mm;
-      font-family: 'Courier New', Courier, monospace;
+      margin-left: ${sideMm}mm;
+      font-family: 'Consolas', 'Menlo', 'Courier New', Courier, monospace;
       font-size: ${fontMm.toFixed(3)}mm;
       line-height: 1.15;
       color: #000;
@@ -95,14 +103,39 @@ async function printTicket(payload: PrintTicketPayload): Promise<PrintResult> {
   try {
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
 
-    // Size the page to the rendered content so there's no trailing blank paper
-    // before the cut. px -> microns: px / 96dpi * 25400 microns/inch.
-    const heightPx = (await win.webContents.executeJavaScript(
-      'document.body.scrollHeight'
-    )) as number
-    const TAIL_MM = 4 // small feed so the last line clears the cutter
-    const heightMicrons = Math.max(Math.round((heightPx / 96) * 25400 + TAIL_MM * 1000), 10000)
+    // Fit the font to the measured glyph advance of whichever family resolved
+    // (Consolas 0.55em, Menlo/Courier ~0.6em) so exactly `cols` characters
+    // span the printable band, then size the page to the real content height.
+    // getBoundingClientRect() keeps fractional line-box heights (scrollHeight
+    // rounds) and is immune to viewport-height quirks across platforms.
+    // px -> microns: px / 96dpi * 25400 microns/inch.
+    const fitAndMeasure = `(() => {
+      const probe = document.createElement('span');
+      probe.textContent = 'M'.repeat(100);
+      document.body.appendChild(probe);
+      const advancePx = probe.getBoundingClientRect().width / 100;
+      probe.remove();
+      const targetAdvancePx = (${geo.printMm} / 25.4) * 96 / ${geo.cols};
+      const currentPx = parseFloat(getComputedStyle(document.body).fontSize);
+      if (advancePx > 0) {
+        document.body.style.fontSize = (currentPx * targetAdvancePx / advancePx) + 'px';
+      }
+      return Math.ceil(document.body.getBoundingClientRect().height);
+    })()`
+    const heightPx = (await win.webContents.executeJavaScript(fitAndMeasure)) as number
+    const TAIL_MM = 8 // feed so the last line clears the head-to-cutter gap
     const widthMicrons = geo.paperMm * 1000
+    // Floor the height at the paper width: Chromium treats a custom page with
+    // height < width as landscape, and some drivers then fall back to their
+    // fixed default form (constant-length receipts with a long blank feed).
+    // Very short tickets just gain a few mm of tail instead.
+    const heightMicrons = Math.max(
+      Math.round((heightPx / 96) * 25400 + TAIL_MM * 1000),
+      widthMicrons
+    )
+    console.log(
+      `[print] content ${heightPx}px -> page ${(heightMicrons / 1000).toFixed(1)}mm x ${geo.paperMm}mm on "${printerName}"`
+    )
 
     return await new Promise<PrintResult>((resolve) => {
       win.webContents.print(

@@ -55,9 +55,9 @@ function buildTestTicketLines(
     { text: divider },
     { text: row('TOTAL Gs.', '20.000'), bold: true },
     { text: divider },
-    { text: center('Si la linea de guiones llega') },
-    { text: center('justo al borde, el ancho') },
-    { text: center('esta bien calibrado.') },
+    { text: center('Si la linea de guiones tiene') },
+    { text: center('un margen parejo a cada lado,') },
+    { text: center('el ancho esta bien calibrado.') },
     { text: '' },
     { text: center('Impresion OK!') },
     { text: '' }

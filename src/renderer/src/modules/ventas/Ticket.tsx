@@ -14,7 +14,7 @@ export const Ticket = forwardRef<HTMLDivElement, TicketProps>(function Ticket({ 
         width: `${ticket.cols}ch`,
         boxSizing: 'content-box',
         padding: '16px 12px',
-        fontFamily: '"Courier New", "Courier", ui-monospace, monospace',
+        fontFamily: 'Consolas, Menlo, "Courier New", ui-monospace, monospace',
         fontSize: '12px',
         lineHeight: '1.35',
         whiteSpace: 'pre',
