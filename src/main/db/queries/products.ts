@@ -150,6 +150,16 @@ export function getProductByBarcode(barcode: string) {
     .get(barcode)
 }
 
+// Convert SQLite's UNIQUE constraint error on products.barcode into a typed key
+// the renderer maps to friendly Spanish copy (same pattern as the promo
+// validation errors). Any other error is rethrown untouched so it surfaces as-is.
+function rethrowFriendly(err: unknown): never {
+  if (err instanceof Error && /UNIQUE constraint failed: products\.barcode/.test(err.message)) {
+    throw new Error('PRODUCT_BARCODE_DUPLICATE')
+  }
+  throw err
+}
+
 export function createProduct(
   data: {
     name: string
@@ -201,7 +211,11 @@ export function createProduct(
       )
     }
   })
-  txn()
+  try {
+    txn()
+  } catch (err) {
+    rethrowFriendly(err)
+  }
   return getProductById(createdId)
 }
 
@@ -357,7 +371,11 @@ export function updateProduct(
       )
     }
   })
-  txn()
+  try {
+    txn()
+  } catch (err) {
+    rethrowFriendly(err)
+  }
   return getProductById(id)
 }
 
