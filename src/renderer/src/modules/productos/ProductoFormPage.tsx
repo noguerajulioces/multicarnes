@@ -17,16 +17,28 @@ import { formatGs } from '../../lib/utils'
 import { PRICE_TYPE_LIST, priceTypeInfo } from '../../lib/price-types'
 import { usePageTour } from '../../lib/use-page-tour'
 import { productoFormTourSteps } from '../../lib/tour-steps'
+import { toast } from '../../lib/toast'
 
-// 005-promotional-pricing: translate the typed validation errors thrown by
-// the products query layer into user-facing Spanish copy.
-const PROMO_ERROR_MSG: Record<string, string> = {
+// Translate the typed errors thrown by the products query layer into
+// user-facing Spanish copy (promo validation + duplicate barcode).
+const SAVE_ERROR_MSG: Record<string, string> = {
   PROMO_INCOMPLETE: 'Para activar la promoción, indicá el tipo y el valor.',
   PROMO_FIXED_NOT_LESS_THAN_PRICE: 'El precio promo debe ser menor al precio normal.',
   PROMO_FIXED_NOT_POSITIVE: 'El precio promo debe ser mayor a 0.',
   PROMO_PERCENT_OUT_OF_RANGE: 'El descuento debe estar entre 1% y 99%.',
   PROMO_DATE_FORMAT: 'La fecha debe tener formato AAAA-MM-DD.',
-  PROMO_DATE_RANGE: "La fecha 'Desde' debe ser anterior o igual a 'Hasta'."
+  PROMO_DATE_RANGE: "La fecha 'Desde' debe ser anterior o igual a 'Hasta'.",
+  PRODUCT_BARCODE_DUPLICATE: 'Ya existe un producto con ese código de barras.'
+}
+
+// Electron prefixes IPC rejections, e.g. "Error invoking remote method
+// 'products:create': Error: PRODUCT_BARCODE_DUPLICATE". So match by the typed
+// key contained in the message rather than by exact equality.
+function friendlySaveError(raw: string): string {
+  for (const [key, msg] of Object.entries(SAVE_ERROR_MSG)) {
+    if (raw.includes(key)) return msg
+  }
+  return raw
 }
 
 export default function ProductoFormPage() {
@@ -130,7 +142,7 @@ export default function ProductoFormPage() {
       }
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : 'Error al guardar'
-      alert(PROMO_ERROR_MSG[raw] ?? raw)
+      toast.error(friendlySaveError(raw))
     } finally {
       setLoading(false)
     }
@@ -156,10 +168,7 @@ export default function ProductoFormPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <Card
-          data-tour="producto-form-image"
-          className="lg:col-span-1 self-start"
-        >
+        <Card data-tour="producto-form-image" className="lg:col-span-1 self-start">
           <CardHeader>
             <h2 className="font-semibold text-text-main">Imagen</h2>
             <p className="text-xs text-text-muted">PNG, JPG o WebP</p>
@@ -190,9 +199,7 @@ export default function ProductoFormPage() {
         </Card>
 
         <div className="lg:col-span-2 space-y-5">
-          <Card
-            data-tour="producto-form-basic"
-          >
+          <Card data-tour="producto-form-basic">
             <CardHeader>
               <h2 className="font-semibold text-text-main">Información básica</h2>
               <p className="text-xs text-text-muted">Nombre, categoría y código</p>
@@ -270,9 +277,7 @@ export default function ProductoFormPage() {
             </CardBody>
           </Card>
 
-          <Card
-            data-tour="producto-form-pricing"
-          >
+          <Card data-tour="producto-form-pricing">
             <CardHeader>
               <h2 className="font-semibold text-text-main">Precio y stock</h2>
               <p className="text-xs text-text-muted">Cómo se cobra y la cantidad disponible</p>

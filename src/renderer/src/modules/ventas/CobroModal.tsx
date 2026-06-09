@@ -16,6 +16,7 @@ import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
 import { Button, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
+import { handleApiError } from '../../lib/api-error'
 import { PROCESSORS } from '../../lib/processors'
 import type { Customer, PaymentMethod, PaymentProcessor, Sale } from '@shared/types'
 import TicketPreviewModal from './TicketPreviewModal'
@@ -200,7 +201,7 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
       const fullSale = await window.api.sales.getById(created.id)
       setCompletedSale(fullSale ?? created)
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error al procesar venta')
+      handleApiError(err)
     }
     setLoading(false)
   }

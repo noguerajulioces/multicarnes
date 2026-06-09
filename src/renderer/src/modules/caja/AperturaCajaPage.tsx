@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/auth.store'
 import { useCashStore } from '../../store/cash.store'
 import { formatGs } from '../../lib/utils'
 import { confirm } from '../../lib/confirm'
+import { handleApiError } from '../../lib/api-error'
 import { Button, MoneyInput, TourButton } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaAperturaTourSteps } from '../../lib/tour-steps'
@@ -36,7 +37,7 @@ export default function AperturaCajaPage() {
       setRegister(register)
       navigate('/caja')
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error al abrir caja')
+      handleApiError(err)
     }
     setLoading(false)
   }

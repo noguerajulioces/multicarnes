@@ -19,6 +19,7 @@ import {
   Input,
   KpiCard,
   PageHeader,
+  Pagination,
   TableSkeleton,
   TourButton
 } from '../../components/ui'
@@ -331,6 +332,11 @@ const thCls = 'px-4 py-3 font-medium'
 const trCls = 'border-t border-border hover:bg-surface-muted/40 transition-colors'
 const tdCls = 'px-4 py-3'
 
+// Client-side pagination for the large report tables: the full dataset is kept
+// in memory (export needs it whole) but only one page of rows is rendered to
+// the DOM, which is the expensive part on big result sets.
+const REPORT_PER_PAGE = 50
+
 const VALID_TABS: readonly Tab[] = [
   'resumen',
   'comparativo',
@@ -365,6 +371,9 @@ export default function ReportesPage() {
   const [from, setFrom] = useState(firstDayOfMonthStr())
   const [to, setTo] = useState(todayStr())
   const [data, setData] = useState<unknown[]>([])
+  // Page index for the client-side paginated tables (fiados, tarjetas,
+  // productos, margen, stock). Reset to 1 on every fresh fetch / tab change.
+  const [page, setPage] = useState(1)
   const [summary, setSummary] = useState<SalesSummaryResult | null>(null)
   const [comparison, setComparison] = useState<SalesComparisonResult | null>(null)
   const [cardProcessorFilter, setCardProcessorFilter] = useState<string>('')
@@ -386,6 +395,7 @@ export default function ReportesPage() {
 
   const load = async (): Promise<void> => {
     setLoading(true)
+    setPage(1)
     try {
       if (tab === 'resumen') {
         setSummary(await window.api.reports.salesSummary(from, to))
@@ -478,6 +488,7 @@ export default function ReportesPage() {
             onClick={() => {
               setTab(t.key)
               setData([])
+              setPage(1)
               setSummary(null)
               setComparison(null)
             }}
@@ -493,9 +504,7 @@ export default function ReportesPage() {
         ))}
       </div>
 
-      <Card
-        data-tour="reportes-filters"
-      >
+      <Card data-tour="reportes-filters">
         <CardBody className="space-y-4">
           <div className="flex gap-3 items-end flex-wrap">
             {needsDateRange && (
@@ -827,9 +836,7 @@ export default function ReportesPage() {
       )}
 
       {!loading && tab === 'fiados' && (
-        <Card
-          className="overflow-hidden"
-        >
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -843,34 +850,42 @@ export default function ReportesPage() {
                 </tr>
               </thead>
               <tbody>
-                {(data as PendingCreditRow[]).map((r) => (
-                  <tr key={r.id} className={trCls}>
-                    <td className={`${tdCls} font-medium`}>{r.name}</td>
-                    <td className={`${tdCls} text-text-muted`}>
-                      {r.phone || <span className="text-text-disabled">—</span>}
-                    </td>
-                    <td className={tdCls}>
-                      {r.is_employee ? <Badge tone="info">Empleado</Badge> : <Badge>Cliente</Badge>}
-                    </td>
-                    <td className={`${tdCls} text-right font-medium text-danger-700 tabular-nums`}>
-                      {formatGs(Math.abs(r.balance))}
-                    </td>
-                    <td className={`${tdCls} text-text-muted tabular-nums`}>
-                      {r.last_credit_sale_at ? (
-                        formatDateTime(r.last_credit_sale_at)
-                      ) : (
-                        <span className="text-text-disabled">—</span>
-                      )}
-                    </td>
-                    <td className={`${tdCls} text-text-muted tabular-nums`}>
-                      {r.last_payment_at ? (
-                        formatDateTime(r.last_payment_at)
-                      ) : (
-                        <span className="text-text-disabled">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {(data as PendingCreditRow[])
+                  .slice((page - 1) * REPORT_PER_PAGE, page * REPORT_PER_PAGE)
+                  .map((r) => (
+                    <tr key={r.id} className={trCls}>
+                      <td className={`${tdCls} font-medium`}>{r.name}</td>
+                      <td className={`${tdCls} text-text-muted`}>
+                        {r.phone || <span className="text-text-disabled">—</span>}
+                      </td>
+                      <td className={tdCls}>
+                        {r.is_employee ? (
+                          <Badge tone="info">Empleado</Badge>
+                        ) : (
+                          <Badge>Cliente</Badge>
+                        )}
+                      </td>
+                      <td
+                        className={`${tdCls} text-right font-medium text-danger-700 tabular-nums`}
+                      >
+                        {formatGs(Math.abs(r.balance))}
+                      </td>
+                      <td className={`${tdCls} text-text-muted tabular-nums`}>
+                        {r.last_credit_sale_at ? (
+                          formatDateTime(r.last_credit_sale_at)
+                        ) : (
+                          <span className="text-text-disabled">—</span>
+                        )}
+                      </td>
+                      <td className={`${tdCls} text-text-muted tabular-nums`}>
+                        {r.last_payment_at ? (
+                          formatDateTime(r.last_payment_at)
+                        ) : (
+                          <span className="text-text-disabled">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
               {data.length > 0 && (
                 <tfoot>
@@ -889,15 +904,21 @@ export default function ReportesPage() {
               )}
             </table>
           </div>
+          <Pagination
+            page={page}
+            perPage={REPORT_PER_PAGE}
+            total={data.length}
+            onPageChange={setPage}
+          />
         </Card>
       )}
 
-      {!loading && tab === 'tarjetas' && <TarjetasReport rows={data as CardSalesRow[]} />}
+      {!loading && tab === 'tarjetas' && (
+        <TarjetasReport rows={data as CardSalesRow[]} page={page} onPageChange={setPage} />
+      )}
 
       {!loading && tab === 'productos' && (
-        <Card
-          className="overflow-hidden"
-        >
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -919,41 +940,47 @@ export default function ReportesPage() {
                     total_revenue: number
                     total_revenue_net: number
                   }[]
-                ).map((r, i) => {
-                  const desc = r.total_revenue - r.total_revenue_net
-                  return (
-                    <tr key={i} className={trCls}>
-                      <td className={`${tdCls} font-medium`}>{r.product_name}</td>
-                      <td className={`${tdCls} text-text-muted`}>
-                        {r.category_name || <span className="text-text-disabled">—</span>}
-                      </td>
-                      <td className={`${tdCls} text-right tabular-nums`}>{r.total_quantity}</td>
-                      <td className={`${tdCls} text-right tabular-nums text-text-muted`}>
-                        {formatGs(r.total_revenue)}
-                      </td>
-                      <td className={`${tdCls} text-right tabular-nums`}>
-                        {desc > 0 ? (
-                          <span className="text-warning-700">-{formatGs(desc)}</span>
-                        ) : (
-                          <span className="text-text-disabled">—</span>
-                        )}
-                      </td>
-                      <td className={`${tdCls} text-right font-medium tabular-nums`}>
-                        {formatGs(r.total_revenue_net)}
-                      </td>
-                    </tr>
-                  )
-                })}
+                )
+                  .slice((page - 1) * REPORT_PER_PAGE, page * REPORT_PER_PAGE)
+                  .map((r, i) => {
+                    const desc = r.total_revenue - r.total_revenue_net
+                    return (
+                      <tr key={i} className={trCls}>
+                        <td className={`${tdCls} font-medium`}>{r.product_name}</td>
+                        <td className={`${tdCls} text-text-muted`}>
+                          {r.category_name || <span className="text-text-disabled">—</span>}
+                        </td>
+                        <td className={`${tdCls} text-right tabular-nums`}>{r.total_quantity}</td>
+                        <td className={`${tdCls} text-right tabular-nums text-text-muted`}>
+                          {formatGs(r.total_revenue)}
+                        </td>
+                        <td className={`${tdCls} text-right tabular-nums`}>
+                          {desc > 0 ? (
+                            <span className="text-warning-700">-{formatGs(desc)}</span>
+                          ) : (
+                            <span className="text-text-disabled">—</span>
+                          )}
+                        </td>
+                        <td className={`${tdCls} text-right font-medium tabular-nums`}>
+                          {formatGs(r.total_revenue_net)}
+                        </td>
+                      </tr>
+                    )
+                  })}
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={page}
+            perPage={REPORT_PER_PAGE}
+            total={data.length}
+            onPageChange={setPage}
+          />
         </Card>
       )}
 
       {!loading && tab === 'margen' && (
-        <Card
-          className="overflow-hidden"
-        >
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -966,53 +993,61 @@ export default function ReportesPage() {
                 </tr>
               </thead>
               <tbody>
-                {(
-                  data as { product_name: string; sale_price: number; last_cost: number | null }[]
-                ).map((r, i) => {
-                  const margin = r.last_cost ? r.sale_price - r.last_cost : null
-                  const pct =
-                    margin && r.last_cost ? ((margin / r.last_cost) * 100).toFixed(1) : null
-                  const positive = (margin ?? 0) > 0
-                  return (
-                    <tr key={i} className={trCls}>
-                      <td className={`${tdCls} font-medium`}>{r.product_name}</td>
-                      <td className={`${tdCls} text-right tabular-nums`}>
-                        {formatGs(r.sale_price)}
-                      </td>
-                      <td className={`${tdCls} text-right tabular-nums`}>
-                        {r.last_cost ? (
-                          formatGs(r.last_cost)
-                        ) : (
-                          <span className="text-text-disabled">—</span>
-                        )}
-                      </td>
-                      <td
-                        className={`${tdCls} text-right font-medium tabular-nums ${
-                          margin == null ? '' : positive ? 'text-success-700' : 'text-danger-700'
-                        }`}
-                      >
-                        {margin ? formatGs(margin) : <span className="text-text-disabled">—</span>}
-                      </td>
-                      <td
-                        className={`${tdCls} text-right tabular-nums ${
-                          pct == null ? '' : positive ? 'text-success-700' : 'text-danger-700'
-                        }`}
-                      >
-                        {pct ? `${pct}%` : <span className="text-text-disabled">—</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
+                {(data as { product_name: string; sale_price: number; last_cost: number | null }[])
+                  .slice((page - 1) * REPORT_PER_PAGE, page * REPORT_PER_PAGE)
+                  .map((r, i) => {
+                    const margin = r.last_cost ? r.sale_price - r.last_cost : null
+                    const pct =
+                      margin && r.last_cost ? ((margin / r.last_cost) * 100).toFixed(1) : null
+                    const positive = (margin ?? 0) > 0
+                    return (
+                      <tr key={i} className={trCls}>
+                        <td className={`${tdCls} font-medium`}>{r.product_name}</td>
+                        <td className={`${tdCls} text-right tabular-nums`}>
+                          {formatGs(r.sale_price)}
+                        </td>
+                        <td className={`${tdCls} text-right tabular-nums`}>
+                          {r.last_cost ? (
+                            formatGs(r.last_cost)
+                          ) : (
+                            <span className="text-text-disabled">—</span>
+                          )}
+                        </td>
+                        <td
+                          className={`${tdCls} text-right font-medium tabular-nums ${
+                            margin == null ? '' : positive ? 'text-success-700' : 'text-danger-700'
+                          }`}
+                        >
+                          {margin ? (
+                            formatGs(margin)
+                          ) : (
+                            <span className="text-text-disabled">—</span>
+                          )}
+                        </td>
+                        <td
+                          className={`${tdCls} text-right tabular-nums ${
+                            pct == null ? '' : positive ? 'text-success-700' : 'text-danger-700'
+                          }`}
+                        >
+                          {pct ? `${pct}%` : <span className="text-text-disabled">—</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={page}
+            perPage={REPORT_PER_PAGE}
+            total={data.length}
+            onPageChange={setPage}
+          />
         </Card>
       )}
 
       {!loading && tab === 'stock' && (
-        <Card
-          className="overflow-hidden"
-        >
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -1035,37 +1070,43 @@ export default function ReportesPage() {
                     reason: string
                     user_name: string
                   }[]
-                ).map((r, i) => {
-                  const diff = r.quantity_after - r.quantity_before
-                  return (
-                    <tr key={i} className={trCls}>
-                      <td className={`${tdCls} text-text-muted tabular-nums`}>
-                        {formatDateTime(r.created_at)}
-                      </td>
-                      <td className={`${tdCls} font-medium`}>{r.product_name}</td>
-                      <td className={`${tdCls} text-right tabular-nums`}>{r.quantity_before}</td>
-                      <td
-                        className={`${tdCls} text-right tabular-nums font-medium ${
-                          diff > 0 ? 'text-success-700' : diff < 0 ? 'text-danger-700' : ''
-                        }`}
-                      >
-                        {r.quantity_after}
-                      </td>
-                      <td className={`${tdCls} text-text-muted`}>{r.reason}</td>
-                      <td className={`${tdCls} text-text-muted`}>{r.user_name}</td>
-                    </tr>
-                  )
-                })}
+                )
+                  .slice((page - 1) * REPORT_PER_PAGE, page * REPORT_PER_PAGE)
+                  .map((r, i) => {
+                    const diff = r.quantity_after - r.quantity_before
+                    return (
+                      <tr key={i} className={trCls}>
+                        <td className={`${tdCls} text-text-muted tabular-nums`}>
+                          {formatDateTime(r.created_at)}
+                        </td>
+                        <td className={`${tdCls} font-medium`}>{r.product_name}</td>
+                        <td className={`${tdCls} text-right tabular-nums`}>{r.quantity_before}</td>
+                        <td
+                          className={`${tdCls} text-right tabular-nums font-medium ${
+                            diff > 0 ? 'text-success-700' : diff < 0 ? 'text-danger-700' : ''
+                          }`}
+                        >
+                          {r.quantity_after}
+                        </td>
+                        <td className={`${tdCls} text-text-muted`}>{r.reason}</td>
+                        <td className={`${tdCls} text-text-muted`}>{r.user_name}</td>
+                      </tr>
+                    )
+                  })}
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={page}
+            perPage={REPORT_PER_PAGE}
+            total={data.length}
+            onPageChange={setPage}
+          />
         </Card>
       )}
 
       {!loading && tab === 'caja' && (
-        <Card
-          className="overflow-hidden"
-        >
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -1169,7 +1210,15 @@ export default function ReportesPage() {
 // top so the supervisor can match the day's settlement at a glance; full
 // transaction list below for voucher-by-voucher matching against the
 // acquirer's statement.
-function TarjetasReport({ rows }: { rows: CardSalesRow[] }): React.ReactElement {
+function TarjetasReport({
+  rows,
+  page,
+  onPageChange
+}: {
+  rows: CardSalesRow[]
+  page: number
+  onPageChange: (p: number) => void
+}): React.ReactElement {
   const byProcessor = rows.reduce<Record<string, { total: number; count: number }>>((acc, r) => {
     const key = r.processor || 'unknown'
     if (!acc[key]) acc[key] = { total: 0, count: 0 }
@@ -1236,9 +1285,7 @@ function TarjetasReport({ rows }: { rows: CardSalesRow[] }): React.ReactElement 
         </CardBody>
       </Card>
 
-      <Card
-        className="overflow-hidden"
-      >
+      <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -1254,7 +1301,7 @@ function TarjetasReport({ rows }: { rows: CardSalesRow[] }): React.ReactElement 
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, idx) => (
+              {rows.slice((page - 1) * REPORT_PER_PAGE, page * REPORT_PER_PAGE).map((r, idx) => (
                 <tr key={`${r.sale_id}-${idx}`} className={trCls}>
                   <td className={`${tdCls} text-text-muted tabular-nums`}>
                     {formatDateTime(r.created_at)}
@@ -1287,6 +1334,12 @@ function TarjetasReport({ rows }: { rows: CardSalesRow[] }): React.ReactElement 
             </tbody>
           </table>
         </div>
+        <Pagination
+          page={page}
+          perPage={REPORT_PER_PAGE}
+          total={rows.length}
+          onPageChange={onPageChange}
+        />
       </Card>
     </div>
   )

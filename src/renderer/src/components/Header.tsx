@@ -242,10 +242,11 @@ function NotificationBell(): React.ReactElement {
   useEffect(() => {
     if (userId === null) return
     void useNotificationStore.getState().refresh()
-    // refresh discreto cada 60s para mantener al día las alertas
+    // refresh discreto cada 5 min para mantener al día las alertas sin sondear
+    // la base cada minuto (el dropdown también refresca al abrirse)
     const id = setInterval(() => {
       void useNotificationStore.getState().refresh()
-    }, 60_000)
+    }, 300_000)
     return () => clearInterval(id)
   }, [userId])
 

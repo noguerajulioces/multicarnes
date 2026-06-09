@@ -395,6 +395,37 @@ const MIGRATIONS: Migration[] = [
         db.exec('ALTER TABLE customers ADD COLUMN credit_limit_amount INTEGER')
       }
     }
+  },
+  {
+    version: 14,
+    name: 'add_performance_indexes',
+    up: (db) => {
+      // Indexes on the hottest filter/join/order columns so listados and
+      // reports stop full-scanning as the tables grow (sales history, customer
+      // accounts, stock movements, product filtering). All additive and
+      // idempotent (IF NOT EXISTS); no data change. products.barcode is already
+      // UNIQUE (implicit index) and cash_movements already has its own index.
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_sales_register_created
+          ON sales(register_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_sales_customer
+          ON sales(customer_id);
+        CREATE INDEX IF NOT EXISTS idx_sales_created
+          ON sales(created_at);
+        CREATE INDEX IF NOT EXISTS idx_sale_items_sale
+          ON sale_items(sale_id);
+        CREATE INDEX IF NOT EXISTS idx_sale_payments_sale
+          ON sale_payments(sale_id);
+        CREATE INDEX IF NOT EXISTS idx_customer_payments_customer_created
+          ON customer_payments(customer_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_stock_adjustments_product
+          ON stock_adjustments(product_id);
+        CREATE INDEX IF NOT EXISTS idx_stock_adjustments_created
+          ON stock_adjustments(created_at);
+        CREATE INDEX IF NOT EXISTS idx_products_category
+          ON products(category_id);
+      `)
+    }
   }
 ]
 
@@ -525,6 +556,14 @@ export function initDatabase(): Database.Database {
   db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
+  // Performance/robustness pragmas. busy_timeout avoids hard "database is
+  // locked" failures under contention (single-instance lock notwithstanding);
+  // synchronous=NORMAL is the recommended setting in WAL mode and cuts disk I/O
+  // (helps on slow eMMC/HDD disks); the negative cache_size is ~32 MB of page
+  // cache to reduce reads.
+  db.pragma('busy_timeout = 5000')
+  db.pragma('synchronous = NORMAL')
+  db.pragma('cache_size = -32000')
   createTables(db)
   runMigrations(db, dbPath)
   runMaintenance(db)
