@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.8.3](https://github.com/noguerajulioces/multicarnes/compare/v1.8.0...v1.8.3) (2026-06-09)
+
+### Features
+
+* Electron printing + printer dropdown, test print, and receipt config (footer/RUC) ([#26](https://github.com/noguerajulioces/multicarnes/issues/26)) ([1112c2b](https://github.com/noguerajulioces/multicarnes/commit/1112c2b67e7d832129fbb2482194ffab46df9202))
+
+### Bug Fixes
+
+* friendly duplicate-barcode message + report pagination & DB perf ([#27](https://github.com/noguerajulioces/multicarnes/issues/27)) ([6262ff5](https://github.com/noguerajulioces/multicarnes/commit/6262ff5e22a2694259b061e9d2d48d262a9b4747))
+
 ## [1.8.0](https://github.com/noguerajulioces/multicarnes/compare/v1.7.3...v1.8.0) (2026-06-02)
 
 ### Features
