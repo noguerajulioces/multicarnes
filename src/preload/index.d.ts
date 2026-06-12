@@ -141,6 +141,10 @@ interface ApiCash {
     description: string
   ): Promise<CashMovement>
   getMovements(registerId: number): Promise<CashMovement[]>
+  getMovements(
+    registerId: number,
+    opts: { page: number; perPage: number }
+  ): Promise<Paginated<CashMovement>>
   getSummary(registerId: number): Promise<unknown>
   getAll(): Promise<CashRegister[]>
 }

@@ -206,18 +206,47 @@ export function addCashMovement(
   return getDb().prepare('SELECT * FROM cash_movements WHERE id = ?').get(result.lastInsertRowid)
 }
 
-export function getCashMovements(registerId: number) {
-  return getDb()
-    .prepare(
-      `
+export function getCashMovements(registerId: number): unknown[]
+export function getCashMovements(
+  registerId: number,
+  opts: { page: number; perPage: number }
+): { items: unknown[]; total: number; page: number; perPage: number }
+export function getCashMovements(
+  registerId: number,
+  opts?: { page: number; perPage: number }
+): unknown[] | { items: unknown[]; total: number; page: number; perPage: number } {
+  const db = getDb()
+  const baseQuery = `
     SELECT cm.*, u.name as user_name
     FROM cash_movements cm
     LEFT JOIN users u ON cm.user_id = u.id
     WHERE cm.register_id = ?
-    ORDER BY cm.created_at DESC
+    ORDER BY cm.created_at DESC, cm.id DESC
   `
+
+  // Preserve the original contract for callers that still need the complete
+  // turn history. CajaPage passes pagination options to avoid loading every row.
+  if (!opts) {
+    return db.prepare(baseQuery).all(registerId)
+  }
+
+  const page = Math.max(1, opts.page)
+  const perPage = Math.min(100, Math.max(1, opts.perPage))
+  const total = (
+    db
+      .prepare('SELECT COUNT(*) as c FROM cash_movements WHERE register_id = ?')
+      .get(registerId) as {
+      c: number
+    }
+  ).c
+  const items = db
+    .prepare(
+      `${baseQuery}
+       LIMIT ? OFFSET ?`
     )
-    .all(registerId)
+    .all(registerId, perPage, (page - 1) * perPage)
+
+  return { items, total, page, perPage }
 }
 
 export function getCashRegisterSummary(registerId: number) {

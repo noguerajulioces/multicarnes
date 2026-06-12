@@ -16,6 +16,7 @@ import {
   Modal,
   MoneyInput,
   PageHeader,
+  Pagination,
   Table,
   TBody,
   Td,
@@ -39,11 +40,15 @@ const TYPE_META: Record<
   void: { label: 'Anulación', tone: 'neutral' }
 }
 
+const MOVEMENTS_PER_PAGE = 25
+
 export default function CajaPage() {
   const user = useAuthStore((s) => s.user)
   const register = useCashStore((s) => s.register)
   const navigate = useNavigate()
   const [movements, setMovements] = useState<CashMovement[]>([])
+  const [movementsTotal, setMovementsTotal] = useState(0)
+  const [movementsPage, setMovementsPage] = useState(1)
   const [summary, setSummary] = useState<{
     cashSales: number
     incomes: number
@@ -53,23 +58,45 @@ export default function CajaPage() {
   const [movAmount, setMovAmount] = useState(0)
   const [movDesc, setMovDesc] = useState('')
 
+  const loadData = async (page: number): Promise<void> => {
+    if (!register) return
+    const [movementsResult, sum] = await Promise.all([
+      window.api.cash.getMovements(register.id, { page, perPage: MOVEMENTS_PER_PAGE }),
+      window.api.cash.getSummary(register.id)
+    ])
+    setMovements(movementsResult.items)
+    setMovementsTotal(movementsResult.total)
+    setSummary(sum as typeof summary)
+  }
+
   useEffect(() => {
     if (!register) {
       navigate('/caja/apertura')
       return
     }
-    loadData()
-  }, [register])
 
-  const loadData = async (): Promise<void> => {
-    if (!register) return
-    const [movs, sum] = await Promise.all([
-      window.api.cash.getMovements(register.id),
+    let cancelled = false
+    void Promise.all([
+      window.api.cash.getMovements(register.id, {
+        page: movementsPage,
+        perPage: MOVEMENTS_PER_PAGE
+      }),
       window.api.cash.getSummary(register.id)
     ])
-    setMovements(movs)
-    setSummary(sum as typeof summary)
-  }
+      .then(([movementsResult, sum]) => {
+        if (cancelled) return
+        setMovements(movementsResult.items)
+        setMovementsTotal(movementsResult.total)
+        setSummary(sum as typeof summary)
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) handleApiError(error)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [movementsPage, navigate, register])
 
   const handleAddMovement = async (): Promise<void> => {
     if (!register || !user || !modal || !movAmount || !movDesc) return
@@ -82,7 +109,11 @@ export default function CajaPage() {
     setModal(null)
     setMovAmount(0)
     setMovDesc('')
-    loadData()
+    if (movementsPage === 1) {
+      await loadData(1)
+    } else {
+      setMovementsPage(1)
+    }
   }
 
   const closeModal = (): void => {
@@ -166,14 +197,12 @@ export default function CajaPage() {
         </Button>
       </div>
 
-      <Card
-        data-tour="caja-movements-list"
-      >
+      <Card data-tour="caja-movements-list">
         <CardHeader>
           <h2 className="font-semibold text-text-main">Movimientos del Turno</h2>
           <p className="text-xs text-text-muted">
-            {movements.length} movimiento{movements.length === 1 ? '' : 's'} registrado
-            {movements.length === 1 ? '' : 's'}
+            {movementsTotal} movimiento{movementsTotal === 1 ? '' : 's'} registrado
+            {movementsTotal === 1 ? '' : 's'}
           </p>
         </CardHeader>
         <CardBody>
@@ -196,9 +225,7 @@ export default function CajaPage() {
               ) : (
                 movements.map((m) => (
                   <Tr key={m.id}>
-                    <Td className="text-text-muted tabular-nums">
-                      {formatDateTime(m.created_at)}
-                    </Td>
+                    <Td className="text-text-muted tabular-nums">{formatDateTime(m.created_at)}</Td>
                     <Td>
                       <Badge tone={TYPE_META[m.type].tone}>{TYPE_META[m.type].label}</Badge>
                     </Td>
@@ -210,6 +237,12 @@ export default function CajaPage() {
             </TBody>
           </Table>
         </CardBody>
+        <Pagination
+          page={movementsPage}
+          perPage={MOVEMENTS_PER_PAGE}
+          total={movementsTotal}
+          onPageChange={setMovementsPage}
+        />
       </Card>
 
       <Modal
