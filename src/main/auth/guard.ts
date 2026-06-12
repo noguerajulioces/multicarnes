@@ -211,6 +211,34 @@ export function listRegisteredChannels(): string[] {
   return [...registeredChannels]
 }
 
+// Auditoría selectiva. Los intentos BLOQUEADOS se registran siempre (alimentan
+// las alertas de repetición y el rastro de accesos denegados). De las
+// operaciones PERMITIDAS sólo se registran las mutaciones sensibles de abajo;
+// las lecturas (getAll/getById/búsquedas/reportes) no se auditan, para no
+// inflar auth_audit ni encarecer cada IPC con una escritura síncrona.
+//
+// Excluidas a propósito porque ya tienen su propio registro de negocio:
+// sales:create→sales, customers:addPayment→customer_payments,
+// cash:*→cash_movements, purchases:*→purchase_orders. Punto de extensión: si
+// una operación permitida necesita rastro de autorización, se agrega su canal acá.
+const AUDIT_ALLOWED_OPERATIONS = new Set<string>([
+  'sales:cancel',
+  'cashMovements:void',
+  'customers:voidPayment',
+  'customers:delete',
+  'users:create',
+  'users:update',
+  'backup:restore',
+  'backup:create',
+  'settings:set',
+  'products:adjustStock'
+])
+
+function shouldAudit(outcome: AuthOutcome, channel: string): boolean {
+  if (outcome !== 'allowed') return true // todo bloqueo, siempre
+  return AUDIT_ALLOWED_OPERATIONS.has(channel) // de lo permitido, sólo lo sensible
+}
+
 export function registerAuthorized<TArgs extends unknown[], TResult>(
   channel: string,
   rule: AuthRule,
@@ -226,16 +254,18 @@ export function registerAuthorized<TArgs extends unknown[], TResult>(
 
     const decision = evaluate(rule, args, resolved)
 
-    recordDecision({
-      operation: channel,
-      senderId,
-      claimedUserId,
-      resolvedUserId: decision.resolvedUserId,
-      resolvedActive: decision.resolvedActive,
-      resolvedRole: decision.resolvedRole,
-      outcome: decision.outcome,
-      decidedAt: new Date().toISOString()
-    })
+    if (shouldAudit(decision.outcome, channel)) {
+      recordDecision({
+        operation: channel,
+        senderId,
+        claimedUserId,
+        resolvedUserId: decision.resolvedUserId,
+        resolvedActive: decision.resolvedActive,
+        resolvedRole: decision.resolvedRole,
+        outcome: decision.outcome,
+        decidedAt: new Date().toISOString()
+      })
+    }
 
     if (!decision.allowed) {
       throw new AuthError(channel, decision.outcome as Exclude<AuthOutcome, 'allowed'>)

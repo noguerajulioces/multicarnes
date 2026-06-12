@@ -30,6 +30,7 @@ import {
 import { usePageTour } from '../../lib/use-page-tour'
 import { productosTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
+import { useDebouncedValue } from '../../lib/use-debounced-value'
 import {
   type StockAdjustMode,
   STOCK_ADJUST_MODES,
@@ -48,6 +49,7 @@ export default function ProductosPage() {
   const [page, setPage] = useState(1)
   const [categories, setCategories] = useState<Category[]>([])
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search)
   const [filterCat, setFilterCat] = useState<number | ''>('')
   const [filterStock, setFilterStock] = useState(false)
   const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | 'all'>('active')
@@ -63,7 +65,7 @@ export default function ProductosPage() {
 
   const buildFilters = (): Record<string, unknown> => {
     const filters: Record<string, unknown> = {
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       page,
       perPage: PER_PAGE
     }
@@ -77,14 +79,14 @@ export default function ProductosPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [search, filterCat, filterStock, filterStatus, filterPromo])
+  }, [debouncedSearch, filterCat, filterStock, filterStatus, filterPromo])
 
   useEffect(() => {
     window.api.products.getAll(buildFilters()).then((res) => {
       setProducts(res.items)
       setTotal(res.total)
     })
-  }, [search, filterCat, filterStock, filterStatus, filterPromo, page])
+  }, [debouncedSearch, filterCat, filterStock, filterStatus, filterPromo, page])
 
   // The field holds the incoming/outgoing quantity (add/subtract) or the new
   // absolute total (set); the IPC always receives the resulting absolute stock.
@@ -208,10 +210,7 @@ export default function ProductosPage() {
         </div>
       </div>
 
-      <Card
-        data-tour="productos-table"
-        className="overflow-hidden"
-      >
+      <Card data-tour="productos-table" className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

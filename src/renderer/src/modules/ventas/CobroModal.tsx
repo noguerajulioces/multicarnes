@@ -17,6 +17,7 @@ import { formatGs } from '../../lib/utils'
 import { Button, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
 import { handleApiError } from '../../lib/api-error'
+import { useDebouncedValue } from '../../lib/use-debounced-value'
 import { PROCESSORS } from '../../lib/processors'
 import type { Customer, PaymentMethod, PaymentProcessor, Sale } from '@shared/types'
 import TicketPreviewModal from './TicketPreviewModal'
@@ -66,11 +67,15 @@ const newMixedLine = (method: MixedMethod = 'cash'): MixedLine => ({
 export default function CobroModal({ onClose, onSuccess }: Props) {
   const user = useAuthStore((s) => s.user)
   const register = useCashStore((s) => s.register)
-  const { items, discount, subtotal, total } = useCartStore()
+  const items = useCartStore((s) => s.items)
+  const discount = useCartStore((s) => s.discount)
+  const subtotal = useCartStore((s) => s.subtotal)
+  const total = useCartStore((s) => s.total)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [cashReceived, setCashReceived] = useState(0)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [customerSearch, setCustomerSearch] = useState('')
+  const debouncedCustomerSearch = useDebouncedValue(customerSearch)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [cardProcessor, setCardProcessor] = useState<PaymentProcessor | null>(null)
   const [cardReference, setCardReference] = useState('')
@@ -83,12 +88,14 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
 
   useEffect(() => {
-    if (customerSearch.length >= 2) {
-      window.api.customers.getAll({ search: customerSearch }).then((res) => setCustomers(res.items))
+    if (debouncedCustomerSearch.length >= 2) {
+      window.api.customers
+        .getAll({ search: debouncedCustomerSearch })
+        .then((res) => setCustomers(res.items))
     } else {
       setCustomers([])
     }
-  }, [customerSearch])
+  }, [debouncedCustomerSearch])
 
   const totalAmount = total()
   const change = paymentMethod === 'cash' ? cashReceived - totalAmount : 0
@@ -197,9 +204,9 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
         paymentReference,
         payments
       })
-      // Re-fetch with items + payments populated for the ticket preview
-      const fullSale = await window.api.sales.getById(created.id)
-      setCompletedSale(fullSale ?? created)
+      // createSale ya devuelve la venta completa (items + payments) vía
+      // getSaleById, así que no hace falta un segundo round-trip para el ticket.
+      setCompletedSale(created)
     } catch (err: unknown) {
       handleApiError(err)
     }

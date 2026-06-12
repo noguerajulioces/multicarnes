@@ -21,6 +21,7 @@ import {
 import { usePageTour } from '../../lib/use-page-tour'
 import { clientesTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
+import { useDebouncedValue } from '../../lib/use-debounced-value'
 
 const emptyForm: {
   name: string
@@ -50,6 +51,7 @@ export default function ClientesPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search)
   const [filterType, setFilterType] = useState<'all' | 'customers' | 'employees'>('all')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
@@ -57,7 +59,7 @@ export default function ClientesPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [search, filterType])
+  }, [debouncedSearch, filterType])
 
   const buildOpts = (): {
     search?: string
@@ -65,7 +67,7 @@ export default function ClientesPage() {
     page: number
     perPage: number
   } => ({
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     isEmployee: filterType === 'employees' ? true : filterType === 'customers' ? false : undefined,
     page,
     perPage: PER_PAGE
@@ -76,7 +78,7 @@ export default function ClientesPage() {
       setCustomers(res.items)
       setTotal(res.total)
     })
-  }, [search, filterType, page])
+  }, [debouncedSearch, filterType, page])
 
   const reload = (): void => {
     window.api.customers.getAll(buildOpts()).then((res) => {

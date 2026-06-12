@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
@@ -9,7 +9,7 @@ import { formatGs, formatDateTime } from '../../lib/utils'
 import { parseBalanceCode } from '../../lib/balance-code'
 import { toast } from '../../lib/toast'
 import { confirm } from '../../lib/confirm'
-import type { Category, Product } from '@shared/types'
+import type { Category, CartItem, Product } from '@shared/types'
 import {
   Search,
   Trash2,
@@ -41,18 +41,19 @@ import CobroModal from './CobroModal'
 export default function VentasPage() {
   const navigate = useNavigate()
   const register = useCashStore((s) => s.register)
-  const {
-    items,
-    discount,
-    addItem,
-    updateQuantity,
-    removeItem,
-    setDiscount,
-    clear,
-    restore,
-    subtotal,
-    total
-  } = useCartStore()
+  // Selectores individuales (no destructuring sin selector): así la página solo
+  // se re-renderiza cuando cambia el slice que realmente lee, no ante cualquier
+  // mutación del store. Las acciones de Zustand tienen identidad estable.
+  const items = useCartStore((s) => s.items)
+  const discount = useCartStore((s) => s.discount)
+  const addItem = useCartStore((s) => s.addItem)
+  const updateQuantity = useCartStore((s) => s.updateQuantity)
+  const removeItem = useCartStore((s) => s.removeItem)
+  const setDiscount = useCartStore((s) => s.setDiscount)
+  const clear = useCartStore((s) => s.clear)
+  const restore = useCartStore((s) => s.restore)
+  const subtotal = useCartStore((s) => s.subtotal)
+  const total = useCartStore((s) => s.total)
   const heldTickets = useHeldStore((s) => s.tickets)
   const heldLoaded = useHeldStore((s) => s.loaded)
   const loadHeldFromDb = useHeldStore((s) => s.loadFromDb)
@@ -363,9 +364,29 @@ export default function VentasPage() {
     setInputMode('qty')
   }
 
-  const handleProductClick = (product: Product) => {
-    openQuantityModal(product)
-  }
+  const handleProductClick = useCallback(
+    (product: Product) => {
+      openQuantityModal(product)
+    },
+    [openQuantityModal]
+  )
+
+  // Timestamp tomado una vez al montar (inicializador lazy de useState, fuera
+  // del cuerpo de render para no violar la pureza). isPromoActive sólo usa la
+  // fecha, así que un valor estable por montaje alcanza y mantiene efectivo el
+  // React.memo de ProductCard (antes se creaba un `new Date()` por tarjeta por
+  // render).
+  const [now] = useState(() => Date.now())
+
+  // Grilla memoizada: tipear (setSearch/setScannerActive) re-renderiza la página,
+  // pero esta lista sólo se recomputa cuando cambian los productos cargados.
+  const productGrid = useMemo(
+    () =>
+      products.map((p) => (
+        <ProductCard key={p.id} product={p} now={now} onSelect={handleProductClick} />
+      )),
+    [products, now, handleProductClick]
+  )
 
   const computeQty = (product: Product): number => {
     if (inputMode === 'amount') {
@@ -453,102 +474,7 @@ export default function VentasPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-2">
-            {items.length === 0 ? (
-              <EmptyState
-                icon={<ShoppingCart size={40} />}
-                title="Carrito vacío"
-                description="Buscá productos por nombre o pasá un código de barras."
-              />
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-text-muted text-left border-b border-border">
-                    <th className="pb-2">Producto</th>
-                    <th className="pb-2 w-24 text-center">Cant.</th>
-                    <th className="pb-2 text-right">Subtotal</th>
-                    <th className="pb-2 w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => {
-                    const itemPt = priceTypeInfo(item.product.price_type)
-                    const hasPromo =
-                      item.normal_price != null &&
-                      item.unit_price != null &&
-                      item.normal_price > item.unit_price
-                    return (
-                      <tr key={item.product.id} className="border-b border-border">
-                        <td className="py-2">
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-medium">{item.product.name}</p>
-                            {hasPromo && <Badge tone="success">PROMO</Badge>}
-                          </div>
-                          <p className="text-xs text-text-muted">
-                            {hasPromo ? (
-                              <>
-                                <span className="line-through opacity-60">
-                                  {formatGs(item.normal_price!)}
-                                </span>{' '}
-                                <span className="font-medium text-success-700">
-                                  {formatGs(item.unit_price!)}
-                                </span>{' '}
-                                / {itemPt.unit}
-                              </>
-                            ) : (
-                              <>
-                                {formatGs(item.product.price)} / {itemPt.unit}
-                              </>
-                            )}
-                          </p>
-                        </td>
-                        <td className="py-2">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateQuantity(
-                                  item.product.id,
-                                  Math.max(itemPt.cartStep, item.quantity - itemPt.cartStep)
-                                )
-                              }
-                              className="p-1 hover:bg-surface-muted rounded"
-                            >
-                              <Minus size={14} />
-                            </button>
-                            <span className="w-12 text-center font-medium">
-                              {item.quantity.toLocaleString('es-PY', {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: itemPt.decimals
-                              })}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateQuantity(item.product.id, item.quantity + itemPt.cartStep)
-                              }
-                              className="p-1 hover:bg-surface-muted rounded"
-                            >
-                              <Plus size={14} />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="py-2 text-right font-medium">{formatGs(item.subtotal)}</td>
-                        <td className="py-2">
-                          <button
-                            type="button"
-                            onClick={() => removeItem(item.product.id)}
-                            className="p-1 text-danger-500 hover:bg-danger-50 rounded"
-                            aria-label="Quitar"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
+            <CartItemsTable items={items} onUpdateQuantity={updateQuantity} onRemove={removeItem} />
           </div>
 
           {/* TOTAL section */}
@@ -723,68 +649,7 @@ export default function VentasPage() {
               />
             ) : (
               <>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                  {products.map((p) => {
-                    const lowStock = p.stock > 0 && p.stock <= p.min_stock
-                    const promo = isPromoActive(p, new Date())
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => handleProductClick(p)}
-                        disabled={p.stock <= 0}
-                        style={{ boxShadow: 'var(--shadow-card-soft)' }}
-                        className="bg-surface rounded-xl border border-border text-left hover:border-brand hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                      >
-                        <div className="relative w-full h-24 bg-surface-muted">
-                          {p.image ? (
-                            <img
-                              src={`product-img://${p.image}`}
-                              alt={p.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package size={32} className="text-text-disabled" />
-                            </div>
-                          )}
-                          {promo && (
-                            <Badge tone="success" className="absolute top-1.5 right-1.5 shadow-sm">
-                              PROMO
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="p-3">
-                          <p className="font-medium text-sm truncate text-text-main">{p.name}</p>
-                          {promo ? (
-                            <div className="mt-1 leading-tight">
-                              <p className="text-xs text-text-muted line-through tabular-nums">
-                                {formatGs(promo.normalPrice)}
-                              </p>
-                              <p className="text-success-700 font-bold tabular-nums">
-                                {formatGs(promo.unitPrice)}
-                              </p>
-                            </div>
-                          ) : (
-                            <p className="text-brand font-bold mt-1 tabular-nums">
-                              {formatGs(p.price)}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between mt-1.5 gap-2">
-                            <span className="text-xs text-text-muted">
-                              Stock: {formatQty(p.stock, p.price_type)}
-                            </span>
-                            {p.stock <= 0 ? (
-                              <Badge tone="danger">Sin stock</Badge>
-                            ) : lowStock ? (
-                              <Badge tone="warning">Stock bajo</Badge>
-                            ) : null}
-                          </div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{productGrid}</div>
                 {products.length < productsTotal && (
                   <div ref={loadMoreRef} className="py-4 text-center text-xs text-text-muted">
                     {loadingMore ? 'Cargando más productos...' : ' '}
@@ -1041,10 +906,28 @@ export default function VentasPage() {
             clear()
             setShowCobro(false)
             toast.success('Venta registrada')
-            // Confirmar con la fuente de verdad por si hubo cambios concurrentes
-            // (otra caja, ajuste de stock manual, etc.)
-            loadProducts(1, search || undefined, activeCategory)
-            setProductsPage(1)
+            // Reconciliar con la fuente de verdad (otra caja, ajuste manual) SIN
+            // resetear el scroll: refrescamos en el lugar la MISMA ventana ya
+            // cargada (page 1 con perPage = cantidad actual) en vez de colapsar a
+            // la primera página. El descuento optimista de arriba ya dio feedback
+            // instantáneo; esto sólo corrige diferencias concurrentes.
+            const reconcileFilters: Record<string, unknown> = {
+              search: search || undefined,
+              active: true,
+              page: 1,
+              perPage: Math.max(PRODUCTS_PER_PAGE, products.length)
+            }
+            if (activeCategory) reconcileFilters.categoryId = activeCategory
+            void window.api.products
+              .getAll(reconcileFilters)
+              .then((res) => {
+                setProducts(res.items)
+                setProductsTotal(res.total)
+              })
+              .catch(() => {
+                // Un fallo de reconciliación no debe romper el cierre de la venta:
+                // el stock optimista ya refleja lo vendido.
+              })
           }}
         />
       )}
@@ -1103,6 +986,185 @@ export default function VentasPage() {
     </div>
   )
 }
+
+interface ProductCardProps {
+  product: Product
+  // epoch ms estable por render — ver el useMemo de `now` en VentasPage.
+  now: number
+  onSelect: (product: Product) => void
+}
+
+// Tarjeta de producto memoizada: con props estables (product/now/onSelect),
+// tipear en el buscador re-renderiza la página pero NO estas tarjetas.
+const ProductCard = memo(function ProductCard({ product, now, onSelect }: ProductCardProps) {
+  const lowStock = product.stock > 0 && product.stock <= product.min_stock
+  const promo = isPromoActive(product, new Date(now))
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(product)}
+      disabled={product.stock <= 0}
+      style={{ boxShadow: 'var(--shadow-card-soft)' }}
+      className="bg-surface rounded-xl border border-border text-left hover:border-brand hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      <div className="relative w-full h-24 bg-surface-muted">
+        {product.image ? (
+          <img
+            src={`product-img://${product.image}`}
+            alt={product.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Package size={32} className="text-text-disabled" />
+          </div>
+        )}
+        {promo && (
+          <Badge tone="success" className="absolute top-1.5 right-1.5 shadow-sm">
+            PROMO
+          </Badge>
+        )}
+      </div>
+      <div className="p-3">
+        <p className="font-medium text-sm truncate text-text-main">{product.name}</p>
+        {promo ? (
+          <div className="mt-1 leading-tight">
+            <p className="text-xs text-text-muted line-through tabular-nums">
+              {formatGs(promo.normalPrice)}
+            </p>
+            <p className="text-success-700 font-bold tabular-nums">{formatGs(promo.unitPrice)}</p>
+          </div>
+        ) : (
+          <p className="text-brand font-bold mt-1 tabular-nums">{formatGs(product.price)}</p>
+        )}
+        <div className="flex items-center justify-between mt-1.5 gap-2">
+          <span className="text-xs text-text-muted">
+            Stock: {formatQty(product.stock, product.price_type)}
+          </span>
+          {product.stock <= 0 ? (
+            <Badge tone="danger">Sin stock</Badge>
+          ) : lowStock ? (
+            <Badge tone="warning">Stock bajo</Badge>
+          ) : null}
+        </div>
+      </div>
+    </button>
+  )
+})
+
+interface CartItemsTableProps {
+  items: CartItem[]
+  onUpdateQuantity: (productId: number, quantity: number) => void
+  onRemove: (productId: number) => void
+}
+
+// Tabla del carrito memoizada: aislada de los re-render por tecla del buscador
+// (props estables mientras el carrito no cambia → React.memo corta el render).
+const CartItemsTable = memo(function CartItemsTable({
+  items,
+  onUpdateQuantity,
+  onRemove
+}: CartItemsTableProps) {
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        icon={<ShoppingCart size={40} />}
+        title="Carrito vacío"
+        description="Buscá productos por nombre o pasá un código de barras."
+      />
+    )
+  }
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="text-text-muted text-left border-b border-border">
+          <th className="pb-2">Producto</th>
+          <th className="pb-2 w-24 text-center">Cant.</th>
+          <th className="pb-2 text-right">Subtotal</th>
+          <th className="pb-2 w-8"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item) => {
+          const itemPt = priceTypeInfo(item.product.price_type)
+          const hasPromo =
+            item.normal_price != null &&
+            item.unit_price != null &&
+            item.normal_price > item.unit_price
+          return (
+            <tr key={item.product.id} className="border-b border-border">
+              <td className="py-2">
+                <div className="flex items-center gap-1.5">
+                  <p className="font-medium">{item.product.name}</p>
+                  {hasPromo && <Badge tone="success">PROMO</Badge>}
+                </div>
+                <p className="text-xs text-text-muted">
+                  {hasPromo ? (
+                    <>
+                      <span className="line-through opacity-60">
+                        {formatGs(item.normal_price!)}
+                      </span>{' '}
+                      <span className="font-medium text-success-700">
+                        {formatGs(item.unit_price!)}
+                      </span>{' '}
+                      / {itemPt.unit}
+                    </>
+                  ) : (
+                    <>
+                      {formatGs(item.product.price)} / {itemPt.unit}
+                    </>
+                  )}
+                </p>
+              </td>
+              <td className="py-2">
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateQuantity(
+                        item.product.id,
+                        Math.max(itemPt.cartStep, item.quantity - itemPt.cartStep)
+                      )
+                    }
+                    className="p-1 hover:bg-surface-muted rounded"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span className="w-12 text-center font-medium">
+                    {item.quantity.toLocaleString('es-PY', {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: itemPt.decimals
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdateQuantity(item.product.id, item.quantity + itemPt.cartStep)
+                    }
+                    className="p-1 hover:bg-surface-muted rounded"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+              </td>
+              <td className="py-2 text-right font-medium">{formatGs(item.subtotal)}</td>
+              <td className="py-2">
+                <button
+                  type="button"
+                  onClick={() => onRemove(item.product.id)}
+                  className="p-1 text-danger-500 hover:bg-danger-50 rounded"
+                  aria-label="Quitar"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+    </table>
+  )
+})
 
 function ShortcutHint({ k, label }: { k: string; label: string }) {
   return (

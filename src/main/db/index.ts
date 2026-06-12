@@ -426,6 +426,20 @@ const MIGRATIONS: Migration[] = [
           ON products(category_id);
       `)
     }
+  },
+  {
+    version: 15,
+    name: 'add_name_indexes',
+    up: (db) => {
+      // Acelera el ORDER BY name de getAllProducts/getAllCustomers (hoy full
+      // scan + sort temporal). NOTA: el filtro de búsqueda usa LIKE '%term%'
+      // (comodín inicial) y NO puede usar estos índices — sólo ayudan al
+      // ordenamiento y al listado sin búsqueda. Aditivo e idempotente.
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+        CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+      `)
+    }
   }
 ]
 
