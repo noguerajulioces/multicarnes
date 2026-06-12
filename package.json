@@ -16,7 +16,7 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "smoke:auth": "tsx scripts/auth-smoke.ts",
-    "rebuild:node": "npm rebuild better-sqlite3",
+    "rebuild:node": "npm rebuild better-sqlite3 && node -e \"require('fs').rmSync('node_modules/better-sqlite3/build/Release/.forge-meta',{force:true})\"",
     "rebuild:electron": "electron-builder install-app-deps",
     "pretest:integration": "npm run rebuild:node",
     "pretest:integration:coverage": "npm run rebuild:node",
