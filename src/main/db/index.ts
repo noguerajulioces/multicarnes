@@ -463,8 +463,8 @@ const MIGRATIONS: Migration[] = [
       //   Movimientos de Caja history (the composite idx leads with register_id and
       //   can't serve a date-only filter).
       //
-      // All additive and idempotent (IF NOT EXISTS); no data change. customer_payments
-      // and cash_movements both already have void_of by this point (schema.ts / v11).
+      // All additive and idempotent (IF NOT EXISTS); no data change. void_of exists
+      // by this point: cash_movements via schema/v7 and customer_payments via v12.
       db.exec(`
         CREATE INDEX IF NOT EXISTS idx_cash_movements_void_of
           ON cash_movements(void_of);

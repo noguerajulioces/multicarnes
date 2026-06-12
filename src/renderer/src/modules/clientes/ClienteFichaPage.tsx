@@ -78,10 +78,14 @@ export default function ClienteFichaPage() {
   const [payAffectsCash, setPayAffectsCash] = useState(true)
   const [expandedSale, setExpandedSale] = useState<number | null>(null)
 
-  // Reset the sales pager when navigating to a different customer.
-  useEffect(() => {
+  // Reset the sales pager synchronously when navigating to a different customer,
+  // so the single load effect below never fires once with a stale (out-of-range)
+  // page. (React's "adjust state during render" pattern — runs before the effect.)
+  const [trackedId, setTrackedId] = useState(id)
+  if (trackedId !== id) {
+    setTrackedId(id)
     setSalesPage(1)
-  }, [id])
+  }
 
   useEffect(() => {
     loadData()

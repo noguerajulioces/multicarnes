@@ -914,11 +914,17 @@ export default function VentasPage() {
             const soldIds = [...soldQtyById.keys()]
             void Promise.all(soldIds.map((pid) => window.api.products.getById(pid)))
               .then((fresh) => {
-                const stockById = new Map<number, number>()
-                for (const p of fresh) if (p) stockById.set(p.id, p.stock)
-                if (stockById.size === 0) return
+                const freshById = new Map<number, Product>()
+                for (const p of fresh) if (p) freshById.set(p.id, p)
+                if (freshById.size === 0) return
+                // Reemplazar el objeto completo de cada producto vendido (stock,
+                // precio, promo, nombre, activo) — misma frescura que el reconcile
+                // anterior, pero solo para las pocas tarjetas afectadas.
                 setProducts((prev) =>
-                  prev.map((p) => (stockById.has(p.id) ? { ...p, stock: stockById.get(p.id)! } : p))
+                  prev.map((p) => {
+                    const f = freshById.get(p.id)
+                    return f ? { ...p, ...f } : p
+                  })
                 )
               })
               .catch(() => {

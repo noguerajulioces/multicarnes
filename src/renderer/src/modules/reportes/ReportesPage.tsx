@@ -384,12 +384,21 @@ export default function ReportesPage() {
   // sentinel after a moment so subsequent navigations don't re-trigger.
   useEffect(() => {
     if (highlightRegisterId == null || tab !== 'caja' || loading) return
+    // The Cierres Caja tab is paginated, so the target row may be on another
+    // page; jump to the page that contains it before scrolling.
+    const idx = (data as { id?: number }[]).findIndex((r) => r.id === highlightRegisterId)
+    if (idx === -1) return
+    const targetPage = Math.floor(idx / REPORT_PER_PAGE) + 1
+    if (targetPage !== page) {
+      setPage(targetPage)
+      return
+    }
     const el = document.getElementById(`register-row-${highlightRegisterId}`)
     if (!el) return
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     const t = window.setTimeout(() => setHighlightRegisterId(null), 4000)
     return () => window.clearTimeout(t)
-  }, [highlightRegisterId, tab, loading, data])
+  }, [highlightRegisterId, tab, loading, data, page])
 
   const needsDateRange = tab !== 'margen' && tab !== 'caja' && tab !== 'fiados'
 
