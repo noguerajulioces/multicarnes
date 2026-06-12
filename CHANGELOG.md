@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.8.4](https://github.com/noguerajulioces/multicarnes/compare/v1.8.3...v1.8.4) (2026-06-12)
+
+### Bug Fixes
+
+* enhance rebuild:node script to remove stale better-sqlite3 metadata ([bd40c8f](https://github.com/noguerajulioces/multicarnes/commit/bd40c8f88c9749aeb28992d1cf04d968946f9fc4))
+* update font family for improved print quality and consistency ([7c342c4](https://github.com/noguerajulioces/multicarnes/commit/7c342c4d444c229dfe1b489dd95da7fb29416d58))
+
+### Performance
+
+* de-jank POS, debounce searches, trim checkout, selective audit ([#28](https://github.com/noguerajulioces/multicarnes/issues/28)) ([7fa9692](https://github.com/noguerajulioces/multicarnes/commit/7fa9692f21fb9063d6d9da831dfb35dfcdc03a41))
+
+### Refactoring
+
+* update print styling and improve ticket calibration messages ([ca79f48](https://github.com/noguerajulioces/multicarnes/commit/ca79f48e2c01a6b161a78dbed7d100eaf6dd2bc8))
+
 ## [1.8.3](https://github.com/noguerajulioces/multicarnes/compare/v1.8.0...v1.8.3) (2026-06-09)
 
 ### Features
