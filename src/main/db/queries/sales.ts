@@ -258,11 +258,14 @@ export function getAllSales(
   const params: unknown[] = []
   const conditions: string[] = []
   if (opts.from) {
-    conditions.push('date(s.created_at) >= date(?)')
+    // Raw half-open range (>= from, < to+1day) so idx_sales_created is usable;
+    // wrapping the column in date() would force a full scan. created_at is stored
+    // as 'YYYY-MM-DD HH:MM:SS' so lexical comparison against a date string is correct.
+    conditions.push('s.created_at >= ?')
     params.push(opts.from)
   }
   if (opts.to) {
-    conditions.push('date(s.created_at) <= date(?)')
+    conditions.push("s.created_at < date(?, '+1 day')")
     params.push(opts.to)
   }
   if (opts.paymentMethod) {
@@ -418,7 +421,9 @@ export function getDaySalesTotal() {
       `
     SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count
     FROM sales
-    WHERE date(created_at) = date('now','localtime') AND status = 'completed'
+    WHERE created_at >= date('now','localtime')
+      AND created_at < date('now','localtime','+1 day')
+      AND status = 'completed'
   `
     )
     .get() as { total: number; count: number }

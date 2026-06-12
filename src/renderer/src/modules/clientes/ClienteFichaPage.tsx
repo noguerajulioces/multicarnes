@@ -28,6 +28,7 @@ import {
   Input,
   Modal,
   MoneyInput,
+  Pagination,
   Skeleton,
   Table,
   TableSkeleton,
@@ -51,6 +52,8 @@ const methodLabel: Record<PaymentMethod, string> = {
   mixed: 'Mixto'
 }
 
+const SALES_PER_PAGE = 25
+
 const methodTone: Record<PaymentMethod, 'success' | 'warning' | 'info' | 'neutral'> = {
   cash: 'success',
   card: 'info',
@@ -66,6 +69,8 @@ export default function ClienteFichaPage() {
   const openRegister = useCashStore((s) => s.register)
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [sales, setSales] = useState<Sale[]>([])
+  const [salesTotal, setSalesTotal] = useState(0)
+  const [salesPage, setSalesPage] = useState(1)
   const [payments, setPayments] = useState<CustomerPayment[]>([])
   const [showPayment, setShowPayment] = useState(false)
   const [payAmount, setPayAmount] = useState(0)
@@ -73,19 +78,25 @@ export default function ClienteFichaPage() {
   const [payAffectsCash, setPayAffectsCash] = useState(true)
   const [expandedSale, setExpandedSale] = useState<number | null>(null)
 
+  // Reset the sales pager when navigating to a different customer.
+  useEffect(() => {
+    setSalesPage(1)
+  }, [id])
+
   useEffect(() => {
     loadData()
-  }, [id])
+  }, [id, salesPage])
 
   const loadData = async (): Promise<void> => {
     const cid = Number(id)
     const [c, s, p] = await Promise.all([
       window.api.customers.getById(cid),
-      window.api.customers.getSales(cid),
+      window.api.customers.getSales(cid, { page: salesPage, perPage: SALES_PER_PAGE }),
       window.api.customers.getPayments(cid)
     ])
     setCustomer(c)
-    setSales(s)
+    setSales(s.items)
+    setSalesTotal(s.total)
     setPayments(p)
   }
 
@@ -299,8 +310,8 @@ export default function ClienteFichaPage() {
               <h2 className="font-semibold text-text-main">Historial de Compras</h2>
             </div>
             <p className="text-xs text-text-muted mt-0.5">
-              {sales.length} compra{sales.length === 1 ? '' : 's'} registrada
-              {sales.length === 1 ? '' : 's'}
+              {salesTotal} compra{salesTotal === 1 ? '' : 's'} registrada
+              {salesTotal === 1 ? '' : 's'}
             </p>
           </CardHeader>
           <CardBody className="overflow-x-auto">
@@ -395,6 +406,14 @@ export default function ClienteFichaPage() {
                 )}
               </TBody>
             </Table>
+            {salesTotal > SALES_PER_PAGE && (
+              <Pagination
+                page={salesPage}
+                perPage={SALES_PER_PAGE}
+                total={salesTotal}
+                onPageChange={setSalesPage}
+              />
+            )}
           </CardBody>
         </Card>
 

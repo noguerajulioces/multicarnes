@@ -906,23 +906,20 @@ export default function VentasPage() {
             clear()
             setShowCobro(false)
             toast.success('Venta registrada')
-            // Reconciliar con la fuente de verdad (otra caja, ajuste manual) SIN
-            // resetear el scroll: refrescamos en el lugar la MISMA ventana ya
-            // cargada (page 1 con perPage = cantidad actual) en vez de colapsar a
-            // la primera página. El descuento optimista de arriba ya dio feedback
-            // instantáneo; esto sólo corrige diferencias concurrentes.
-            const reconcileFilters: Record<string, unknown> = {
-              search: search || undefined,
-              active: true,
-              page: 1,
-              perPage: Math.max(PRODUCTS_PER_PAGE, products.length)
-            }
-            if (activeCategory) reconcileFilters.categoryId = activeCategory
-            void window.api.products
-              .getAll(reconcileFilters)
-              .then((res) => {
-                setProducts(res.items)
-                setProductsTotal(res.total)
+            // Reconciliar SOLO los productos vendidos contra la fuente de verdad
+            // (otra caja / ajuste manual), parchando su stock en el lugar. Antes se
+            // re-pedía y re-renderizaba TODA la ventana cargada por scroll en cada
+            // venta (costo que crecía con el catálogo); ahora tocamos sólo las pocas
+            // tarjetas afectadas. El descuento optimista de arriba ya dio feedback.
+            const soldIds = [...soldQtyById.keys()]
+            void Promise.all(soldIds.map((pid) => window.api.products.getById(pid)))
+              .then((fresh) => {
+                const stockById = new Map<number, number>()
+                for (const p of fresh) if (p) stockById.set(p.id, p.stock)
+                if (stockById.size === 0) return
+                setProducts((prev) =>
+                  prev.map((p) => (stockById.has(p.id) ? { ...p, stock: stockById.get(p.id)! } : p))
+                )
               })
               .catch(() => {
                 // Un fallo de reconciliación no debe romper el cierre de la venta:

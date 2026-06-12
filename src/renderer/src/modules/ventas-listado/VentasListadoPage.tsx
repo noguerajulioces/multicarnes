@@ -60,6 +60,7 @@ export default function VentasListadoPage() {
   const [loading, setLoading] = useState(false)
   const [printSale, setPrintSale] = useState<Sale | null>(null)
   const [printingId, setPrintingId] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   const load = async (targetPage: number = page): Promise<void> => {
     setLoading(true)
@@ -142,25 +143,40 @@ export default function VentasListadoPage() {
     return result.items
   }
 
-  const handleExportExcel = async (): Promise<void> => {
-    const all = await fetchAllForExport()
-    exportToExcel(
-      prepareExport(all),
-      exportColumns,
-      `ventas_${from}_${to}`,
-      `Ventas (${from} a ${to})`
-    )
+  // The XLSX/jsPDF generation is synchronous and blocks the renderer thread.
+  // Flip `exporting` and yield a frame first so the button can paint its
+  // disabled/"Generando..." state before the UI freezes during generation.
+  const runExport = async (generate: (rows: Sale[]) => void): Promise<void> => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      await new Promise((r) => requestAnimationFrame(() => r(null)))
+      const all = await fetchAllForExport()
+      generate(all)
+    } finally {
+      setExporting(false)
+    }
   }
 
-  const handleExportPDF = async (): Promise<void> => {
-    const all = await fetchAllForExport()
-    exportToPDF(
-      prepareExport(all),
-      exportColumns,
-      `ventas_${from}_${to}`,
-      `Ventas (${from} a ${to})`
+  const handleExportExcel = (): Promise<void> =>
+    runExport((all) =>
+      exportToExcel(
+        prepareExport(all),
+        exportColumns,
+        `ventas_${from}_${to}`,
+        `Ventas (${from} a ${to})`
+      )
     )
-  }
+
+  const handleExportPDF = (): Promise<void> =>
+    runExport((all) =>
+      exportToPDF(
+        prepareExport(all),
+        exportColumns,
+        `ventas_${from}_${to}`,
+        `Ventas (${from} a ${to})`
+      )
+    )
 
   const hasData = data.length > 0
   const showEmpty = !loading && !hasData
@@ -206,13 +222,23 @@ export default function VentasListadoPage() {
 
             {hasData && (
               <div className="ml-auto flex gap-2">
-                <Button variant="secondary" onClick={handleExportExcel} className="rounded-xl">
+                <Button
+                  variant="secondary"
+                  onClick={handleExportExcel}
+                  disabled={exporting}
+                  className="rounded-xl"
+                >
                   <FileSpreadsheet size={16} className="text-success-700" />
-                  Excel
+                  {exporting ? 'Generando...' : 'Excel'}
                 </Button>
-                <Button variant="secondary" onClick={handleExportPDF} className="rounded-xl">
+                <Button
+                  variant="secondary"
+                  onClick={handleExportPDF}
+                  disabled={exporting}
+                  className="rounded-xl"
+                >
                   <FileText size={16} className="text-danger-700" />
-                  PDF
+                  {exporting ? 'Generando...' : 'PDF'}
                 </Button>
               </div>
             )}
@@ -229,9 +255,7 @@ export default function VentasListadoPage() {
       )}
 
       {!loading && hasData && (
-        <Card
-          className="overflow-hidden"
-        >
+        <Card className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -322,9 +346,7 @@ export default function VentasListadoPage() {
                   </td>
                   <td className="px-4 py-3 text-right text-lg font-bold text-brand tabular-nums">
                     {formatGs(
-                      data
-                        .filter((v) => v.status !== 'cancelled')
-                        .reduce((s, v) => s + v.total, 0)
+                      data.filter((v) => v.status !== 'cancelled').reduce((s, v) => s + v.total, 0)
                     )}
                   </td>
                   <td colSpan={3}></td>

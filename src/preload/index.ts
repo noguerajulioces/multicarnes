@@ -63,7 +63,8 @@ const api = {
     ) => ipcRenderer.invoke('customers:addPayment', customerId, userId, amount, note, affectsCash),
     voidPayment: (paymentId: number) => ipcRenderer.invoke('customers:voidPayment', paymentId),
     getPayments: (customerId: number) => ipcRenderer.invoke('customers:getPayments', customerId),
-    getSales: (customerId: number) => ipcRenderer.invoke('customers:getSales', customerId),
+    getSales: (customerId: number, opts?: { page?: number; perPage?: number }) =>
+      ipcRenderer.invoke('customers:getSales', customerId, opts),
     delete: (id: number) => ipcRenderer.invoke('customers:delete', id)
   },
   // Cash

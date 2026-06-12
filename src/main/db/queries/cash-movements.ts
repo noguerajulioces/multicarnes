@@ -96,11 +96,14 @@ export function listMovements(
   const params: unknown[] = []
 
   if (opts.from) {
-    conditions.push('date(cm.created_at) >= date(?)')
+    // Raw half-open range (>= from, < to+1day) so idx_cash_movements_created is
+    // usable; date() on the column would defeat the index. created_at is stored as
+    // 'YYYY-MM-DD HH:MM:SS', so lexical comparison against a date string is correct.
+    conditions.push('cm.created_at >= ?')
     params.push(opts.from)
   }
   if (opts.to) {
-    conditions.push('date(cm.created_at) <= date(?)')
+    conditions.push("cm.created_at < date(?, '+1 day')")
     params.push(opts.to)
   }
   if (opts.types && opts.types.length > 0) {

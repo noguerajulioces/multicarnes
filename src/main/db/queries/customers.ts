@@ -326,8 +326,27 @@ export function getCustomerPayments(customerId: number) {
   }))
 }
 
-export function getCustomerSales(customerId: number) {
+export function getCustomerSales(
+  customerId: number,
+  opts: { page?: number; perPage?: number } = {}
+) {
   const db = getDb()
+
+  const total = (
+    db.prepare('SELECT COUNT(*) as c FROM sales WHERE customer_id = ?').get(customerId) as {
+      c: number
+    }
+  ).c
+
+  // Paginate the outer query so a long-standing customer's full purchase history
+  // isn't loaded in one shot. When no page is requested we return everything
+  // (backward-compatible), but callers should paginate.
+  const isPaginated = opts.page !== undefined
+  const page = Math.max(1, opts.page ?? 1)
+  const perPage = opts.perPage ?? (isPaginated ? 25 : total)
+  const limitClause = isPaginated ? 'LIMIT ? OFFSET ?' : ''
+  const limitParams = isPaginated ? [perPage, (page - 1) * perPage] : []
+
   const sales = db
     .prepare(
       `
@@ -336,24 +355,54 @@ export function getCustomerSales(customerId: number) {
     LEFT JOIN users u ON s.user_id = u.id
     WHERE s.customer_id = ?
     ORDER BY s.created_at DESC
+    ${limitClause}
   `
     )
-    .all(customerId) as Record<string, unknown>[]
+    .all(customerId, ...limitParams) as Record<string, unknown>[]
 
-  const itemsStmt = db.prepare(`
-    SELECT si.*, p.name as product_name, p.price_type
-    FROM sale_items si
-    LEFT JOIN products p ON si.product_id = p.id
-    WHERE si.sale_id = ?
-  `)
-  const paymentsStmt = db.prepare(`
-    SELECT * FROM sale_payments WHERE sale_id = ?
-  `)
+  // Batch the line items / payments for the whole page in two set-based queries
+  // (WHERE sale_id IN (...)) instead of two queries per sale — the old N+1 that
+  // grew with the customer's lifetime purchase count.
+  if (sales.length > 0) {
+    const ids = sales.map((s) => s.id as number)
+    const placeholders = ids.map(() => '?').join(',')
 
-  for (const sale of sales) {
-    sale.items = itemsStmt.all(sale.id)
-    sale.payments = paymentsStmt.all(sale.id)
+    const itemRows = db
+      .prepare(
+        `
+      SELECT si.*, p.name as product_name, p.price_type
+      FROM sale_items si
+      LEFT JOIN products p ON si.product_id = p.id
+      WHERE si.sale_id IN (${placeholders})
+    `
+      )
+      .all(...ids) as Array<Record<string, unknown>>
+
+    const paymentRows = db
+      .prepare(`SELECT * FROM sale_payments WHERE sale_id IN (${placeholders})`)
+      .all(...ids) as Array<Record<string, unknown>>
+
+    const groupBySale = (
+      rows: Array<Record<string, unknown>>
+    ): Map<number, Record<string, unknown>[]> => {
+      const map = new Map<number, Record<string, unknown>[]>()
+      for (const row of rows) {
+        const sid = row.sale_id as number
+        const arr = map.get(sid)
+        if (arr) arr.push(row)
+        else map.set(sid, [row])
+      }
+      return map
+    }
+    const itemsBySale = groupBySale(itemRows)
+    const paymentsBySale = groupBySale(paymentRows)
+
+    for (const sale of sales) {
+      const sid = sale.id as number
+      sale.items = itemsBySale.get(sid) ?? []
+      sale.payments = paymentsBySale.get(sid) ?? []
+    }
   }
 
-  return sales
+  return { items: sales, total, page, perPage }
 }
