@@ -77,7 +77,8 @@ export function registerCashIpc(): string[] {
   registerAuthorized(
     'cash:getMovements',
     getRule('cash:getMovements'),
-    (_event, _ctx, registerId: number) => cashQuery.getCashMovements(registerId)
+    (_event, _ctx, registerId: number, opts?: { page: number; perPage: number }) =>
+      opts ? cashQuery.getCashMovements(registerId, opts) : cashQuery.getCashMovements(registerId)
   )
 
   registerAuthorized(

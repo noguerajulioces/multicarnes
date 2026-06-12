@@ -268,7 +268,7 @@ describe('getCustomerSales', () => {
                                                                    (?, 'credit', 30000)`
     ).run(saleId, saleId)
 
-    const sales = getCustomerSales(customer.id) as Array<{
+    const sales = getCustomerSales(customer.id).items as Array<{
       id: number
       items: Array<{ product_name: string; subtotal: number }>
       payments: Array<{ method: string; amount: number }>
@@ -281,6 +281,6 @@ describe('getCustomerSales', () => {
 
   test('a customer with no sales returns an empty array', () => {
     const c = seedCustomer(db)
-    expect(getCustomerSales(c.id)).toEqual([])
+    expect(getCustomerSales(c.id).items).toEqual([])
   })
 })

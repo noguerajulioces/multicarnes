@@ -384,12 +384,21 @@ export default function ReportesPage() {
   // sentinel after a moment so subsequent navigations don't re-trigger.
   useEffect(() => {
     if (highlightRegisterId == null || tab !== 'caja' || loading) return
+    // The Cierres Caja tab is paginated, so the target row may be on another
+    // page; jump to the page that contains it before scrolling.
+    const idx = (data as { id?: number }[]).findIndex((r) => r.id === highlightRegisterId)
+    if (idx === -1) return
+    const targetPage = Math.floor(idx / REPORT_PER_PAGE) + 1
+    if (targetPage !== page) {
+      setPage(targetPage)
+      return
+    }
     const el = document.getElementById(`register-row-${highlightRegisterId}`)
     if (!el) return
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     const t = window.setTimeout(() => setHighlightRegisterId(null), 4000)
     return () => window.clearTimeout(t)
-  }, [highlightRegisterId, tab, loading, data])
+  }, [highlightRegisterId, tab, loading, data, page])
 
   const needsDateRange = tab !== 'margen' && tab !== 'caja' && tab !== 'fiados'
 
@@ -1130,48 +1139,57 @@ export default function ReportesPage() {
                     closing_amount: number
                     difference: number
                   }[]
-                ).map((r, i) => {
-                  const isHighlighted = highlightRegisterId != null && r.id === highlightRegisterId
-                  return (
-                    <tr
-                      key={r.id ?? i}
-                      id={r.id ? `register-row-${r.id}` : undefined}
-                      className={cn(
-                        trCls,
-                        isHighlighted && 'bg-brand-light/30 ring-2 ring-brand/40'
-                      )}
-                    >
-                      <td className={`${tdCls} text-text-muted tabular-nums`}>
-                        {formatDateTime(r.opened_at)}
-                      </td>
-                      <td className={`${tdCls} text-text-muted tabular-nums`}>
-                        {formatDateTime(r.closed_at)}
-                      </td>
-                      <td className={`${tdCls} font-medium`}>{r.user_name}</td>
-                      <td className={`${tdCls} text-right tabular-nums`}>
-                        {formatGs(r.expected_amount)}
-                      </td>
-                      <td className={`${tdCls} text-right tabular-nums`}>
-                        {formatGs(r.closing_amount)}
-                      </td>
-                      <td
-                        className={`${tdCls} text-right font-medium tabular-nums ${
-                          r.difference < 0
-                            ? 'text-danger-700'
-                            : r.difference > 0
-                              ? 'text-success-700'
-                              : ''
-                        }`}
+                )
+                  .slice((page - 1) * REPORT_PER_PAGE, page * REPORT_PER_PAGE)
+                  .map((r, i) => {
+                    const isHighlighted =
+                      highlightRegisterId != null && r.id === highlightRegisterId
+                    return (
+                      <tr
+                        key={r.id ?? i}
+                        id={r.id ? `register-row-${r.id}` : undefined}
+                        className={cn(
+                          trCls,
+                          isHighlighted && 'bg-brand-light/30 ring-2 ring-brand/40'
+                        )}
                       >
-                        {r.difference >= 0 ? '+' : ''}
-                        {formatGs(r.difference)}
-                      </td>
-                    </tr>
-                  )
-                })}
+                        <td className={`${tdCls} text-text-muted tabular-nums`}>
+                          {formatDateTime(r.opened_at)}
+                        </td>
+                        <td className={`${tdCls} text-text-muted tabular-nums`}>
+                          {formatDateTime(r.closed_at)}
+                        </td>
+                        <td className={`${tdCls} font-medium`}>{r.user_name}</td>
+                        <td className={`${tdCls} text-right tabular-nums`}>
+                          {formatGs(r.expected_amount)}
+                        </td>
+                        <td className={`${tdCls} text-right tabular-nums`}>
+                          {formatGs(r.closing_amount)}
+                        </td>
+                        <td
+                          className={`${tdCls} text-right font-medium tabular-nums ${
+                            r.difference < 0
+                              ? 'text-danger-700'
+                              : r.difference > 0
+                                ? 'text-success-700'
+                                : ''
+                          }`}
+                        >
+                          {r.difference >= 0 ? '+' : ''}
+                          {formatGs(r.difference)}
+                        </td>
+                      </tr>
+                    )
+                  })}
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={page}
+            perPage={REPORT_PER_PAGE}
+            total={data.length}
+            onPageChange={setPage}
+          />
         </Card>
       )}
 

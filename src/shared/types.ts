@@ -107,7 +107,7 @@ export interface CashMovement {
   register_id: number
   user_id: number
   user_name?: string
-  type: MovementType
+  type: CashMovementType
   amount: number
   description: string
   created_at: string

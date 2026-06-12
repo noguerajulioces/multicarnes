@@ -183,6 +183,51 @@ test.describe('Cash register', () => {
     }
   })
 
+  test('cash-7-6 — current turn movements are paginated', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      const admin = await loginAsSeedAdmin(window)
+      const register = await openCashRegisterViaIpc(window, admin.id, 100_000)
+
+      await ipc(
+        window,
+        async ([registerId, userId]) => {
+          for (let i = 1; i <= 30; i++) {
+            await window.api.cash.addMovement(
+              registerId,
+              userId,
+              'income',
+              i * 1_000,
+              `Movimiento paginado ${i}`
+            )
+          }
+          const current = await window.api.cash.getCurrent()
+          localStorage.setItem('cash.register', JSON.stringify(current))
+        },
+        [register.id, admin.id] as const
+      )
+
+      await window.reload()
+      await window.evaluate(() => {
+        window.location.hash = '/caja'
+      })
+
+      await expect(window.getByRole('heading', { name: 'Movimientos del Turno' })).toBeVisible()
+      await expect(window.getByText('31 movimientos registrados')).toBeVisible()
+      await expect(window.getByText('Mostrando 1-25 de 31')).toBeVisible()
+      await expect(window.getByText('Movimiento paginado 30', { exact: true })).toBeVisible()
+      await expect(window.getByText('Movimiento paginado 1', { exact: true })).not.toBeVisible()
+
+      await window.getByRole('button', { name: 'Siguiente' }).click()
+
+      await expect(window.getByText('Mostrando 26-31 de 31')).toBeVisible()
+      await expect(window.getByText('Movimiento paginado 1', { exact: true })).toBeVisible()
+      await expect(window.getByText('Apertura de caja')).toBeVisible()
+    } finally {
+      await cleanup()
+    }
+  })
+
   // -----------------
   // cash-7-5 (P3) — stale close requires a note (FIXME — needs time travel)
   // -----------------

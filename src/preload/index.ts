@@ -63,7 +63,8 @@ const api = {
     ) => ipcRenderer.invoke('customers:addPayment', customerId, userId, amount, note, affectsCash),
     voidPayment: (paymentId: number) => ipcRenderer.invoke('customers:voidPayment', paymentId),
     getPayments: (customerId: number) => ipcRenderer.invoke('customers:getPayments', customerId),
-    getSales: (customerId: number) => ipcRenderer.invoke('customers:getSales', customerId),
+    getSales: (customerId: number, opts?: { page?: number; perPage?: number }) =>
+      ipcRenderer.invoke('customers:getSales', customerId, opts),
     delete: (id: number) => ipcRenderer.invoke('customers:delete', id)
   },
   // Cash
@@ -81,7 +82,8 @@ const api = {
       amount: number,
       description: string
     ) => ipcRenderer.invoke('cash:addMovement', registerId, userId, type, amount, description),
-    getMovements: (registerId: number) => ipcRenderer.invoke('cash:getMovements', registerId),
+    getMovements: (registerId: number, opts?: { page: number; perPage: number }) =>
+      ipcRenderer.invoke('cash:getMovements', registerId, opts),
     getSummary: (registerId: number) => ipcRenderer.invoke('cash:getSummary', registerId),
     getAll: () => ipcRenderer.invoke('cash:getAll')
   },

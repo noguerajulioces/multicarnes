@@ -7,7 +7,7 @@ export function salesByPeriod(from: string, to: string, method?: string, userId?
     FROM sales s
     LEFT JOIN customers c ON s.customer_id = c.id
     LEFT JOIN users u ON s.user_id = u.id
-    WHERE date(s.created_at) >= ? AND date(s.created_at) <= ? AND s.status = 'completed'
+    WHERE s.created_at >= ? AND s.created_at < date(?, '+1 day') AND s.status = 'completed'
   `
   const params: unknown[] = [from, to]
 
@@ -45,7 +45,7 @@ export function topProducts(from: string, to: string, categoryId?: number) {
     JOIN products p ON si.product_id = p.id
     LEFT JOIN categories c ON p.category_id = c.id
     JOIN sales s ON si.sale_id = s.id
-    WHERE date(s.created_at) >= ? AND date(s.created_at) <= ? AND s.status = 'completed'
+    WHERE s.created_at >= ? AND s.created_at < date(?, '+1 day') AND s.status = 'completed'
   `
   const params: unknown[] = [from, to]
   if (categoryId) {
@@ -81,7 +81,7 @@ export function stockMovements(from: string, to: string, productId?: number) {
     FROM stock_adjustments sa
     LEFT JOIN products p ON sa.product_id = p.id
     LEFT JOIN users u ON sa.user_id = u.id
-    WHERE date(sa.created_at) >= ? AND date(sa.created_at) <= ?
+    WHERE sa.created_at >= ? AND sa.created_at < date(?, '+1 day')
   `
   const params: unknown[] = [from, to]
   if (productId) {
@@ -146,7 +146,7 @@ export function salesSummary(from: string, to: string) {
       COALESCE(SUM(discount), 0) AS discount,
       COALESCE(SUM(subtotal), 0) AS subtotal
     FROM sales
-    WHERE date(created_at) >= ? AND date(created_at) <= ? AND status = 'completed'
+    WHERE created_at >= ? AND created_at < date(?, '+1 day') AND status = 'completed'
   `
     )
     .get(from, to)
@@ -159,7 +159,7 @@ export function salesSummary(from: string, to: string) {
       COUNT(*) AS sales_count,
       COALESCE(SUM(total), 0) AS total
     FROM sales
-    WHERE date(created_at) >= ? AND date(created_at) <= ? AND status = 'completed'
+    WHERE created_at >= ? AND created_at < date(?, '+1 day') AND status = 'completed'
     GROUP BY date(created_at)
     ORDER BY day ASC
   `
@@ -174,7 +174,7 @@ export function salesSummary(from: string, to: string) {
       COUNT(*) AS sales_count,
       COALESCE(SUM(total), 0) AS total
     FROM sales
-    WHERE date(created_at) >= ? AND date(created_at) <= ? AND status = 'completed'
+    WHERE created_at >= ? AND created_at < date(?, '+1 day') AND status = 'completed'
     GROUP BY payment_method
     ORDER BY total DESC
   `
@@ -191,13 +191,13 @@ export function salesSummary(from: string, to: string) {
     FROM (
       SELECT payment_processor AS processor, total AS amount
       FROM sales
-      WHERE date(created_at) >= ? AND date(created_at) <= ?
+      WHERE created_at >= ? AND created_at < date(?, '+1 day')
         AND status = 'completed' AND payment_method = 'card'
       UNION ALL
       SELECT sp.processor AS processor, sp.amount AS amount
       FROM sale_payments sp
       JOIN sales s ON sp.sale_id = s.id
-      WHERE date(s.created_at) >= ? AND date(s.created_at) <= ?
+      WHERE s.created_at >= ? AND s.created_at < date(?, '+1 day')
         AND s.status = 'completed' AND s.payment_method = 'mixed'
         AND sp.method = 'card'
     ) t
@@ -218,7 +218,7 @@ export function salesSummary(from: string, to: string) {
       COALESCE(SUM(s.total), 0) AS total
     FROM sales s
     LEFT JOIN users u ON s.user_id = u.id
-    WHERE date(s.created_at) >= ? AND date(s.created_at) <= ? AND s.status = 'completed'
+    WHERE s.created_at >= ? AND s.created_at < date(?, '+1 day') AND s.status = 'completed'
     GROUP BY s.user_id
     ORDER BY total DESC
   `
@@ -272,7 +272,7 @@ export function cardSales(
       FROM sales s
       LEFT JOIN users u ON s.user_id = u.id
       LEFT JOIN customers c ON s.customer_id = c.id
-      WHERE date(s.created_at) >= ? AND date(s.created_at) <= ?
+      WHERE s.created_at >= ? AND s.created_at < date(?, '+1 day')
         AND s.status = 'completed' AND s.payment_method = 'card'
         ${processorFilterSingle}
       UNION ALL
@@ -289,7 +289,7 @@ export function cardSales(
       JOIN sales s ON sp.sale_id = s.id
       LEFT JOIN users u ON s.user_id = u.id
       LEFT JOIN customers c ON s.customer_id = c.id
-      WHERE date(s.created_at) >= ? AND date(s.created_at) <= ?
+      WHERE s.created_at >= ? AND s.created_at < date(?, '+1 day')
         AND s.status = 'completed' AND s.payment_method = 'mixed'
         AND sp.method = 'card'
         ${processorFilterMixed}
@@ -319,7 +319,7 @@ function periodStats(from: string, to: string) {
       COALESCE(SUM(total), 0) AS total,
       COALESCE(SUM(discount), 0) AS discount
     FROM sales
-    WHERE date(created_at) >= ? AND date(created_at) <= ? AND status = 'completed'
+    WHERE created_at >= ? AND created_at < date(?, '+1 day') AND status = 'completed'
   `
     )
     .get(from, to) as { sales_count: number; total: number; discount: number }
@@ -330,7 +330,7 @@ function periodStats(from: string, to: string) {
     SELECT COALESCE(SUM(si.quantity), 0) AS units
     FROM sale_items si
     JOIN sales s ON si.sale_id = s.id
-    WHERE date(s.created_at) >= ? AND date(s.created_at) <= ? AND s.status = 'completed'
+    WHERE s.created_at >= ? AND s.created_at < date(?, '+1 day') AND s.status = 'completed'
   `
     )
     .get(from, to) as { units: number }

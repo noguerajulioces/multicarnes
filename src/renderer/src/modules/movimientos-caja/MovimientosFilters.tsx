@@ -5,10 +5,11 @@
 // enabled (page is admin/supervisor only); US2 (T026) will lock it when the
 // role is cajero.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Card, CardBody, Input, Select } from '../../components/ui'
 import { Search } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
+import { useDebouncedValue } from '../../lib/use-debounced-value'
 import type { CashMovementType, CashRegister, User, Role } from '@shared/types'
 import type { MovimientosFilters as Filters } from './useMovimientosQuery'
 
@@ -39,6 +40,32 @@ export default function MovimientosFilters({
   const [registers, setRegisters] = useState<CashRegister[]>([])
   const cashierLocked = callerRole === 'cajero'
   const authUser = useAuthStore((s) => s.user)
+
+  // Solo el texto de búsqueda se debouncea (los dropdowns/fechas deben refrescar
+  // al instante). El <input> usa estado local crudo; el valor debounced se empuja
+  // al filtro committed (que dispara el refetch) sólo cuando difiere. `lastPushed`
+  // distingue los cambios que originamos nosotros de los externos (URL/reset),
+  // para reconciliar sin pisar lo que el usuario está tipeando ni hacer loop.
+  const [searchInput, setSearchInput] = useState(filters.search)
+  const debouncedSearch = useDebouncedValue(searchInput)
+  const lastPushed = useRef(filters.search)
+
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) {
+      lastPushed.current = debouncedSearch
+      onChange({ search: debouncedSearch })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch])
+
+  useEffect(() => {
+    // Reconciliar sólo cambios EXTERNOS de filters.search (navegación/URL, reset),
+    // nunca los que empujamos arriba.
+    if (filters.search !== lastPushed.current) {
+      lastPushed.current = filters.search
+      setSearchInput(filters.search)
+    }
+  }, [filters.search])
 
   useEffect(() => {
     // Cashier-locked: don't bother fetching the user list. Admin/supervisor
@@ -136,9 +163,9 @@ export default function MovimientosFilters({
             <label className="block text-xs text-text-muted mb-1">Buscar en descripción</label>
             <Input
               type="text"
-              value={filters.search}
+              value={searchInput}
               placeholder="Texto a buscar"
-              onChange={(e) => onChange({ search: e.target.value })}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
           <Button onClick={onConsultar} disabled={loading} className="rounded-xl">

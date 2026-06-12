@@ -294,14 +294,16 @@ test.describe('Customers', () => {
         }
       )
 
-      const sales = (await ipc(
+      const { items: sales } = (await ipc(
         window,
         (id) => window.api.customers.getSales(id),
         customer.id
-      )) as Array<{
-        payment_method: string
-        payments?: Array<{ method: string; amount: number }>
-      }>
+      )) as {
+        items: Array<{
+          payment_method: string
+          payments?: Array<{ method: string; amount: number }>
+        }>
+      }
 
       expect(sales.length).toBe(1)
       const mixedSale = sales[0]

@@ -124,7 +124,7 @@ interface ApiCustomers {
   ): Promise<Customer>
   voidPayment(paymentId: number): Promise<Customer>
   getPayments(customerId: number): Promise<CustomerPayment[]>
-  getSales(customerId: number): Promise<Sale[]>
+  getSales(customerId: number, opts?: PageOpts): Promise<Paginated<Sale>>
   delete(id: number): Promise<{ ok: true } | { ok: false; error: string }>
 }
 
@@ -141,6 +141,10 @@ interface ApiCash {
     description: string
   ): Promise<CashMovement>
   getMovements(registerId: number): Promise<CashMovement[]>
+  getMovements(
+    registerId: number,
+    opts: { page: number; perPage: number }
+  ): Promise<Paginated<CashMovement>>
   getSummary(registerId: number): Promise<unknown>
   getAll(): Promise<CashRegister[]>
 }

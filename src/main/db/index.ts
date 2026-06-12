@@ -426,6 +426,56 @@ const MIGRATIONS: Migration[] = [
           ON products(category_id);
       `)
     }
+  },
+  {
+    version: 15,
+    name: 'add_name_indexes',
+    up: (db) => {
+      // Acelera el ORDER BY name de getAllProducts/getAllCustomers (hoy full
+      // scan + sort temporal). NOTA: el filtro de búsqueda usa LIKE '%term%'
+      // (comodín inicial) y NO puede usar estos índices — sólo ayudan al
+      // ordenamiento y al listado sin búsqueda. Aditivo e idempotente.
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+        CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+      `)
+    }
+  },
+  {
+    version: 16,
+    name: 'add_void_and_sale_item_indexes',
+    up: (db) => {
+      // Performance: index the columns hit by the append-only "anulación" lookups
+      // and the per-product sales queries, which today force full-table scans that
+      // worsen as the tables grow.
+      //
+      // - idx_cash_movements_void_of: getCashRegisterSummary / closeCashRegister /
+      //   listMovements compute "¿está anulado?" via a correlated
+      //   `(NOT) EXISTS (SELECT 1 FROM cash_movements v WHERE v.void_of = cm.id)`
+      //   per row. Without this index each subquery full-scans cash_movements
+      //   (O(N²) on the Caja summary; measured ~3.3s on a 150k-row table → ~0ms
+      //   with the index).
+      // - idx_customer_payments_void_of: same EXISTS pattern in getCustomerPayments.
+      // - idx_sale_items_product: getRecentSalesForProduct / getProductSalesStats
+      //   filter `WHERE si.product_id = ?`; v14 only indexed sale_items(sale_id),
+      //   so product-detail stats full-scanned the ever-growing sale_items table.
+      // - idx_cash_movements_created: backs the date-range filter + ORDER BY on the
+      //   Movimientos de Caja history (the composite idx leads with register_id and
+      //   can't serve a date-only filter).
+      //
+      // All additive and idempotent (IF NOT EXISTS); no data change. void_of exists
+      // by this point: cash_movements via schema/v7 and customer_payments via v12.
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_cash_movements_void_of
+          ON cash_movements(void_of);
+        CREATE INDEX IF NOT EXISTS idx_customer_payments_void_of
+          ON customer_payments(void_of);
+        CREATE INDEX IF NOT EXISTS idx_sale_items_product
+          ON sale_items(product_id);
+        CREATE INDEX IF NOT EXISTS idx_cash_movements_created
+          ON cash_movements(created_at);
+      `)
+    }
   }
 ]
 

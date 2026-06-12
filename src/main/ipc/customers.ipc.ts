@@ -64,7 +64,11 @@ export function registerCustomersIpc(): string[] {
   registerAuthorized(
     'customers:getSales',
     getRule('customers:getSales'),
-    (_e, _c, customerId: number) => customersQuery.getCustomerSales(customerId)
+    (_e, _c, customerId: number, opts: unknown) =>
+      customersQuery.getCustomerSales(
+        customerId,
+        opts as Parameters<typeof customersQuery.getCustomerSales>[1]
+      )
   )
   registerAuthorized('customers:delete', getRule('customers:delete'), (_e, _c, id: number) =>
     customersQuery.deleteCustomer(id)
