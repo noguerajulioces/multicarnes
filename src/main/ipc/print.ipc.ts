@@ -66,12 +66,18 @@ function buildTicketHtml(lines: PrintLine[], widthKey: '58' | '80'): string {
     body {
       width: ${geo.printMm}mm;
       margin-left: ${sideMm}mm;
-      font-family: 'Consolas', 'Menlo', 'Courier New', Courier, monospace;
+      /* Courier (thick, even strokes) prints far better on a 1-bit thermal head
+         than a ClearType screen face like Consolas, whose thin strokes
+         binarize to broken/faint glyphs. font-weight:700 across the whole body
+         darkens every line so nothing prints washed out. -webkit-font-smoothing
+         is intentionally absent: it is a macOS-only no-op on the client's
+         Windows machine and gave a false sense of stroke control. */
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: 700;
       font-size: ${fontMm.toFixed(3)}mm;
       line-height: 1.15;
       color: #000;
       white-space: pre;
-      -webkit-font-smoothing: none;
     }
     div { width: 100%; }
   </style></head><body>${body}</body></html>`
@@ -104,8 +110,8 @@ async function printTicket(payload: PrintTicketPayload): Promise<PrintResult> {
     await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
 
     // Fit the font to the measured glyph advance of whichever family resolved
-    // (Consolas 0.55em, Menlo/Courier ~0.6em) so exactly `cols` characters
-    // span the printable band, then size the page to the real content height.
+    // (Courier ~0.6em) so exactly `cols` characters span the printable band,
+    // then size the page to the real content height.
     // getBoundingClientRect() keeps fractional line-box heights (scrollHeight
     // rounds) and is immune to viewport-height quirks across platforms.
     // px -> microns: px / 96dpi * 25400 microns/inch.
@@ -143,6 +149,11 @@ async function printTicket(payload: PrintTicketPayload): Promise<PrintResult> {
           silent: true,
           deviceName: printerName,
           color: false,
+          // Rasterize at the TM-T20IIIL's native 203 dpi (8 dots/mm). Without
+          // this, silent print falls back to a low default DPI that the driver
+          // then upscales to the head, yielding faint/blurry text. Never pass 0
+          // here — Electron rejects the print with "invalid DPI dimensions".
+          dpi: { horizontal: 203, vertical: 203 },
           margins: { marginType: 'none' },
           pageSize: { width: widthMicrons, height: heightMicrons }
         },
