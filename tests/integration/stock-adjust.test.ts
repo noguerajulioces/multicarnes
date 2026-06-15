@@ -80,3 +80,51 @@ describe('adjustStock — server-side validation', () => {
     expect(auditCount(db)).toBe(1)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Recovering a product that is ALREADY at negative stock. A sale can oversell
+// (createSale has no floor — intentional for a butcher that weighs while the
+// contable stock lags), leaving products.stock below 0. The adjustment looks
+// only at the RESULTING stock, never at the starting point: adding enough to
+// reach >= 0 is always allowed, while an adjustment that would LEAVE it negative
+// is still rejected (the merchant should do a "Reemplazar" / recuento físico).
+// ---------------------------------------------------------------------------
+describe('adjustStock — recovering from negative stock (oversell)', () => {
+  let db: Database.Database
+  let admin: SeededUser
+
+  beforeEach(() => {
+    db = createTestDb()
+    admin = seedUser(db, { role: 'admin' })
+  })
+
+  test('1 — starting at -5, "Sumar 10" (resulting 5) is accepted and audited -5 → 5', () => {
+    const id = seedProduct(db, -5)
+    // The modal computes applyStockAdjust('add', -5, 10) = 5 and sends the
+    // absolute result; the backend only ever sees newStock = 5.
+    adjustStock(id, 5, 'reposición tras sobreventa', admin.id)
+    expect(stockOf(id)).toBe(5)
+    const row = db
+      .prepare('SELECT quantity_before, quantity_after FROM stock_adjustments WHERE product_id = ?')
+      .get(id) as { quantity_before: number; quantity_after: number }
+    expect(row.quantity_before).toBe(-5)
+    expect(row.quantity_after).toBe(5)
+  })
+
+  test('2 — starting at -5, bringing it exactly to 0 is accepted', () => {
+    const id = seedProduct(db, -5)
+    adjustStock(id, 0, 'recuento físico', admin.id)
+    expect(stockOf(id)).toBe(0)
+    expect(auditCount(db)).toBe(1)
+  })
+
+  test('3 — starting at -5, an adjustment that stays negative (e.g. -2) is rejected', () => {
+    const id = seedProduct(db, -5)
+    // "Sumar 3" from -5 resolves to -2 — still negative, so blocked; the -5 stands.
+    expect(() => adjustStock(id, -2, 'reposición parcial', admin.id)).toThrow(
+      /no puede quedar negativo/
+    )
+    expect(stockOf(id)).toBe(-5)
+    expect(auditCount(db)).toBe(0)
+  })
+})
