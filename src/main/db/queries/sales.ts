@@ -350,6 +350,39 @@ export function cancelSale(id: number, userId: number, options?: { refundMixedCr
     const sale = db.prepare('SELECT * FROM sales WHERE id = ?').get(id) as Record<string, unknown>
     if (!sale || sale.status === 'cancelled') return null
 
+    // Cash portion of this sale that physically entered the drawer (and would be
+    // handed back as a refund on cancellation). Card/transfer/credit never touch
+    // the till, so only these matter for the cash arqueo.
+    let cashPortion = 0
+    if (sale.payment_method === 'cash') {
+      cashPortion = sale.total as number
+    } else if (sale.payment_method === 'mixed') {
+      cashPortion = (
+        db
+          .prepare(
+            "SELECT COALESCE(SUM(amount), 0) AS cash FROM sale_payments WHERE sale_id = ? AND method = 'cash'"
+          )
+          .get(id) as { cash: number }
+      ).cash
+    }
+
+    // A cash refund can only be reconciled against an OPEN register. Once a
+    // register is closed its arqueo (expected_amount / difference) is frozen and
+    // cannot be retro-adjusted, so cancelling a cash sale on it would desync the
+    // stored reconciliation forever (re-close is blocked). Mirror createSale's
+    // open-register guard. Non-cash sales (card/transfer/credit) never touched
+    // the till, so they stay cancellable regardless of the register's state.
+    if (cashPortion > 0) {
+      const reg = db
+        .prepare('SELECT status FROM cash_registers WHERE id = ?')
+        .get(sale.register_id as number) as { status: string } | undefined
+      if (!reg || reg.status !== 'open') {
+        throw new Error(
+          'No se puede anular una venta en efectivo de una caja ya cerrada. El arqueo de esa caja ya fue finalizado.'
+        )
+      }
+    }
+
     const items = db.prepare('SELECT * FROM sale_items WHERE sale_id = ?').all(id) as {
       product_id: number
       quantity: number
@@ -405,6 +438,24 @@ export function cancelSale(id: number, userId: number, options?: { refundMixedCr
           detailsText = `Venta #${id} anulada — porción crédito ${formatGs(creditPortion)} (devolución NO aplicada por decisión del cajero)`
         }
       }
+    }
+
+    // Record the cash refund in the drawer timeline so the arqueo reconciles
+    // WITH a visible trail. Marking the sale 'cancelled' already drops its cash
+    // out of the cashSales sum (status='completed' filter), so a lone expense
+    // would subtract that cash twice. Instead post a netting pair: an income that
+    // re-books the sale's cash (the amount the drop just removed) and an expense
+    // for the refund handed back. Net effect on `expected` is zero — the cash
+    // came in and went back out — while both legs stay auditable in Movimientos.
+    if (cashPortion > 0) {
+      db.prepare(
+        `INSERT INTO cash_movements (register_id, user_id, type, amount, description)
+         VALUES (?, ?, 'income', ?, ?)`
+      ).run(sale.register_id, userId, cashPortion, `Anulación venta #${id} (efectivo de la venta)`)
+      db.prepare(
+        `INSERT INTO cash_movements (register_id, user_id, type, amount, description)
+         VALUES (?, ?, 'expense', ?, ?)`
+      ).run(sale.register_id, userId, cashPortion, `Anulación venta #${id} (devolución al cliente)`)
     }
 
     db.prepare("UPDATE sales SET status = 'cancelled' WHERE id = ?").run(id)
