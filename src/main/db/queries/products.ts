@@ -381,7 +381,21 @@ export function updateProduct(
 
 export function adjustStock(id: number, newStock: number, reason: string, userId: number) {
   const db = getDb()
-  const product = db.prepare('SELECT stock FROM products WHERE id = ?').get(id) as { stock: number }
+  // The repository is the source of truth for inventory: re-validate the
+  // resulting stock server-side instead of trusting the renderer. Both "Ajustar
+  // stock" modals already block a negative/invalid result, but the IPC is
+  // reachable directly (window.api.products.adjustStock) from any renderer code
+  // or a stale/tampered window, so without this a bad value would persist into
+  // products.stock AND corrupt the stock_adjustments audit row (quantity_after).
+  // NaN/Infinity were only rejected by accident (REAL NOT NULL on NaN); negative
+  // and absurd finite values were silently accepted.
+  if (!Number.isFinite(newStock) || newStock < 0) {
+    throw new Error('El stock resultante debe ser un número válido y no puede quedar negativo.')
+  }
+  const product = db.prepare('SELECT stock FROM products WHERE id = ?').get(id) as
+    | { stock: number }
+    | undefined
+  if (!product) throw new Error('Producto no encontrado.')
   const txn = db.transaction(() => {
     db.prepare(
       'INSERT INTO stock_adjustments (product_id, user_id, quantity_before, quantity_after, reason) VALUES (?, ?, ?, ?, ?)'
