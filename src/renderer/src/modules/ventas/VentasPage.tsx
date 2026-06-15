@@ -398,10 +398,31 @@ export default function VentasPage() {
     return parseFloat(quantity) || 0
   }
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!quantityModal) return
     const qty = computeQty(quantityModal)
     if (qty <= 0) return
+    // Overselling stays allowed (a butcher often weighs while the contable stock
+    // lags), but make it a CONSCIOUS choice: a blocking confirm spells out that
+    // the stock will go negative, so the owner notices instead of silently
+    // drifting into a "-5 kg" they don't understand. Mirrors the inline warning
+    // condition (finalQty > stock && stock > 0).
+    const stock = quantityModal.stock
+    if (qty > stock && stock > 0) {
+      const pt = quantityModal.price_type
+      const ok = await confirm({
+        title: 'Vas a vender más de lo que tenés',
+        message:
+          `Estás por agregar ${formatQty(qty, pt)} de ${quantityModal.name}, ` +
+          `pero solo tenés ${formatQty(stock, pt)} en inventario.\n\n` +
+          `Si continuás, el stock quedará en ${formatQty(stock - qty, pt)} (negativo). ` +
+          `Cargá stock cuando recibas mercadería para mantenerlo al día.`,
+        confirmLabel: 'Vender igual',
+        cancelLabel: 'Cancelar',
+        danger: true
+      })
+      if (!ok) return
+    }
     addItem(quantityModal, qty)
     closeQuantityModal()
     setSearch('')
