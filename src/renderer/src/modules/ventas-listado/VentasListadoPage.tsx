@@ -34,11 +34,27 @@ const methodTone: Record<PaymentMethod, 'success' | 'warning' | 'info' | 'neutra
   mixed: 'neutral'
 }
 
+// 009: per-sale amount attributable to a payment method. A single-method sale
+// puts its whole total in that method; a mixed sale splits by its sale_payments.
+// Cancelled sales contribute nothing (consistent with the footer total).
+function portionOf(s: Sale, method: PaymentMethod): number {
+  if (s.status === 'cancelled') return 0
+  if (s.payment_method === method) return s.total
+  if (s.payment_method === 'mixed') {
+    return (s.payments ?? []).reduce((a, p) => a + (p.method === method ? p.amount : 0), 0)
+  }
+  return 0
+}
+
 const exportColumns = [
   { header: 'Fecha', key: '_fecha', width: 18 },
   { header: 'N°', key: '_num', width: 8 },
   { header: 'Cliente', key: 'customer_name', width: 20 },
-  { header: 'Total', key: '_total', align: 'right' as const, width: 15 },
+  { header: 'Total', key: '_total', align: 'right' as const, width: 14 },
+  { header: 'Efectivo', key: '_efectivo', align: 'right' as const, width: 13 },
+  { header: 'Tarjeta', key: '_tarjeta', align: 'right' as const, width: 13 },
+  { header: 'Transferencia', key: '_transferencia', align: 'right' as const, width: 14 },
+  { header: 'Fiado', key: '_fiado', align: 'right' as const, width: 13 },
   { header: 'Método', key: '_method', width: 14 },
   { header: 'Cajero', key: 'user_name', width: 18 }
 ]
@@ -61,15 +77,17 @@ export default function VentasListadoPage() {
   const [printSale, setPrintSale] = useState<Sale | null>(null)
   const [printingId, setPrintingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [creditOnly, setCreditOnly] = useState(false)
 
-  const load = async (targetPage: number = page): Promise<void> => {
+  const load = async (targetPage: number = page, credit: boolean = creditOnly): Promise<void> => {
     setLoading(true)
     try {
       const result = await window.api.sales.getAll({
         from,
         to,
         page: targetPage,
-        perPage: PER_PAGE
+        perPage: PER_PAGE,
+        ...(credit ? { creditOnly: true } : {})
       })
       setData(result.items)
       setTotal(result.total)
@@ -118,20 +136,22 @@ export default function VentasListadoPage() {
 
   const prepareExport = (rows: Sale[]): Record<string, unknown>[] =>
     rows.map((s) => {
-      const isCredit = s.payment_method === 'credit'
-      const creditPaid = isCredit && s.customer_balance != null && s.customer_balance >= 0
       const cancelled = s.status === 'cancelled'
+      const cell = (method: PaymentMethod): string => {
+        const amt = portionOf(s, method)
+        return amt > 0 ? formatGs(amt) : '-'
+      }
       return {
         ...s,
         _fecha: formatDateTime(s.created_at),
         _num: `#${s.id}`,
         customer_name: s.customer_name || '-',
         _total: formatGs(s.total),
-        _method: cancelled
-          ? `Anulada · ${methodCellLabel(s)}`
-          : creditPaid
-            ? 'Fiado · Pagado'
-            : methodCellLabel(s)
+        _efectivo: cell('cash'),
+        _tarjeta: cell('card'),
+        _transferencia: cell('transfer'),
+        _fiado: cell('credit'),
+        _method: cancelled ? `Anulada · ${methodCellLabel(s)}` : methodCellLabel(s)
       }
     })
 
@@ -219,6 +239,18 @@ export default function VentasListadoPage() {
               <Search size={16} />
               {loading ? 'Cargando...' : 'Consultar'}
             </Button>
+            <label className="flex items-center gap-2 text-sm text-text-muted select-none cursor-pointer">
+              <input
+                type="checkbox"
+                checked={creditOnly}
+                onChange={(e) => {
+                  setCreditOnly(e.target.checked)
+                  void load(1, e.target.checked)
+                }}
+                className="rounded border-border accent-brand"
+              />
+              Solo ventas con fiado
+            </label>
 
             {hasData && (
               <div className="ml-auto flex gap-2">
@@ -271,11 +303,9 @@ export default function VentasListadoPage() {
               </thead>
               <tbody>
                 {data.map((s) => {
-                  const isCredit = s.payment_method === 'credit'
-                  const creditPaid =
-                    isCredit && s.customer_balance != null && s.customer_balance >= 0
                   const cancelled = s.status === 'cancelled'
                   const isPrinting = printingId === s.id
+                  const creditPortion = s.credit_portion ?? 0
                   return (
                     <tr
                       key={s.id}
@@ -299,10 +329,13 @@ export default function VentasListadoPage() {
                       <td className={tdCls}>
                         {cancelled ? (
                           <Badge tone="danger">Anulada</Badge>
-                        ) : creditPaid ? (
-                          <Badge tone="success">Fiado · Pagado</Badge>
                         ) : (
                           <Badge tone={methodTone[s.payment_method]}>{methodCellLabel(s)}</Badge>
+                        )}
+                        {!cancelled && s.payment_method === 'mixed' && creditPortion > 0 && (
+                          <div className="text-[11px] text-warning-700 mt-1 tabular-nums">
+                            Fiado {formatGs(creditPortion)}
+                          </div>
                         )}
                       </td>
                       <td className={`${tdCls} text-text-muted`}>{s.user_name}</td>

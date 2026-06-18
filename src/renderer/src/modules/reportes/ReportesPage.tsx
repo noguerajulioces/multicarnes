@@ -74,6 +74,9 @@ interface PendingCreditRow {
   phone: string | null
   is_employee: number
   balance: number
+  // 009: gross credit generated lifetime, split by origin (flujo, not the stock).
+  credit_generated: number
+  mixed_credit_generated: number
   last_credit_sale_at: string | null
   last_payment_at: string | null
 }
@@ -81,9 +84,15 @@ interface PendingCreditRow {
 interface SalesSummaryResult {
   totals: { sales_count: number; total: number; discount: number; subtotal: number }
   byDay: { day: string; sales_count: number; total: number }[]
-  byMethod: { method: string; sales_count: number; total: number }[]
+  // 009: mixed portions distributed to real buckets; `method` is never 'mixed'.
+  byMethod: {
+    method: 'cash' | 'card' | 'credit' | 'transfer'
+    sales_count: number
+    total: number
+  }[]
   byCardProcessor: { processor: string; sales_count: number; total: number }[]
   byUser: { user_id: number; user_name: string; sales_count: number; total: number }[]
+  mixedCount: number
 }
 
 interface SalesComparisonResult {
@@ -135,6 +144,7 @@ const reportConfigs: Partial<Record<Tab, ReportConfig>> = {
       { header: 'Teléfono', key: '_phone', width: 16 },
       { header: 'Tipo', key: '_tipo', width: 12 },
       { header: 'Saldo deudor', key: '_debt', align: 'right', width: 16 },
+      { header: 'Origen mixta', key: '_mixed_credit', align: 'right', width: 16 },
       { header: 'Última venta a crédito', key: '_last_sale', width: 22 },
       { header: 'Último pago', key: '_last_pay', width: 22 }
     ]
@@ -210,6 +220,7 @@ function prepareExportData(tab: Tab, data: unknown[]): Record<string, unknown>[]
         _phone: r.phone || '-',
         _tipo: r.is_employee ? 'Empleado' : 'Cliente',
         _debt: formatGs(Math.abs(r.balance)),
+        _mixed_credit: r.mixed_credit_generated > 0 ? formatGs(r.mixed_credit_generated) : '-',
         _last_sale: r.last_credit_sale_at ? formatDateTime(r.last_credit_sale_at) : '-',
         _last_pay: r.last_payment_at ? formatDateTime(r.last_payment_at) : '-'
       }))
@@ -663,7 +674,7 @@ export default function ReportesPage() {
                   <thead>
                     <tr className={tableHeadCls}>
                       <th className={thCls}>Método</th>
-                      <th className={`${thCls} text-right`}>Tickets</th>
+                      <th className={`${thCls} text-right`}>Movimientos</th>
                       <th className={`${thCls} text-right`}>Total</th>
                     </tr>
                   </thead>
@@ -718,6 +729,15 @@ export default function ReportesPage() {
                     )}
                   </tbody>
                 </table>
+                {summary.mixedCount > 0 && (
+                  <p className="px-4 pt-3 text-xs text-text-muted">
+                    Incluye{' '}
+                    {summary.mixedCount === 1
+                      ? '1 venta mixta distribuida'
+                      : `${summary.mixedCount} ventas mixtas distribuidas`}{' '}
+                    por método de pago.
+                  </p>
+                )}
               </CardBody>
             </Card>
 
@@ -854,6 +874,12 @@ export default function ReportesPage() {
                   <th className={thCls}>Teléfono</th>
                   <th className={thCls}>Tipo</th>
                   <th className={`${thCls} text-right`}>Saldo deudor</th>
+                  <th
+                    className={`${thCls} text-right`}
+                    title="Fiado histórico generado por ventas mixtas (no descuenta pagos)"
+                  >
+                    Origen mixta
+                  </th>
                   <th className={thCls}>Última venta a crédito</th>
                   <th className={thCls}>Último pago</th>
                 </tr>
@@ -878,6 +904,13 @@ export default function ReportesPage() {
                         className={`${tdCls} text-right font-medium text-danger-700 tabular-nums`}
                       >
                         {formatGs(Math.abs(r.balance))}
+                      </td>
+                      <td className={`${tdCls} text-right text-text-muted tabular-nums`}>
+                        {r.mixed_credit_generated > 0 ? (
+                          formatGs(r.mixed_credit_generated)
+                        ) : (
+                          <span className="text-text-disabled">—</span>
+                        )}
                       </td>
                       <td className={`${tdCls} text-text-muted tabular-nums`}>
                         {r.last_credit_sale_at ? (
@@ -905,6 +938,14 @@ export default function ReportesPage() {
                     <td className="px-4 py-3 text-right text-lg font-bold text-danger-700 tabular-nums">
                       {formatGs(
                         (data as PendingCreditRow[]).reduce((s, v) => s + Math.abs(v.balance), 0)
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-text-muted tabular-nums">
+                      {formatGs(
+                        (data as PendingCreditRow[]).reduce(
+                          (s, v) => s + v.mixed_credit_generated,
+                          0
+                        )
                       )}
                     </td>
                     <td colSpan={2}></td>

@@ -49,6 +49,18 @@ function validatePaymentDetails(
   }
 }
 
+// 009-mixed-payment-breakdown: the credit (fiado) portion of a sale, regardless
+// of single-method vs mixed. Single 'credit' = whole total; 'mixed' = sum of its
+// credit lines; anything else = 0. Centralizes a calc that was duplicated across
+// the credit-limit check and the balance debit.
+function creditPortion(data: CreateSaleData): number {
+  if (data.paymentMethod === 'credit') return data.total
+  if (data.paymentMethod === 'mixed' && data.payments) {
+    return data.payments.filter((p) => p.method === 'credit').reduce((sum, p) => sum + p.amount, 0)
+  }
+  return 0
+}
+
 export function createSale(data: CreateSaleData) {
   const db = getDb()
   const txn = db.transaction(() => {
@@ -90,20 +102,26 @@ export function createSale(data: CreateSaleData) {
       validatePaymentDetails(data.paymentMethod, topProcessor, topReference)
     }
 
+    // 009-mixed-payment-breakdown (FR-013): a fiado (credit) portion — pure or
+    // the credit line of a mixed sale — MUST be tied to a customer. Without this
+    // guard createSale would insert the credit rows but skip the balance debit
+    // (both balance updates below are gated on customerId), leaving "ghost fiado"
+    // that no customer owes. The UI (CobroModal) already blocks it; this is the
+    // server-side backstop against a tampered or regressed renderer. The throw
+    // rolls back the whole transaction.
+    if (creditPortion(data) > 0 && !data.customerId) {
+      throw new Error(
+        'Una venta a fiado requiere un cliente asociado. Seleccioná un cliente antes de registrar la porción a crédito.'
+      )
+    }
+
     // Per-customer credit limit (límite de fiado). Authoritative hard block,
     // computed before any write so a throw rolls the whole sale back (stock
     // untouched). The renderer mirrors this check for UX, but this is the
     // source of truth. Basis = total outstanding debt: current debt + this
     // sale's credit portion must not exceed the customer's enabled limit.
     if (data.customerId) {
-      let creditAmount = 0
-      if (data.paymentMethod === 'credit') {
-        creditAmount = data.total
-      } else if (data.paymentMethod === 'mixed' && data.payments) {
-        creditAmount = data.payments
-          .filter((p) => p.method === 'credit')
-          .reduce((sum, p) => sum + p.amount, 0)
-      }
+      const creditAmount = creditPortion(data)
       if (creditAmount > 0) {
         const cust = db
           .prepare(
@@ -197,10 +215,8 @@ export function createSale(data: CreateSaleData) {
         data.customerId
       )
     }
-    if (data.paymentMethod === 'mixed' && data.customerId && data.payments) {
-      const creditAmount = data.payments
-        .filter((p) => p.method === 'credit')
-        .reduce((sum, p) => sum + p.amount, 0)
+    if (data.paymentMethod === 'mixed' && data.customerId) {
+      const creditAmount = creditPortion(data)
       if (creditAmount > 0) {
         db.prepare('UPDATE customers SET balance = balance - ? WHERE id = ?').run(
           creditAmount,
@@ -250,6 +266,9 @@ export function getAllSales(
     to?: string
     paymentMethod?: string
     userId?: number
+    // 009: "ventas que generaron fiado" — includes pure-credit sales AND mixed
+    // sales with a credit portion (orthogonal to paymentMethod).
+    creditOnly?: boolean
     page?: number
     perPage?: number
   } = {}
@@ -271,6 +290,13 @@ export function getAllSales(
   if (opts.paymentMethod) {
     conditions.push('s.payment_method = ?')
     params.push(opts.paymentMethod)
+  }
+  if (opts.creditOnly) {
+    // Pure-credit OR any mixed sale carrying a credit portion. Filtering by
+    // payment_method='credit' alone would miss the mixed ones (the old gap).
+    conditions.push(
+      "(s.payment_method = 'credit' OR EXISTS (SELECT 1 FROM sale_payments sp WHERE sp.sale_id = s.id AND sp.method = 'credit'))"
+    )
   }
   if (opts.userId !== undefined) {
     conditions.push('s.user_id = ?')
@@ -298,7 +324,35 @@ export function getAllSales(
        ORDER BY s.created_at DESC
        ${limitClause}`
     )
-    .all(...params, ...limitParams)
+    .all(...params, ...limitParams) as Record<string, unknown>[]
+
+  // 009: attach the payment breakdown for the page in one batched query (no
+  // N+1), same idiom as getCustomerSales. Only mixed sales have sale_payments
+  // rows; single-method sales render from payment_method + total. credit_portion
+  // is the aggregated fiado of the sale, derived once here so the renderer never
+  // has to re-sum (possibly fragmented) portions.
+  if (items.length > 0) {
+    const ids = items.map((s) => s.id as number)
+    const placeholders = ids.map(() => '?').join(',')
+    const paymentRows = db
+      .prepare(`SELECT * FROM sale_payments WHERE sale_id IN (${placeholders})`)
+      .all(...ids) as Array<Record<string, unknown>>
+    const bySale = new Map<number, Record<string, unknown>[]>()
+    for (const row of paymentRows) {
+      const sid = row.sale_id as number
+      const arr = bySale.get(sid)
+      if (arr) arr.push(row)
+      else bySale.set(sid, [row])
+    }
+    for (const sale of items) {
+      const payments = bySale.get(sale.id as number) ?? []
+      sale.payments = payments
+      sale.credit_portion = payments.reduce(
+        (sum, p) => sum + ((p.method as string) === 'credit' ? (p.amount as number) : 0),
+        0
+      )
+    }
+  }
 
   return { items, total, page, perPage }
 }
