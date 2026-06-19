@@ -21,6 +21,14 @@ export function formatDateTime(dateStr: string): string {
   })
 }
 
+// 010: time-only (HH:MM) for exports that split date and time into two columns.
+// Forced to a 24-hour clock (00–23) so it never renders AM/PM, whatever the
+// runtime locale resolves to.
+export function formatTime(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs))
 }

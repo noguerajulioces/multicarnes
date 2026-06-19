@@ -48,6 +48,11 @@ export function registerReportsIpc(): string[] {
     (_e, _c, from: string, to: string, processor?: string) =>
       reportsQuery.cardSales(from, to, processor)
   )
+  registerAuthorized(
+    'reports:cashMovementsForExport',
+    getRule('reports:cashMovementsForExport'),
+    (_e, _c, from: string, to: string) => reportsQuery.cashMovementsForExport(from, to)
+  )
 
   return listRegisteredChannels().slice(before)
 }

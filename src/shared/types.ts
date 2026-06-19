@@ -170,6 +170,9 @@ export interface Sale {
   notes: string | null
   items?: SaleItem[]
   payments?: SalePayment[]
+  // 009: aggregated fiado (credit) portion of the sale, attached by getAllSales
+  // so listings/exports can show it per-row without re-summing payments.
+  credit_portion?: number
   created_at: string
 }
 

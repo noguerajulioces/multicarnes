@@ -122,7 +122,9 @@ const api = {
     salesComparison: (from: string, to: string) =>
       ipcRenderer.invoke('reports:salesComparison', from, to),
     cardSales: (from: string, to: string, processor?: string) =>
-      ipcRenderer.invoke('reports:cardSales', from, to, processor)
+      ipcRenderer.invoke('reports:cardSales', from, to, processor),
+    cashMovementsForExport: (from: string, to: string) =>
+      ipcRenderer.invoke('reports:cashMovementsForExport', from, to)
   },
   // Backup & Settings
   backup: {

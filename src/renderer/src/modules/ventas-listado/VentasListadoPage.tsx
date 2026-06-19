@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { formatGs, formatDateTime, todayStr, firstDayOfMonthStr } from '../../lib/utils'
+import {
+  formatGs,
+  formatDate,
+  formatDateTime,
+  formatTime,
+  todayStr,
+  firstDayOfMonthStr
+} from '../../lib/utils'
 import { exportToExcel, exportToPDF } from '../../lib/export'
 import {
   Badge,
@@ -14,6 +21,16 @@ import {
   TableSkeleton
 } from '../../components/ui'
 import type { PaymentMethod, Sale } from '@shared/types'
+
+// 010: a caja movement itemized into the export (mirrors CashMovementExportRow in
+// preload). Each apertura/cierre/ingreso/egreso becomes its own row.
+type CashMov = {
+  created_at: string
+  type: 'opening' | 'closing' | 'income' | 'expense'
+  amount: number
+  description: string | null
+  user_name: string | null
+}
 import { Eye, FileSpreadsheet, FileText, Plus, Printer, Search } from 'lucide-react'
 import TicketPreviewModal from '../ventas/TicketPreviewModal'
 import { PROCESSOR_LABEL as processorLabels } from '../../lib/processors'
@@ -34,13 +51,33 @@ const methodTone: Record<PaymentMethod, 'success' | 'warning' | 'info' | 'neutra
   mixed: 'neutral'
 }
 
+// 009: per-sale amount attributable to a payment method. A single-method sale
+// puts its whole total in that method; a mixed sale splits by its sale_payments.
+// Cancelled sales contribute nothing (consistent with the footer total).
+function portionOf(s: Sale, method: PaymentMethod): number {
+  if (s.status === 'cancelled') return 0
+  if (s.payment_method === method) return s.total
+  if (s.payment_method === 'mixed') {
+    return (s.payments ?? []).reduce((a, p) => a + (p.method === method ? p.amount : 0), 0)
+  }
+  return 0
+}
+
 const exportColumns = [
-  { header: 'Fecha', key: '_fecha', width: 18 },
+  { header: 'Fecha', key: '_fecha', width: 12 },
+  { header: 'Hora', key: '_hora', width: 8 },
   { header: 'N°', key: '_num', width: 8 },
-  { header: 'Cliente', key: 'customer_name', width: 20 },
-  { header: 'Total', key: '_total', align: 'right' as const, width: 15 },
-  { header: 'Método', key: '_method', width: 14 },
-  { header: 'Cajero', key: 'user_name', width: 18 }
+  { header: 'Tipo', key: '_tipo', width: 10 },
+  { header: 'Cliente', key: 'customer_name', width: 22 },
+  { header: 'Concepto', key: '_concepto', width: 22 },
+  { header: 'Total', key: '_total', align: 'right' as const, width: 14, numeric: true },
+  { header: 'Fiado', key: '_fiado', align: 'right' as const, width: 13, numeric: true },
+  { header: 'Método', key: '_method', width: 16 },
+  { header: 'Cajero', key: 'user_name', width: 18 },
+  { header: 'Apertura', key: '_apertura', align: 'right' as const, width: 14, numeric: true },
+  { header: 'Cierre', key: '_cierre', align: 'right' as const, width: 14, numeric: true },
+  { header: 'Ingresos', key: '_ingresos', align: 'right' as const, width: 13, numeric: true },
+  { header: 'Egresos', key: '_egresos', align: 'right' as const, width: 13, numeric: true }
 ]
 
 const tableHeadCls = 'bg-surface-muted/60 text-left text-text-muted'
@@ -61,15 +98,17 @@ export default function VentasListadoPage() {
   const [printSale, setPrintSale] = useState<Sale | null>(null)
   const [printingId, setPrintingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [creditOnly, setCreditOnly] = useState(false)
 
-  const load = async (targetPage: number = page): Promise<void> => {
+  const load = async (targetPage: number = page, credit: boolean = creditOnly): Promise<void> => {
     setLoading(true)
     try {
       const result = await window.api.sales.getAll({
         from,
         to,
         page: targetPage,
-        perPage: PER_PAGE
+        perPage: PER_PAGE,
+        ...(credit ? { creditOnly: true } : {})
       })
       setData(result.items)
       setTotal(result.total)
@@ -116,24 +155,70 @@ export default function VentasListadoPage() {
     return base
   }
 
-  const prepareExport = (rows: Sale[]): Record<string, unknown>[] =>
-    rows.map((s) => {
-      const isCredit = s.payment_method === 'credit'
-      const creditPaid = isCredit && s.customer_balance != null && s.customer_balance >= 0
-      const cancelled = s.status === 'cancelled'
-      return {
-        ...s,
-        _fecha: formatDateTime(s.created_at),
-        _num: `#${s.id}`,
-        customer_name: s.customer_name || '-',
-        _total: formatGs(s.total),
-        _method: cancelled
-          ? `Anulada · ${methodCellLabel(s)}`
-          : creditPaid
-            ? 'Fiado · Pagado'
-            : methodCellLabel(s)
-      }
-    })
+  // 010: one export row per sale. Total and Fiado are raw numbers (sumable in
+  // Excel); Fiado is 0 when the sale has no credit portion. Per-method columns
+  // were dropped — the Método column already names the payment method. A
+  // cancelled sale exports total 0 so it doesn't inflate sums.
+  const saleToRow = (s: Sale): Record<string, unknown> => {
+    const cancelled = s.status === 'cancelled'
+    return {
+      ...s,
+      _fecha: formatDate(s.created_at),
+      _hora: formatTime(s.created_at),
+      _num: `#${s.id}`,
+      _tipo: cancelled ? 'Anulada' : 'Venta',
+      customer_name: s.customer_name || '-',
+      _concepto: '',
+      _total: cancelled ? 0 : s.total,
+      _fiado: portionOf(s, 'credit'),
+      _method: methodCellLabel(s)
+    }
+  }
+
+  // 010: a caja movement as its own row (Tipo Apertura/Cierre/Ingreso/Egreso), with
+  // its amount in the matching column. For ingresos/egresos the description goes in
+  // the Cliente column; Hora/Cajero reflect when and who registered it.
+  const movementRow = (m: CashMov): Record<string, unknown> => {
+    const tipo =
+      m.type === 'opening'
+        ? 'Apertura'
+        : m.type === 'closing'
+          ? 'Cierre'
+          : m.type === 'income'
+            ? 'Ingreso'
+            : 'Egreso'
+    return {
+      _fecha: formatDate(m.created_at),
+      _hora: formatTime(m.created_at),
+      _num: '',
+      _tipo: tipo,
+      // 010: Cliente queda vacío en movimientos (filtro de Cliente limpio); el
+      // detalle del movimiento va en la columna Concepto.
+      customer_name: '',
+      _concepto: m.description || '',
+      _total: undefined,
+      _fiado: undefined,
+      _method: '',
+      user_name: m.user_name || '',
+      _apertura: m.type === 'opening' ? m.amount : undefined,
+      _cierre: m.type === 'closing' ? m.amount : undefined,
+      _ingresos: m.type === 'income' ? m.amount : undefined,
+      _egresos: m.type === 'expense' ? -m.amount : undefined
+    }
+  }
+
+  // 010: build the export as a single chronological log — sales and caja movements
+  // interleaved by created_at. Apertura (opening) lands first in its day and Cierre
+  // (closing) last; each ingreso/egreso is its own row, like a sale. A still-open
+  // caja simply has no Cierre row yet.
+  const buildExportRows = (sales: Sale[], movements: CashMov[]): Record<string, unknown>[] => {
+    const events: { at: string; row: Record<string, unknown> }[] = [
+      ...sales.map((s) => ({ at: s.created_at, row: saleToRow(s) })),
+      ...movements.map((m) => ({ at: m.created_at, row: movementRow(m) }))
+    ]
+    events.sort((a, b) => a.at.localeCompare(b.at))
+    return events.map((e) => e.row)
+  }
 
   // Export fetches the full period (no pagination) so the file always
   // reflects the whole date range the user is looking at, not just the
@@ -143,39 +228,41 @@ export default function VentasListadoPage() {
     return result.items
   }
 
+  // 010: best-effort — reports:cashMovementsForExport is admin/supervisor only, so
+  // a cashier export simply omits the caja movement rows.
+  const fetchCashMovements = async (): Promise<CashMov[]> => {
+    try {
+      return await window.api.reports.cashMovementsForExport(from, to)
+    } catch {
+      return []
+    }
+  }
+
   // The XLSX/jsPDF generation is synchronous and blocks the renderer thread.
   // Flip `exporting` and yield a frame first so the button can paint its
   // disabled/"Generando..." state before the UI freezes during generation.
-  const runExport = async (generate: (rows: Sale[]) => void): Promise<void> => {
+  const runExport = async (
+    generate: (rows: Record<string, unknown>[]) => void
+  ): Promise<void> => {
     if (exporting) return
     setExporting(true)
     try {
       await new Promise((r) => requestAnimationFrame(() => r(null)))
-      const all = await fetchAllForExport()
-      generate(all)
+      const [all, movements] = await Promise.all([fetchAllForExport(), fetchCashMovements()])
+      generate(buildExportRows(all, movements))
     } finally {
       setExporting(false)
     }
   }
 
   const handleExportExcel = (): Promise<void> =>
-    runExport((all) =>
-      exportToExcel(
-        prepareExport(all),
-        exportColumns,
-        `ventas_${from}_${to}`,
-        `Ventas (${from} a ${to})`
-      )
+    runExport((rows) =>
+      exportToExcel(rows, exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
     )
 
   const handleExportPDF = (): Promise<void> =>
-    runExport((all) =>
-      exportToPDF(
-        prepareExport(all),
-        exportColumns,
-        `ventas_${from}_${to}`,
-        `Ventas (${from} a ${to})`
-      )
+    runExport((rows) =>
+      exportToPDF(rows, exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
     )
 
   const hasData = data.length > 0
@@ -219,6 +306,18 @@ export default function VentasListadoPage() {
               <Search size={16} />
               {loading ? 'Cargando...' : 'Consultar'}
             </Button>
+            <label className="flex items-center gap-2 text-sm text-text-muted select-none cursor-pointer">
+              <input
+                type="checkbox"
+                checked={creditOnly}
+                onChange={(e) => {
+                  setCreditOnly(e.target.checked)
+                  void load(1, e.target.checked)
+                }}
+                className="rounded border-border accent-brand"
+              />
+              Solo ventas con fiado
+            </label>
 
             {hasData && (
               <div className="ml-auto flex gap-2">
@@ -271,11 +370,9 @@ export default function VentasListadoPage() {
               </thead>
               <tbody>
                 {data.map((s) => {
-                  const isCredit = s.payment_method === 'credit'
-                  const creditPaid =
-                    isCredit && s.customer_balance != null && s.customer_balance >= 0
                   const cancelled = s.status === 'cancelled'
                   const isPrinting = printingId === s.id
+                  const creditPortion = s.credit_portion ?? 0
                   return (
                     <tr
                       key={s.id}
@@ -299,10 +396,13 @@ export default function VentasListadoPage() {
                       <td className={tdCls}>
                         {cancelled ? (
                           <Badge tone="danger">Anulada</Badge>
-                        ) : creditPaid ? (
-                          <Badge tone="success">Fiado · Pagado</Badge>
                         ) : (
                           <Badge tone={methodTone[s.payment_method]}>{methodCellLabel(s)}</Badge>
+                        )}
+                        {!cancelled && s.payment_method === 'mixed' && creditPortion > 0 && (
+                          <div className="text-[11px] text-warning-700 mt-1 tabular-nums">
+                            Fiado {formatGs(creditPortion)}
+                          </div>
                         )}
                       </td>
                       <td className={`${tdCls} text-text-muted`}>{s.user_name}</td>
