@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { formatGs, formatDateTime, todayStr, firstDayOfMonthStr } from '../../lib/utils'
+import {
+  formatGs,
+  formatDate,
+  formatDateTime,
+  formatTime,
+  todayStr,
+  firstDayOfMonthStr
+} from '../../lib/utils'
 import { exportToExcel, exportToPDF } from '../../lib/export'
 import {
   Badge,
@@ -14,6 +21,16 @@ import {
   TableSkeleton
 } from '../../components/ui'
 import type { PaymentMethod, Sale } from '@shared/types'
+
+// 010: a caja movement itemized into the export (mirrors CashMovementExportRow in
+// preload). Each apertura/cierre/ingreso/egreso becomes its own row.
+type CashMov = {
+  created_at: string
+  type: 'opening' | 'closing' | 'income' | 'expense'
+  amount: number
+  description: string | null
+  user_name: string | null
+}
 import { Eye, FileSpreadsheet, FileText, Plus, Printer, Search } from 'lucide-react'
 import TicketPreviewModal from '../ventas/TicketPreviewModal'
 import { PROCESSOR_LABEL as processorLabels } from '../../lib/processors'
@@ -47,16 +64,20 @@ function portionOf(s: Sale, method: PaymentMethod): number {
 }
 
 const exportColumns = [
-  { header: 'Fecha', key: '_fecha', width: 18 },
+  { header: 'Fecha', key: '_fecha', width: 12 },
+  { header: 'Hora', key: '_hora', width: 8 },
   { header: 'N°', key: '_num', width: 8 },
-  { header: 'Cliente', key: 'customer_name', width: 20 },
-  { header: 'Total', key: '_total', align: 'right' as const, width: 14 },
-  { header: 'Efectivo', key: '_efectivo', align: 'right' as const, width: 13 },
-  { header: 'Tarjeta', key: '_tarjeta', align: 'right' as const, width: 13 },
-  { header: 'Transferencia', key: '_transferencia', align: 'right' as const, width: 14 },
-  { header: 'Fiado', key: '_fiado', align: 'right' as const, width: 13 },
-  { header: 'Método', key: '_method', width: 14 },
-  { header: 'Cajero', key: 'user_name', width: 18 }
+  { header: 'Tipo', key: '_tipo', width: 10 },
+  { header: 'Cliente', key: 'customer_name', width: 22 },
+  { header: 'Concepto', key: '_concepto', width: 22 },
+  { header: 'Total', key: '_total', align: 'right' as const, width: 14, numeric: true },
+  { header: 'Fiado', key: '_fiado', align: 'right' as const, width: 13, numeric: true },
+  { header: 'Método', key: '_method', width: 16 },
+  { header: 'Cajero', key: 'user_name', width: 18 },
+  { header: 'Apertura', key: '_apertura', align: 'right' as const, width: 14, numeric: true },
+  { header: 'Cierre', key: '_cierre', align: 'right' as const, width: 14, numeric: true },
+  { header: 'Ingresos', key: '_ingresos', align: 'right' as const, width: 13, numeric: true },
+  { header: 'Egresos', key: '_egresos', align: 'right' as const, width: 13, numeric: true }
 ]
 
 const tableHeadCls = 'bg-surface-muted/60 text-left text-text-muted'
@@ -134,26 +155,70 @@ export default function VentasListadoPage() {
     return base
   }
 
-  const prepareExport = (rows: Sale[]): Record<string, unknown>[] =>
-    rows.map((s) => {
-      const cancelled = s.status === 'cancelled'
-      const cell = (method: PaymentMethod): string => {
-        const amt = portionOf(s, method)
-        return amt > 0 ? formatGs(amt) : '-'
-      }
-      return {
-        ...s,
-        _fecha: formatDateTime(s.created_at),
-        _num: `#${s.id}`,
-        customer_name: s.customer_name || '-',
-        _total: formatGs(s.total),
-        _efectivo: cell('cash'),
-        _tarjeta: cell('card'),
-        _transferencia: cell('transfer'),
-        _fiado: cell('credit'),
-        _method: cancelled ? `Anulada · ${methodCellLabel(s)}` : methodCellLabel(s)
-      }
-    })
+  // 010: one export row per sale. Total and Fiado are raw numbers (sumable in
+  // Excel); Fiado is 0 when the sale has no credit portion. Per-method columns
+  // were dropped — the Método column already names the payment method. A
+  // cancelled sale exports total 0 so it doesn't inflate sums.
+  const saleToRow = (s: Sale): Record<string, unknown> => {
+    const cancelled = s.status === 'cancelled'
+    return {
+      ...s,
+      _fecha: formatDate(s.created_at),
+      _hora: formatTime(s.created_at),
+      _num: `#${s.id}`,
+      _tipo: cancelled ? 'Anulada' : 'Venta',
+      customer_name: s.customer_name || '-',
+      _concepto: '',
+      _total: cancelled ? 0 : s.total,
+      _fiado: portionOf(s, 'credit'),
+      _method: methodCellLabel(s)
+    }
+  }
+
+  // 010: a caja movement as its own row (Tipo Apertura/Cierre/Ingreso/Egreso), with
+  // its amount in the matching column. For ingresos/egresos the description goes in
+  // the Cliente column; Hora/Cajero reflect when and who registered it.
+  const movementRow = (m: CashMov): Record<string, unknown> => {
+    const tipo =
+      m.type === 'opening'
+        ? 'Apertura'
+        : m.type === 'closing'
+          ? 'Cierre'
+          : m.type === 'income'
+            ? 'Ingreso'
+            : 'Egreso'
+    return {
+      _fecha: formatDate(m.created_at),
+      _hora: formatTime(m.created_at),
+      _num: '',
+      _tipo: tipo,
+      // 010: Cliente queda vacío en movimientos (filtro de Cliente limpio); el
+      // detalle del movimiento va en la columna Concepto.
+      customer_name: '',
+      _concepto: m.description || '',
+      _total: undefined,
+      _fiado: undefined,
+      _method: '',
+      user_name: m.user_name || '',
+      _apertura: m.type === 'opening' ? m.amount : undefined,
+      _cierre: m.type === 'closing' ? m.amount : undefined,
+      _ingresos: m.type === 'income' ? m.amount : undefined,
+      _egresos: m.type === 'expense' ? -m.amount : undefined
+    }
+  }
+
+  // 010: build the export as a single chronological log — sales and caja movements
+  // interleaved by created_at. Apertura (opening) lands first in its day and Cierre
+  // (closing) last; each ingreso/egreso is its own row, like a sale. A still-open
+  // caja simply has no Cierre row yet.
+  const buildExportRows = (sales: Sale[], movements: CashMov[]): Record<string, unknown>[] => {
+    const events: { at: string; row: Record<string, unknown> }[] = [
+      ...sales.map((s) => ({ at: s.created_at, row: saleToRow(s) })),
+      ...movements.map((m) => ({ at: m.created_at, row: movementRow(m) }))
+    ]
+    events.sort((a, b) => a.at.localeCompare(b.at))
+    return events.map((e) => e.row)
+  }
 
   // Export fetches the full period (no pagination) so the file always
   // reflects the whole date range the user is looking at, not just the
@@ -163,39 +228,41 @@ export default function VentasListadoPage() {
     return result.items
   }
 
+  // 010: best-effort — reports:cashMovementsForExport is admin/supervisor only, so
+  // a cashier export simply omits the caja movement rows.
+  const fetchCashMovements = async (): Promise<CashMov[]> => {
+    try {
+      return await window.api.reports.cashMovementsForExport(from, to)
+    } catch {
+      return []
+    }
+  }
+
   // The XLSX/jsPDF generation is synchronous and blocks the renderer thread.
   // Flip `exporting` and yield a frame first so the button can paint its
   // disabled/"Generando..." state before the UI freezes during generation.
-  const runExport = async (generate: (rows: Sale[]) => void): Promise<void> => {
+  const runExport = async (
+    generate: (rows: Record<string, unknown>[]) => void
+  ): Promise<void> => {
     if (exporting) return
     setExporting(true)
     try {
       await new Promise((r) => requestAnimationFrame(() => r(null)))
-      const all = await fetchAllForExport()
-      generate(all)
+      const [all, movements] = await Promise.all([fetchAllForExport(), fetchCashMovements()])
+      generate(buildExportRows(all, movements))
     } finally {
       setExporting(false)
     }
   }
 
   const handleExportExcel = (): Promise<void> =>
-    runExport((all) =>
-      exportToExcel(
-        prepareExport(all),
-        exportColumns,
-        `ventas_${from}_${to}`,
-        `Ventas (${from} a ${to})`
-      )
+    runExport((rows) =>
+      exportToExcel(rows, exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
     )
 
   const handleExportPDF = (): Promise<void> =>
-    runExport((all) =>
-      exportToPDF(
-        prepareExport(all),
-        exportColumns,
-        `ventas_${from}_${to}`,
-        `Ventas (${from} a ${to})`
-      )
+    runExport((rows) =>
+      exportToPDF(rows, exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
     )
 
   const hasData = data.length > 0

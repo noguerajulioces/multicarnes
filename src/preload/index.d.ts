@@ -211,6 +211,17 @@ interface CardSalesRow {
   source: 'single' | 'mixed'
 }
 
+// 010: individual caja movements itemized into the Ventas export. 'opening'/
+// 'closing' carry the register's apertura/cierre amount; 'income'/'expense' carry
+// each registered movement (expense shown negative in the export).
+interface CashMovementExportRow {
+  created_at: string
+  type: 'opening' | 'closing' | 'income' | 'expense'
+  amount: number
+  description: string | null
+  user_name: string | null
+}
+
 interface SalesComparisonResult {
   current: {
     sales_count: number
@@ -245,6 +256,7 @@ interface ApiReports {
   salesSummary(from: string, to: string): Promise<SalesSummaryResult>
   salesComparison(from: string, to: string): Promise<SalesComparisonResult>
   cardSales(from: string, to: string, processor?: string): Promise<CardSalesRow[]>
+  cashMovementsForExport(from: string, to: string): Promise<CashMovementExportRow[]>
 }
 
 interface ApiBackup {

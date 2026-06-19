@@ -108,6 +108,27 @@ export function cashRegisterReport() {
     .all()
 }
 
+// 010-report-export: individual caja movements for a period, itemized into the
+// Ventas export (each apertura/cierre/ingreso/egreso is its own row, like a sale,
+// interleaved chronologically). Excludes movements annulled via void_of (same
+// filter as getCashRegisterSummary in cash.ts). 'opening'/'closing' carry the
+// register's apertura/cierre amount; 'income'/'expense' carry each movement.
+export function cashMovementsForExport(from: string, to: string) {
+  return getDb()
+    .prepare(
+      `
+    SELECT cm.created_at, cm.type, cm.amount, cm.description, u.name AS user_name
+    FROM cash_movements cm
+    LEFT JOIN users u ON cm.user_id = u.id
+    WHERE cm.created_at >= ? AND cm.created_at < date(?, '+1 day')
+      AND cm.type IN ('opening', 'closing', 'income', 'expense')
+      AND NOT EXISTS (SELECT 1 FROM cash_movements v WHERE v.void_of = cm.id)
+    ORDER BY cm.created_at ASC
+  `
+    )
+    .all(from, to)
+}
+
 export function pendingCredits() {
   return getDb()
     .prepare(

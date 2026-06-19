@@ -118,6 +118,9 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   // 006-card-payments: detailed card-sales listing for reconciliation. Limited
   // to admin/supervisor — cashiers don't need the cross-day per-acquirer view.
   'reports:cardSales': { kind: 'privileged', roles: ['admin', 'supervisor'] },
+  // 010-report-export: caja movements itemized into the Ventas export. Same
+  // audience as the other cash reports — admin/supervisor (cashiers export without).
+  'reports:cashMovementsForExport': { kind: 'privileged', roles: ['admin', 'supervisor'] },
 
   // Auth (US4 + US5)
   'auth:matrixSummary': { kind: 'privileged', roles: ['admin'] },
