@@ -181,6 +181,86 @@ describe('createSale — credit limit (límite de fiado)', () => {
 })
 
 // ---------------------------------------------------------------------------
+// A credit (fiado) portion requires an associated customer. Without it, stock
+// would leave inventory while no balance is ever debited — an uncollectable
+// receivable. The renderer blocks it (CobroModal); createSale re-enforces it as
+// the source of truth, rolling the whole transaction back on violation.
+// ---------------------------------------------------------------------------
+describe('createSale — credit portion requires a customer', () => {
+  let db: Database.Database
+  let cajero: SeededUser
+  let registerId: number
+  let productId: number
+
+  beforeEach(() => {
+    db = createTestDb()
+    cajero = seedUser(db, { role: 'cajero' })
+    registerId = seedOpenRegister(db, cajero.id, 0).id
+    productId = seedProduct(db, 100)
+  })
+
+  const stockOf = (): number => (getProductById(productId) as { stock: number }).stock
+
+  test('1 — pure credit sale with no customer throws and rolls stock back', () => {
+    expect(() =>
+      createSale({
+        registerId,
+        userId: cajero.id,
+        customerId: null,
+        items: [{ productId, quantity: 1, unitPrice: 100_000, subtotal: 100_000 }],
+        subtotal: 100_000,
+        discount: 0,
+        total: 100_000,
+        paymentMethod: 'credit'
+      })
+    ).toThrow(/requiere un cliente/)
+    // No sale row, no stock decrement.
+    expect(stockOf()).toBe(100)
+    expect((db.prepare('SELECT COUNT(*) as c FROM sales').get() as { c: number }).c).toBe(0)
+  })
+
+  test('2 — mixed sale with a credit line and no customer throws and rolls stock back', () => {
+    expect(() =>
+      createSale({
+        registerId,
+        userId: cajero.id,
+        customerId: null,
+        items: [{ productId, quantity: 1, unitPrice: 100_000, subtotal: 100_000 }],
+        subtotal: 100_000,
+        discount: 0,
+        total: 100_000,
+        paymentMethod: 'mixed',
+        payments: [
+          { method: 'cash', amount: 40_000 },
+          { method: 'credit', amount: 60_000 }
+        ]
+      })
+    ).toThrow(/requiere un cliente/)
+    expect(stockOf()).toBe(100)
+    expect((db.prepare('SELECT COUNT(*) as c FROM sales').get() as { c: number }).c).toBe(0)
+  })
+
+  test('3 — mixed sale WITHOUT a credit line is still allowed with no customer', () => {
+    const sale = createSale({
+      registerId,
+      userId: cajero.id,
+      customerId: null,
+      items: [{ productId, quantity: 1, unitPrice: 100_000, subtotal: 100_000 }],
+      subtotal: 100_000,
+      discount: 0,
+      total: 100_000,
+      paymentMethod: 'mixed',
+      payments: [
+        { method: 'cash', amount: 50_000 },
+        { method: 'cash', amount: 50_000 }
+      ]
+    }) as { total: number }
+    expect(sale.total).toBe(100_000)
+    expect(stockOf()).toBe(99)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Migration v13 — additive credit-limit columns on customers.
 // ---------------------------------------------------------------------------
 describe('migration v13 — credit_limit columns', () => {

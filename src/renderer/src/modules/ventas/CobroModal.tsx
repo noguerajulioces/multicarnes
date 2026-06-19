@@ -1,15 +1,5 @@
-import { useState, useEffect } from 'react'
-import {
-  X,
-  User,
-  Banknote,
-  CreditCard,
-  ArrowLeftRight,
-  Clock,
-  Layers,
-  Plus,
-  Trash2
-} from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Banknote, CreditCard, ArrowLeftRight, Clock, Layers, Plus, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
@@ -17,7 +7,7 @@ import { formatGs } from '../../lib/utils'
 import { Button, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
 import { handleApiError } from '../../lib/api-error'
-import { useDebouncedValue } from '../../lib/use-debounced-value'
+import CustomerPicker from './CustomerPicker'
 import { PROCESSORS } from '../../lib/processors'
 import type { Customer, PaymentMethod, PaymentProcessor, Sale } from '@shared/types'
 import TicketPreviewModal from './TicketPreviewModal'
@@ -73,10 +63,9 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
   const total = useCartStore((s) => s.total)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [cashReceived, setCashReceived] = useState(0)
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [customerSearch, setCustomerSearch] = useState('')
-  const debouncedCustomerSearch = useDebouncedValue(customerSearch)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const handleSelectCustomer = useCallback((c: Customer) => setSelectedCustomer(c), [])
+  const handleClearCustomer = useCallback(() => setSelectedCustomer(null), [])
   const [cardProcessor, setCardProcessor] = useState<PaymentProcessor | null>(null)
   const [cardReference, setCardReference] = useState('')
   const [transferReference, setTransferReference] = useState('')
@@ -86,16 +75,6 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
   ])
   const [loading, setLoading] = useState(false)
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
-
-  useEffect(() => {
-    if (debouncedCustomerSearch.length >= 2) {
-      window.api.customers
-        .getAll({ search: debouncedCustomerSearch })
-        .then((res) => setCustomers(res.items))
-    } else {
-      setCustomers([])
-    }
-  }, [debouncedCustomerSearch])
 
   const totalAmount = total()
   const change = paymentMethod === 'cash' ? cashReceived - totalAmount : 0
@@ -266,61 +245,11 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
       <div className="space-y-5">
         <div>
           <label className="block text-sm text-text-muted mb-1.5">Cliente (opcional)</label>
-          {selectedCustomer ? (
-            <div className="flex items-center justify-between border border-border rounded-xl p-3 bg-surface-muted/40">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-full bg-brand-light text-brand flex items-center justify-center shrink-0">
-                  <User size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-medium truncate text-text-main">{selectedCustomer.name}</p>
-                  <p className="text-xs text-text-muted tabular-nums">
-                    Saldo: {formatGs(selectedCustomer.balance)}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedCustomer(null)}
-                className="text-danger-500 hover:text-danger-700 p-1 rounded shrink-0"
-                aria-label="Quitar cliente"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              <Input
-                value={customerSearch}
-                onChange={(e) => setCustomerSearch(e.target.value)}
-                placeholder="Buscar cliente..."
-              />
-              {customers.length > 0 && (
-                <div
-                  className="absolute top-full left-0 right-0 bg-surface border border-border rounded-xl mt-1 z-10 max-h-44 overflow-y-auto"
-                  style={{ boxShadow: 'var(--shadow-popover)' }}
-                >
-                  {customers.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCustomer(c)
-                        setCustomerSearch('')
-                        setCustomers([])
-                      }}
-                      className="w-full text-left px-3 py-2 hover:bg-surface-muted text-sm flex items-center justify-between gap-2"
-                    >
-                      <span className="truncate text-text-main">{c.name}</span>
-                      <span className="text-xs text-text-muted tabular-nums shrink-0">
-                        {formatGs(c.balance)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          <CustomerPicker
+            selected={selectedCustomer}
+            onSelect={handleSelectCustomer}
+            onClear={handleClearCustomer}
+          />
         </div>
 
         <div>
