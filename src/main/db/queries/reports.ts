@@ -108,6 +108,27 @@ export function cashRegisterReport() {
     .all()
 }
 
+// 010-report-export: individual caja movements for a period, itemized into the
+// Ventas export (each apertura/cierre/ingreso/egreso is its own row, like a sale,
+// interleaved chronologically). Excludes movements annulled via void_of (same
+// filter as getCashRegisterSummary in cash.ts). 'opening'/'closing' carry the
+// register's apertura/cierre amount; 'income'/'expense' carry each movement.
+export function cashMovementsForExport(from: string, to: string) {
+  return getDb()
+    .prepare(
+      `
+    SELECT cm.created_at, cm.type, cm.amount, cm.description, u.name AS user_name
+    FROM cash_movements cm
+    LEFT JOIN users u ON cm.user_id = u.id
+    WHERE cm.created_at >= ? AND cm.created_at < date(?, '+1 day')
+      AND cm.type IN ('opening', 'closing', 'income', 'expense')
+      AND NOT EXISTS (SELECT 1 FROM cash_movements v WHERE v.void_of = cm.id)
+    ORDER BY cm.created_at ASC
+  `
+    )
+    .all(from, to)
+}
+
 export function pendingCredits() {
   return getDb()
     .prepare(
@@ -118,6 +139,21 @@ export function pendingCredits() {
       c.phone,
       c.is_employee,
       c.balance,
+      -- 009-mixed-payment-breakdown: gross credit GENERATED (lifetime flujo, no
+      -- payments deducted) split by origin, so the owner can see how much of a
+      -- debtor's history came from mixed sales vs pure credit. This is NOT a split
+      -- of the live balance — once payments land they can't be attributed to a
+      -- specific sale (customer_payments has no sale_id). Same UNION-of-sources
+      -- idiom as byCardProcessor.
+      (SELECT COALESCE(SUM(s.total), 0) FROM sales s
+        WHERE s.customer_id = c.id AND s.status = 'completed'
+          AND s.payment_method = 'credit'
+      ) AS credit_generated,
+      (SELECT COALESCE(SUM(sp.amount), 0) FROM sale_payments sp
+        JOIN sales s ON sp.sale_id = s.id
+        WHERE s.customer_id = c.id AND s.status = 'completed'
+          AND s.payment_method = 'mixed' AND sp.method = 'credit'
+      ) AS mixed_credit_generated,
       (SELECT MAX(s.created_at) FROM sales s
         WHERE s.customer_id = c.id
           AND s.status = 'completed'
@@ -166,20 +202,38 @@ export function salesSummary(from: string, to: string) {
     )
     .all(from, to)
 
+  // 009-mixed-payment-breakdown: distribute each mixed sale's portions into
+  // their real method buckets instead of collapsing them under a 'mixed' label.
+  // Same UNION ALL idiom as byCardProcessor below and otherMethodsTotals in
+  // cash.ts: branch (A) single-method sales (their full total), branch (B) the
+  // per-portion rows of mixed sales. The CHECK on sale_payments.method keeps the
+  // bucket set to cash|card|credit|transfer, so 'mixed' never reappears.
+  // Σ buckets == Σ sales.total (createSale enforces Σ portions === total), so the
+  // per-method breakdown reconciles with `totals.total` and the cash bucket
+  // matches the Caja's expected-cash math (cashSales + mixedCash).
   const byMethod = db
     .prepare(
       `
-    SELECT
-      payment_method AS method,
-      COUNT(*) AS sales_count,
-      COALESCE(SUM(total), 0) AS total
-    FROM sales
-    WHERE created_at >= ? AND created_at < date(?, '+1 day') AND status = 'completed'
-    GROUP BY payment_method
-    ORDER BY total DESC
+    SELECT method, COUNT(*) AS sales_count, COALESCE(SUM(amount), 0) AS total
+    FROM (
+      SELECT payment_method AS method, total AS amount
+      FROM sales
+      WHERE created_at >= ? AND created_at < date(?, '+1 day')
+        AND status = 'completed' AND payment_method != 'mixed'
+      UNION ALL
+      SELECT sp.method AS method, sp.amount AS amount
+      FROM sale_payments sp
+      JOIN sales s ON sp.sale_id = s.id
+      WHERE s.created_at >= ? AND s.created_at < date(?, '+1 day')
+        AND s.status = 'completed' AND s.payment_method = 'mixed'
+    ) t
+    GROUP BY method
+    ORDER BY CASE method
+      WHEN 'cash' THEN 1 WHEN 'card' THEN 2 WHEN 'transfer' THEN 3 WHEN 'credit' THEN 4 ELSE 5
+    END
   `
     )
-    .all(from, to)
+    .all(from, to, from, to)
 
   // 006-card-payments: card revenue split by acquirer for the Resumen
   // sub-rows. Combines single-method card sales with the card portion of
@@ -225,7 +279,22 @@ export function salesSummary(from: string, to: string) {
     )
     .all(from, to)
 
-  return { totals, byDay, byMethod, byCardProcessor, byUser }
+  // 009: informational count of mixed sales in the period. Surfaced as context
+  // ("N ventas mixtas distribuidas") without adding money to any bucket — the
+  // money already lives distributed across byMethod.
+  const mixedCount = (
+    db
+      .prepare(
+        `
+    SELECT COUNT(*) AS c FROM sales
+    WHERE created_at >= ? AND created_at < date(?, '+1 day')
+      AND status = 'completed' AND payment_method = 'mixed'
+  `
+      )
+      .get(from, to) as { c: number }
+  ).c
+
+  return { totals, byDay, byMethod, byCardProcessor, byUser, mixedCount }
 }
 
 // 006-card-payments: detailed card-sales listing for the supervisor's

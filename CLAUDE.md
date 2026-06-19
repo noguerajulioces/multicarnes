@@ -1,5 +1,24 @@
 <!-- SPECKIT START -->
-Active feature: **008-debt-payment-types** — el modal "Registrar Pago"
+Active feature: **009-mixed-payment-breakdown** — hacer visible el desglose de
+las ventas mixtas para verificar deuda y conciliar por método. Hoy una mixta se
+guarda como `sales.payment_method='mixed'` (etiqueta monolítica) con su desglose
+real en `sale_payments`, pero los reportes agregan por la etiqueta sin
+explotarlo. Solución de **capa de lectura** que reusa el patrón `UNION ALL` ya
+presente (`byCardProcessor`/`otherMethodsTotals`): (1) reescribir `byMethod` de
+`salesSummary` para distribuir las porciones a sus buckets reales (el efectivo
+del Resumen pasa a usar la misma fórmula que la Caja) + `mixedCount` informativo;
+(2) `pendingCredits` gana `credit_generated`/`mixed_credit_generated` y la ficha
+etiqueta "Fiado en esta venta" en crédito puro y mixto; (3) `getAllSales` adjunta
+`sale_payments` por batch + opt `creditOnly` + `Sale.credit_portion`, con export
+por método. Más un guard de servidor en `createSale` (FR-013): toda porción de
+crédito —pura o mixta— exige cliente. **Cero IPC nuevas, cero dependencias, cero
+migración** (el desglose ya vive en `sale_payments`).
+
+Plan: [specs/009-mixed-payment-breakdown/plan.md](specs/009-mixed-payment-breakdown/plan.md).
+Spec: [specs/009-mixed-payment-breakdown/spec.md](specs/009-mixed-payment-breakdown/spec.md).
+Análisis: [specs/009-mixed-payment-breakdown/flows.md](specs/009-mixed-payment-breakdown/flows.md).
+
+Prior feature: **008-debt-payment-types** — el modal "Registrar Pago"
 del detalle del cliente ofrece dos modos: (1) **Efectivo (afecta caja)**
 inserta `customer_payments` + `cash_movements` (income) en la caja
 abierta del cobrador, dentro de una única `db.transaction()`; (2)

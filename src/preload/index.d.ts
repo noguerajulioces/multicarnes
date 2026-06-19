@@ -91,6 +91,7 @@ interface ApiSales {
       to?: string
       paymentMethod?: string
       userId?: number
+      creditOnly?: boolean
     } & PageOpts
   ): Promise<Paginated<Sale>>
   getById(id: number): Promise<Sale | null>
@@ -175,6 +176,10 @@ interface PendingCreditRow {
   phone: string | null
   is_employee: number
   balance: number
+  // 009: gross credit GENERATED lifetime, split by origin (flujo, not stock).
+  // `balance` stays the source of truth for the live debt.
+  credit_generated: number
+  mixed_credit_generated: number
   last_credit_sale_at: string | null
   last_payment_at: string | null
 }
@@ -182,9 +187,17 @@ interface PendingCreditRow {
 interface SalesSummaryResult {
   totals: { sales_count: number; total: number; discount: number; subtotal: number }
   byDay: { day: string; sales_count: number; total: number }[]
-  byMethod: { method: string; sales_count: number; total: number }[]
+  // 009: each mixed sale's portions are distributed to their real method bucket,
+  // so `method` is never 'mixed' and `sales_count` counts movements per method.
+  byMethod: {
+    method: 'cash' | 'card' | 'credit' | 'transfer'
+    sales_count: number
+    total: number
+  }[]
   byCardProcessor: { processor: string; sales_count: number; total: number }[]
   byUser: { user_id: number; user_name: string; sales_count: number; total: number }[]
+  // 009: informational count of mixed sales in the period (no money attached).
+  mixedCount: number
 }
 
 interface CardSalesRow {
@@ -196,6 +209,17 @@ interface CardSalesRow {
   reference: string | null
   amount: number
   source: 'single' | 'mixed'
+}
+
+// 010: individual caja movements itemized into the Ventas export. 'opening'/
+// 'closing' carry the register's apertura/cierre amount; 'income'/'expense' carry
+// each registered movement (expense shown negative in the export).
+interface CashMovementExportRow {
+  created_at: string
+  type: 'opening' | 'closing' | 'income' | 'expense'
+  amount: number
+  description: string | null
+  user_name: string | null
 }
 
 interface SalesComparisonResult {
@@ -232,6 +256,7 @@ interface ApiReports {
   salesSummary(from: string, to: string): Promise<SalesSummaryResult>
   salesComparison(from: string, to: string): Promise<SalesComparisonResult>
   cardSales(from: string, to: string, processor?: string): Promise<CardSalesRow[]>
+  cashMovementsForExport(from: string, to: string): Promise<CashMovementExportRow[]>
 }
 
 interface ApiBackup {

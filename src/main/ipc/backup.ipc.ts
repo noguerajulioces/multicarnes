@@ -1,4 +1,5 @@
 import { dialog, app, Notification } from 'electron'
+import iconPng from '../../../resources/icon.png?asset'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs'
 import { basename, join } from 'path'
 import { getDb } from '../db'
@@ -74,6 +75,7 @@ function startBackupScheduler(): void {
           new Notification({
             title: 'Backup programado',
             body: `Se guardó ${basename(file)}`,
+            icon: iconPng,
             silent: false
           }).show()
         }
@@ -83,6 +85,7 @@ function startBackupScheduler(): void {
           new Notification({
             title: 'Error en backup programado',
             body: err instanceof Error ? err.message : 'Error desconocido',
+            icon: iconPng,
             silent: false
           }).show()
         }
