@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.9.0](https://github.com/noguerajulioces/multicarnes/compare/v1.8.4...v1.9.0) (2026-06-19)
+
+### Features
+
+* **reportes:** visibilidad de ventas mixtas (009) + rework del export de ventas con caja (010) ([#30](https://github.com/noguerajulioces/multicarnes/issues/30)) ([028813a](https://github.com/noguerajulioces/multicarnes/commit/028813a15e9e30dc2e0cb491ec423e1d4d91edb7))
+
+### Bug Fixes
+
+* add icon to backup and notification messages for better user experience ([f661613](https://github.com/noguerajulioces/multicarnes/commit/f6616136e3bf4aff408db60bc4312adef9c36f6f))
+* auditoría aritmética — validaciones de servidor (fiado/stock), arqueo en anulaciones y perf del POS ([#29](https://github.com/noguerajulioces/multicarnes/issues/29)) ([020cfc8](https://github.com/noguerajulioces/multicarnes/commit/020cfc8834d8f7726b48e8208c4746a862647482)), closes [#1](https://github.com/noguerajulioces/multicarnes/issues/1) [#2](https://github.com/noguerajulioces/multicarnes/issues/2) [#3](https://github.com/noguerajulioces/multicarnes/issues/3) [#12](https://github.com/noguerajulioces/multicarnes/issues/12)
+
 ## [1.8.4](https://github.com/noguerajulioces/multicarnes/compare/v1.8.3...v1.8.4) (2026-06-12)
 
 ### Bug Fixes
