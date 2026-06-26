@@ -39,9 +39,15 @@ interface Props {
   rows: CashMovementRow[]
   callerRole: Role | undefined
   onVoid?: (row: CashMovementRow) => void
+  voidingId?: number | null
 }
 
-export default function MovimientosTable({ rows, callerRole, onVoid }: Props): React.JSX.Element {
+export default function MovimientosTable({
+  rows,
+  callerRole,
+  onVoid,
+  voidingId
+}: Props): React.JSX.Element {
   const navigate = useNavigate()
   const showActions = callerRole !== 'cajero'
 
@@ -137,9 +143,10 @@ export default function MovimientosTable({ rows, callerRole, onVoid }: Props): R
                       <button
                         type="button"
                         onClick={() => onVoid(row)}
-                        className="text-xs px-2 py-1 rounded-md border border-border text-text-muted hover:bg-surface-muted hover:text-text-main transition-colors"
+                        disabled={voidingId === row.id}
+                        className="text-xs px-2 py-1 rounded-md border border-border text-text-muted hover:bg-surface-muted hover:text-text-main transition-colors disabled:opacity-50 disabled:pointer-events-none"
                       >
-                        Anular
+                        {voidingId === row.id ? 'Anulando...' : 'Anular'}
                       </button>
                     ) : null}
                   </td>

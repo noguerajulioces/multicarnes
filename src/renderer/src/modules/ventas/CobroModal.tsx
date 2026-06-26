@@ -7,6 +7,7 @@ import { formatGs } from '../../lib/utils'
 import { Button, Input, Modal, MoneyInput } from '../../components/ui'
 import { cn } from '../../lib/utils'
 import { handleApiError } from '../../lib/api-error'
+import { useInFlightGuard } from '../../hooks/use-in-flight-guard'
 import CustomerPicker from './CustomerPicker'
 import { PROCESSORS } from '../../lib/processors'
 import type { Customer, PaymentMethod, PaymentProcessor, Sale } from '@shared/types'
@@ -75,6 +76,9 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
   ])
   const [loading, setLoading] = useState(false)
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
+  // 011-double-submit-guard: lock síncrono inmune al timing de re-render de React,
+  // para que un doble-click/doble-tap no dispare sales.create dos veces.
+  const runExclusive = useInFlightGuard()
 
   const totalAmount = total()
   const change = paymentMethod === 'cash' ? cashReceived - totalAmount : 0
@@ -129,7 +133,6 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
 
   const handleConfirm = async (): Promise<void> => {
     if (!user || !register) return
-    setLoading(true)
 
     const saleItems = items.map((i) => ({
       productId: i.product.id,
@@ -169,27 +172,31 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
       paymentReference = transferReference.trim() || null
     }
 
-    try {
-      const created = await window.api.sales.create({
-        registerId: register.id,
-        userId: user.id,
-        customerId: selectedCustomer?.id || null,
-        items: saleItems,
-        subtotal: subtotal(),
-        discount: discount,
-        total: totalAmount,
-        paymentMethod,
-        paymentProcessor,
-        paymentReference,
-        payments
-      })
-      // createSale ya devuelve la venta completa (items + payments) vía
-      // getSaleById, así que no hace falta un segundo round-trip para el ticket.
-      setCompletedSale(created)
-    } catch (err: unknown) {
-      handleApiError(err)
-    }
-    setLoading(false)
+    await runExclusive(async () => {
+      setLoading(true)
+      try {
+        const created = await window.api.sales.create({
+          registerId: register.id,
+          userId: user.id,
+          customerId: selectedCustomer?.id || null,
+          items: saleItems,
+          subtotal: subtotal(),
+          discount: discount,
+          total: totalAmount,
+          paymentMethod,
+          paymentProcessor,
+          paymentReference,
+          payments
+        })
+        // createSale ya devuelve la venta completa (items + payments) vía
+        // getSaleById, así que no hace falta un segundo round-trip para el ticket.
+        setCompletedSale(created)
+      } catch (err: unknown) {
+        handleApiError(err)
+      } finally {
+        setLoading(false)
+      }
+    })
   }
 
   if (completedSale) {

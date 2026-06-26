@@ -42,6 +42,7 @@ import {
 import { usePageTour } from '../../lib/use-page-tour'
 import { clienteFichaTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
+import { useInFlightGuard } from '../../hooks/use-in-flight-guard'
 import type { Customer, Sale, CustomerPayment, PaymentMethod } from '@shared/types'
 
 const methodLabel: Record<PaymentMethod, string> = {
@@ -76,7 +77,12 @@ export default function ClienteFichaPage() {
   const [payAmount, setPayAmount] = useState(0)
   const [payNote, setPayNote] = useState('')
   const [payAffectsCash, setPayAffectsCash] = useState(true)
+  const [savingPayment, setSavingPayment] = useState(false)
   const [expandedSale, setExpandedSale] = useState<number | null>(null)
+  // 011-double-submit-guard: locks síncronos independientes para registrar y para
+  // anular un pago (ambos tocan caja vía cash_movements), inmunes al timing de React.
+  const runPayment = useInFlightGuard()
+  const runVoidPayment = useInFlightGuard()
 
   // Reset the sales pager synchronously when navigating to a different customer,
   // so the single load effect below never fires once with a stale (out-of-range)
@@ -116,42 +122,47 @@ export default function ClienteFichaPage() {
   const handlePayment = async (): Promise<void> => {
     if (!user || !id || !payAmount) return
     if (payAffectsCash && !canPayCash) return
-    try {
-      await window.api.customers.addPayment(
-        Number(id),
-        user.id,
-        payAmount,
-        payNote || undefined,
-        payAffectsCash
-      )
-      toast.success('Pago registrado')
-    } catch (err) {
-      handleApiError(err)
-      return
-    }
-    closePaymentModal()
-    loadData()
+    await runPayment(async () => {
+      setSavingPayment(true)
+      try {
+        await window.api.customers.addPayment(
+          Number(id),
+          user.id,
+          payAmount,
+          payNote || undefined,
+          payAffectsCash
+        )
+        toast.success('Pago registrado')
+        closePaymentModal()
+        loadData()
+      } catch (err) {
+        handleApiError(err)
+      } finally {
+        setSavingPayment(false)
+      }
+    })
   }
 
   const handleVoidPayment = async (p: CustomerPayment): Promise<void> => {
     const message = p.affects_cash
       ? 'Se restaurará la deuda del cliente y se anulará el ingreso en la caja. Queda registrado en el historial.'
       : 'Se restaurará la deuda del cliente. Queda registrado en el historial.'
-    const ok = await confirm({
-      title: 'Anular pago',
-      message,
-      confirmLabel: 'Anular',
-      danger: true
+    await runVoidPayment(async () => {
+      const ok = await confirm({
+        title: 'Anular pago',
+        message,
+        confirmLabel: 'Anular',
+        danger: true
+      })
+      if (!ok) return
+      try {
+        await window.api.customers.voidPayment(p.id)
+        loadData()
+        toast.success('Pago anulado')
+      } catch (err) {
+        handleApiError(err)
+      }
     })
-    if (!ok) return
-    try {
-      await window.api.customers.voidPayment(p.id)
-    } catch (err) {
-      handleApiError(err)
-      return
-    }
-    loadData()
-    toast.success('Pago anulado')
   }
 
   const { startTour } = usePageTour({
@@ -536,9 +547,9 @@ export default function ClienteFichaPage() {
             </Button>
             <Button
               onClick={handlePayment}
-              disabled={!payAmount || (payAffectsCash && !canPayCash)}
+              disabled={savingPayment || !payAmount || (payAffectsCash && !canPayCash)}
             >
-              Guardar
+              {savingPayment ? 'Procesando...' : 'Guardar'}
             </Button>
           </div>
         }

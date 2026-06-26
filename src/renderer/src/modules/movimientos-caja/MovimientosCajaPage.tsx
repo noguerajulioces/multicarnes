@@ -18,6 +18,7 @@ import { exportToExcel } from '../../lib/export'
 import { confirm } from '../../lib/confirm'
 import { toast } from '../../lib/toast'
 import { handleApiError } from '../../lib/api-error'
+import { useInFlightGuard } from '../../hooks/use-in-flight-guard'
 import { formatDateTime, formatGs } from '../../lib/utils'
 import { useAuthStore } from '../../store/auth.store'
 import { FileSpreadsheet, History } from 'lucide-react'
@@ -65,6 +66,9 @@ export default function MovimientosCajaPage(): React.JSX.Element {
     useMovimientosQuery()
   const [exporting, setExporting] = useState(false)
   const [voidingId, setVoidingId] = useState<number | null>(null)
+  // 011-double-submit-guard: lock síncrono para que un doble-click en "Anular" no
+  // dispare dos movimientos inversos (descuadraría el arqueo), inmune al re-render.
+  const runVoid = useInFlightGuard()
 
   const onConsultar = (): void => {
     // Filter inputs already update state via onChange; we still expose a
@@ -106,24 +110,26 @@ export default function MovimientosCajaPage(): React.JSX.Element {
   }
 
   const handleVoid = async (row: CashMovementRow): Promise<void> => {
-    const ok = await confirm({
-      title: 'Anular movimiento',
-      message: `Vas a anular "${row.description}" por ${formatGs(row.amount)}. Se va a registrar un movimiento inverso, el original queda como historial. ¿Confirmás?`,
-      confirmLabel: 'Anular',
-      cancelLabel: 'Cancelar',
-      danger: true
+    await runVoid(async () => {
+      const ok = await confirm({
+        title: 'Anular movimiento',
+        message: `Vas a anular "${row.description}" por ${formatGs(row.amount)}. Se va a registrar un movimiento inverso, el original queda como historial. ¿Confirmás?`,
+        confirmLabel: 'Anular',
+        cancelLabel: 'Cancelar',
+        danger: true
+      })
+      if (!ok) return
+      setVoidingId(row.id)
+      try {
+        await window.api.cashMovements.void(row.id)
+        toast.success('Movimiento anulado.')
+        await refetch()
+      } catch (err) {
+        handleApiError(err)
+      } finally {
+        setVoidingId(null)
+      }
     })
-    if (!ok) return
-    setVoidingId(row.id)
-    try {
-      await window.api.cashMovements.void(row.id)
-      toast.success('Movimiento anulado.')
-      await refetch()
-    } catch (err) {
-      handleApiError(err)
-    } finally {
-      setVoidingId(null)
-    }
   }
 
   const rows = data?.items ?? []
@@ -179,6 +185,7 @@ export default function MovimientosCajaPage(): React.JSX.Element {
           <MovimientosTable
             rows={rows}
             callerRole={callerRole}
+            voidingId={voidingId}
             onVoid={
               callerRole === 'admin' || callerRole === 'supervisor'
                 ? (row) => {
