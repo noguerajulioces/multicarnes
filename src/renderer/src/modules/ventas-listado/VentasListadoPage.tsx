@@ -220,6 +220,24 @@ export default function VentasListadoPage() {
     return events.map((e) => e.row)
   }
 
+  // Payment-method breakdown for the PDF's "Resumen del período" block.
+  // Reuses portionOf so mixed sales are split into their real buckets and
+  // cancelled sales contribute nothing — reconciling with the on-screen footer
+  // total and the credit shown per sale.
+  const buildPdfSummary = (sales: Sale[]): { label: string; value: string }[] => {
+    const active = sales.filter((s) => s.status !== 'cancelled')
+    const total = active.reduce((a, s) => a + s.total, 0)
+    const sum = (m: PaymentMethod): number => sales.reduce((a, s) => a + portionOf(s, m), 0)
+    return [
+      { label: `Total (${active.length} ventas)`, value: formatGs(total) },
+      { label: 'Efectivo', value: formatGs(sum('cash')) },
+      // Transferencia/QR y Tarjeta van en una sola línea: para el cliente es lo
+      // mismo (pago electrónico, no efectivo).
+      { label: 'Transferencia / QR / Tarjeta', value: formatGs(sum('transfer') + sum('card')) },
+      { label: 'Fiado', value: formatGs(sum('credit')) }
+    ]
+  }
+
   // Export fetches the full period (no pagination) so the file always
   // reflects the whole date range the user is looking at, not just the
   // current page.
@@ -242,14 +260,14 @@ export default function VentasListadoPage() {
   // Flip `exporting` and yield a frame first so the button can paint its
   // disabled/"Generando..." state before the UI freezes during generation.
   const runExport = async (
-    generate: (rows: Record<string, unknown>[]) => void
+    generate: (rows: Record<string, unknown>[], sales: Sale[]) => void
   ): Promise<void> => {
     if (exporting) return
     setExporting(true)
     try {
       await new Promise((r) => requestAnimationFrame(() => r(null)))
       const [all, movements] = await Promise.all([fetchAllForExport(), fetchCashMovements()])
-      generate(buildExportRows(all, movements))
+      generate(buildExportRows(all, movements), all)
     } finally {
       setExporting(false)
     }
@@ -261,8 +279,14 @@ export default function VentasListadoPage() {
     )
 
   const handleExportPDF = (): Promise<void> =>
-    runExport((rows) =>
-      exportToPDF(rows, exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
+    runExport((rows, sales) =>
+      exportToPDF(
+        rows,
+        exportColumns,
+        `ventas_${from}_${to}`,
+        `Ventas (${from} a ${to})`,
+        buildPdfSummary(sales)
+      )
     )
 
   const hasData = data.length > 0

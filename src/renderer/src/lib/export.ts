@@ -80,7 +80,11 @@ export function exportToPDF(
   data: Record<string, unknown>[],
   columns: ExportColumn[],
   filename: string,
-  title: string
+  title: string,
+  // Optional pre-formatted key/value lines rendered as a "Resumen del período"
+  // block between the header and the table. Values arrive already formatted as
+  // strings so export.ts stays domain-agnostic (no formatGs here).
+  summary?: { label: string; value: string }[]
 ): void {
   // 010: wide tables (many columns) overflow a portrait page and clip text, so
   // switch to landscape automatically once there are enough columns to need it.
@@ -98,6 +102,30 @@ export function exportToPDF(
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
   doc.text(`Generado: ${new Date().toLocaleString('es-PY')}`, margin, 28)
+
+  // Optional summary block ("Resumen del período"): label left, value right,
+  // rendered between the header and the table. Pushes the table down by its
+  // height so nothing overlaps.
+  let summaryBottom = 28
+  if (summary && summary.length > 0) {
+    // Keep the block compact: in landscape the full usableWidth would leave a
+    // huge gap between label and value, so cap the value column.
+    const summaryWidth = Math.min(usableWidth, 90)
+    let sy = 36
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Resumen del período', margin, sy)
+    sy += 6
+    doc.setFontSize(9.5)
+    summary.forEach((item) => {
+      doc.setFont('helvetica', 'normal')
+      doc.text(item.label, margin, sy)
+      doc.setFont('helvetica', 'bold')
+      doc.text(item.value, margin + summaryWidth, sy, { align: 'right' })
+      sy += 6
+    })
+    summaryBottom = sy
+  }
 
   // Table
   const rows = getExportRows(data, columns, 'pdf')
@@ -120,7 +148,7 @@ export function exportToPDF(
     align: columns[i].align === 'right' ? 'right' : 'left'
   })
 
-  const startY = 35
+  const startY = summary && summary.length > 0 ? summaryBottom + 4 : 35
   const rowHeight = 7
   const headerHeight = 8
   // Denser tables need a smaller font so each cell fits on a single line.
