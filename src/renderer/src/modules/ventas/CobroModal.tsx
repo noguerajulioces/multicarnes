@@ -1,5 +1,15 @@
 import { useState, useCallback } from 'react'
-import { Banknote, CreditCard, ArrowLeftRight, Clock, Layers, Plus, Trash2 } from 'lucide-react'
+import {
+  Banknote,
+  CreditCard,
+  ArrowLeftRight,
+  Clock,
+  Layers,
+  Plus,
+  Trash2,
+  Loader2,
+  X
+} from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useCartStore } from '../../store/cart.store'
 import { useCashStore } from '../../store/cash.store'
@@ -11,6 +21,7 @@ import CustomerPicker from './CustomerPicker'
 import { PROCESSORS } from '../../lib/processors'
 import type { Customer, PaymentMethod, PaymentProcessor, Sale } from '@shared/types'
 import TicketPreviewModal from './TicketPreviewModal'
+import SaleSuccessSplash from './SaleSuccessSplash'
 
 interface Props {
   onClose: () => void
@@ -75,6 +86,9 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
   ])
   const [loading, setLoading] = useState(false)
   const [completedSale, setCompletedSale] = useState<Sale | null>(null)
+  // Tras crear la venta mostramos primero el splash de éxito; recién cuando
+  // termina su animación pasamos al comprobante.
+  const [showTicket, setShowTicket] = useState(false)
 
   const totalAmount = total()
   const change = paymentMethod === 'cash' ? cashReceived - totalAmount : 0
@@ -192,6 +206,10 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
     setLoading(false)
   }
 
+  if (completedSale && !showTicket) {
+    return <SaleSuccessSplash sale={completedSale} onDone={() => setShowTicket(true)} />
+  }
+
   if (completedSale) {
     return (
       <TicketPreviewModal
@@ -199,6 +217,7 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
         cashReceived={paymentMethod === 'cash' ? cashReceived : undefined}
         change={paymentMethod === 'cash' && change > 0 ? change : undefined}
         onClose={onSuccess}
+        hideClose
       />
     )
   }
@@ -228,8 +247,8 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
       }
       footer={
         <div className="flex gap-3">
-          <Button variant="secondary" className="flex-1 rounded-xl" onClick={onClose}>
-            Cancelar
+          <Button variant="secondary" size="lg" className="flex-1 rounded-xl" onClick={onClose}>
+            <X size={18} /> Cancelar
           </Button>
           <Button
             className="flex-1 rounded-xl"
@@ -237,7 +256,15 @@ export default function CobroModal({ onClose, onSuccess }: Props) {
             onClick={handleConfirm}
             disabled={loading || !canConfirm()}
           >
-            {loading ? 'Procesando...' : 'Confirmar y Cobrar'}
+            {loading ? (
+              <>
+                <Loader2 size={18} className="animate-spin" /> Procesando...
+              </>
+            ) : (
+              <>
+                <Banknote size={18} /> Cobrar
+              </>
+            )}
           </Button>
         </div>
       }

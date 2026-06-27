@@ -19,6 +19,7 @@ interface Props {
   change?: number
   onClose: () => void
   closeLabel?: string
+  hideClose?: boolean
 }
 
 // 007-receipt-share: pre-pend a centered "ANULADA" marker so the void state is
@@ -41,7 +42,8 @@ export default function TicketPreviewModal({
   cashReceived,
   change,
   onClose,
-  closeLabel = 'Registrar Nueva Venta'
+  closeLabel = 'Finalizar',
+  hideClose = false
 }: Props) {
   const navigate = useNavigate()
   const [business, setBusiness] = useState({ name: '', address: '', phone: '' })
@@ -144,6 +146,7 @@ export default function TicketPreviewModal({
         onClose={onClose}
         size="md"
         closeOnBackdrop={false}
+        hideClose={hideClose}
         title={
           <div className="flex items-center gap-2">
             <span
@@ -158,22 +161,28 @@ export default function TicketPreviewModal({
           </div>
         }
         footer={
-          <div className="flex flex-wrap gap-2 justify-end">
-            <Button variant="secondary" onClick={handleWhatsApp}>
+          // Grilla de 2 columnas iguales para compartir + imprimir (mismo alto
+          // h-10 y ancho 1fr + w-full). "Finalizar" cierra la grilla ocupando el
+          // ancho completo (col-span-2) como único primario rojo, separado abajo
+          // para que la salida quede clara y prominente.
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" className="w-full" onClick={handleWhatsApp}>
               <MessageCircle size={16} /> WhatsApp
             </Button>
-            <Button variant="secondary" onClick={handleImage}>
+            <Button variant="secondary" className="w-full" onClick={handleImage}>
               <ImageDown size={16} /> Imagen
             </Button>
-            <Button variant="secondary" onClick={handlePdf}>
+            <Button variant="secondary" className="w-full" onClick={handlePdf}>
               <Download size={16} /> PDF
             </Button>
             {printerReady === false ? (
-              <Button variant="secondary" onClick={goToPrinterSettings}>
-                <Settings size={16} /> Configurar impresora
+              <Button variant="secondary" className="w-full" onClick={goToPrinterSettings}>
+                <Settings size={16} /> Configurar
               </Button>
             ) : (
               <Button
+                variant="secondary"
+                className="w-full"
                 onClick={handlePrint}
                 disabled={printing || printerReady === null}
                 title={printerReady === null ? 'Verificando impresora…' : undefined}
@@ -181,8 +190,8 @@ export default function TicketPreviewModal({
                 <Printer size={16} /> {printing ? 'Imprimiendo…' : 'Imprimir'}
               </Button>
             )}
-            <Button variant="primary" onClick={onClose}>
-              {closeLabel}
+            <Button variant="primary" className="w-full col-span-2" onClick={onClose}>
+              <Check size={16} /> {closeLabel}
             </Button>
           </div>
         }

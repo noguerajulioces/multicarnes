@@ -38,6 +38,18 @@ import { priceTypeInfo, formatQty } from '../../lib/price-types'
 import { isPromoActive } from '../../lib/promo'
 import CobroModal from './CobroModal'
 
+// No-negative-stock policy: a sale line can bring a product's stock down to zero
+// but never below. EPS absorbs REAL float noise on weight quantities (kg/l carry
+// up to 3 decimals) so an exact-stock add isn't rejected by a rounding hair.
+// Mirrors the authoritative server guard in createSale.
+const STOCK_EPS = 1e-6
+
+// Quantity of `productId` ALREADY in the cart (adds merge into one line), so the
+// "remaining" check accounts for prior adds and a second add can't push the
+// total over stock.
+const cartQtyOf = (items: CartItem[], productId: number): number =>
+  items.find((i) => i.product.id === productId)?.quantity ?? 0
+
 export default function VentasPage() {
   const navigate = useNavigate()
   const register = useCashStore((s) => s.register)
@@ -191,12 +203,25 @@ export default function VentasPage() {
       setScannerActive(false)
       setSearch('')
 
+      // No-negative-stock policy: read the current cart so a scan can't push a
+      // product over its stock either (the card click goes through the modal,
+      // but a scan adds straight to the cart). Server is authoritative.
+      const cartItems = useCartStore.getState().items
+
       // 1) Producto con código de barras fijo (envasado / por unidad)
       const exact = await window.api.products.getByBarcode(code)
       if (exact) {
+        const remaining = exact.stock - cartQtyOf(cartItems, exact.id)
         if (exact.price_type === 'kg') {
-          // Por kg pero se escaneó un código fijo: pedimos el peso a mano.
+          // Por kg pero se escaneó un código fijo: pedimos el peso a mano. El
+          // modal aplica el tope; si ya no queda nada, evitamos abrirlo en vano.
+          if (remaining <= STOCK_EPS) {
+            toast.error(`${exact.name} sin stock disponible. No se permite vender en negativo.`)
+            return
+          }
           openQuantityModal(exact)
+        } else if (1 > remaining + STOCK_EPS) {
+          toast.error(`${exact.name} sin stock disponible. No se permite vender en negativo.`)
         } else {
           addItem(exact, 1)
           toast.success(`${exact.name} agregado`)
@@ -210,6 +235,15 @@ export default function VentasPage() {
       if (balance) {
         const p = await window.api.products.getByBarcode(balance.productCode)
         if (p && p.price_type === 'kg') {
+          const remaining = p.stock - cartQtyOf(cartItems, p.id)
+          if (balance.weightKg > remaining + STOCK_EPS) {
+            toast.error(
+              remaining <= STOCK_EPS
+                ? `${p.name} sin stock disponible. No se permite vender en negativo.`
+                : `Solo quedan ${formatQty(remaining, 'kg')} de ${p.name}. No se permite vender en negativo.`
+            )
+            return
+          }
           addItem(p, balance.weightKg)
           toast.success(`${p.name}: ${balance.weightKg.toFixed(3)} kg agregado`)
           searchRef.current?.focus()
@@ -398,30 +432,24 @@ export default function VentasPage() {
     return parseFloat(quantity) || 0
   }
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = () => {
     if (!quantityModal) return
     const qty = computeQty(quantityModal)
     if (qty <= 0) return
-    // Overselling stays allowed (a butcher often weighs while the contable stock
-    // lags), but make it a CONSCIOUS choice: a blocking confirm spells out that
-    // the stock will go negative, so the owner notices instead of silently
-    // drifting into a "-5 kg" they don't understand. Mirrors the inline warning
-    // condition (finalQty > stock && stock > 0).
+    // No-negative-stock policy: hard block (no override). Remaining = current
+    // stock minus what's ALREADY in the cart for this product (adds merge), so a
+    // second add can't push the total over. The server re-enforces this as the
+    // source of truth; here we give immediate feedback instead of a failed cobro.
     const stock = quantityModal.stock
-    if (qty > stock && stock > 0) {
+    const remaining = stock - cartQtyOf(items, quantityModal.id)
+    if (qty > remaining + STOCK_EPS) {
       const pt = quantityModal.price_type
-      const ok = await confirm({
-        title: 'Vas a vender más de lo que tenés',
-        message:
-          `Estás por agregar ${formatQty(qty, pt)} de ${quantityModal.name}, ` +
-          `pero solo tenés ${formatQty(stock, pt)} en inventario.\n\n` +
-          `Si continuás, el stock quedará en ${formatQty(stock - qty, pt)} (negativo). ` +
-          `Cargá stock cuando recibas mercadería para mantenerlo al día.`,
-        confirmLabel: 'Vender igual',
-        cancelLabel: 'Cancelar',
-        danger: true
-      })
-      if (!ok) return
+      toast.error(
+        remaining <= STOCK_EPS
+          ? `${quantityModal.name} sin stock disponible. No se permite vender en negativo.`
+          : `Solo quedan ${formatQty(remaining, pt)} de ${quantityModal.name}. No se permite vender en negativo.`
+      )
+      return
     }
     addItem(quantityModal, qty)
     closeQuantityModal()
@@ -709,7 +737,21 @@ export default function VentasPage() {
             const allowAmountMode = qmPt.decimals > 0
             const presets = qmPt.decimals > 0 ? [0.25, 0.5, 1, 2] : [1, 2, 5, 10]
             const stock = product.stock
+            // Remaining accounts for what's already in the cart for this product
+            // (adds merge), so the modal can't be used to push the line over stock.
+            const inCart = cartQtyOf(items, product.id)
+            const remaining = stock - inCart
             const stockLabel = formatQty(stock, product.price_type)
+            const remainingLabel = formatQty(Math.max(0, remaining), product.price_type)
+            // "máx" = largest quantity at the product's input precision that
+            // still fits in remaining. FLOOR (not round-to-nearest): a rounded
+            // value could land above remaining and trip exceedsStock, disabling
+            // Agregar — the preset would contradict itself. The +1e-6 nudge (in
+            // scaled units) only cancels float-multiplication noise (e.g.
+            // 2.916*1000 = 2915.9999996) so an exact-precision remaining isn't
+            // floored down by a step; it's far too small to overshoot remaining.
+            const qmFactor = Math.pow(10, qmPt.decimals)
+            const maxAddable = Math.floor(remaining * qmFactor + 1e-6) / qmFactor
 
             const setQty = (n: number): void => {
               if (n <= 0) {
@@ -730,7 +772,7 @@ export default function VentasPage() {
               inputMode === 'amount' && amountInput > 0
                 ? amountInput
                 : Math.round(finalQty * product.price)
-            const exceedsStock = finalQty > stock && stock > 0
+            const exceedsStock = finalQty > remaining + STOCK_EPS
 
             return (
               <>
@@ -862,10 +904,10 @@ export default function VentasPage() {
                       ))}
                       <button
                         type="button"
-                        onClick={() => setQty(stock)}
-                        disabled={stock <= 0}
+                        onClick={() => setQty(maxAddable)}
+                        disabled={remaining <= STOCK_EPS}
                         className="flex-1 py-1.5 text-sm rounded-lg border border-border hover:bg-surface-muted text-text-main transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        title={`Establecer al stock disponible (${stockLabel})`}
+                        title={`Establecer al stock disponible (${remainingLabel})`}
                       >
                         máx
                       </button>
@@ -881,12 +923,16 @@ export default function VentasPage() {
                 )}
 
                 {finalQty > 0 && exceedsStock && (
-                  <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-warning-500/50 bg-warning-50 px-3 py-2.5">
-                    <AlertTriangle size={18} className="text-warning-700 shrink-0 mt-0.5" />
+                  <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-danger-500/50 bg-danger-50 px-3 py-2.5">
+                    <AlertTriangle size={18} className="text-danger-700 shrink-0 mt-0.5" />
                     <div className="text-sm leading-tight">
-                      <p className="font-semibold text-warning-700">Excede el stock disponible</p>
-                      <p className="text-xs text-warning-700/80 mt-0.5">
-                        Solo quedan {stockLabel} en inventario.
+                      <p className="font-semibold text-danger-700">
+                        No se permite vender en negativo
+                      </p>
+                      <p className="text-xs text-danger-700/80 mt-0.5">
+                        {remaining <= STOCK_EPS
+                          ? 'Este producto no tiene stock disponible.'
+                          : `Solo quedan ${remainingLabel} disponibles.`}
                       </p>
                     </div>
                   </div>
@@ -900,7 +946,11 @@ export default function VentasPage() {
                   <Button variant="secondary" className="flex-1" onClick={closeQuantityModal}>
                     Cancelar
                   </Button>
-                  <Button className="flex-[2]" onClick={handleAddToCart} disabled={finalQty <= 0}>
+                  <Button
+                    className="flex-[2]"
+                    onClick={handleAddToCart}
+                    disabled={finalQty <= 0 || exceedsStock}
+                  >
                     Agregar{finalQty > 0 ? ` · ${formatGs(finalTotal)}` : ''}
                   </Button>
                 </div>
@@ -926,7 +976,8 @@ export default function VentasPage() {
             )
             clear()
             setShowCobro(false)
-            toast.success('Venta registrada')
+            // El splash de éxito (SaleSuccessSplash) ya confirmó "¡Venta
+            // registrada!" antes del comprobante, así que acá no repetimos el toast.
             // Reconciliar SOLO los productos vendidos contra la fuente de verdad
             // (otra caja / ajuste manual), parchando su stock en el lugar. Antes se
             // re-pedía y re-renderizaba TODA la ventana cargada por scroll en cada
@@ -1163,9 +1214,15 @@ const CartItemsTable = memo(function CartItemsTable({
                   <button
                     type="button"
                     onClick={() =>
-                      onUpdateQuantity(item.product.id, item.quantity + itemPt.cartStep)
+                      onUpdateQuantity(
+                        item.product.id,
+                        // No-negative-stock policy: cap the line at the product's
+                        // stock (snapshot at add-time; the server is authoritative).
+                        Math.min(item.product.stock, item.quantity + itemPt.cartStep)
+                      )
                     }
-                    className="p-1 hover:bg-surface-muted rounded"
+                    disabled={item.quantity >= item.product.stock - STOCK_EPS}
+                    className="p-1 hover:bg-surface-muted rounded disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Plus size={14} />
                   </button>

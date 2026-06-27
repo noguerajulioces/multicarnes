@@ -189,3 +189,38 @@ input[type='number'] {
     transform: rotate(360deg);
   }
 }
+
+/* Sale-success splash (post-cobro): the green disc pops in, a ring pulses out
+   behind it, and the white check draws itself — a short, unmistakable "saved"
+   moment before the receipt. See SaleSuccessSplash.tsx. */
+@keyframes successPop {
+  0% {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes successRing {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes checkDraw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}

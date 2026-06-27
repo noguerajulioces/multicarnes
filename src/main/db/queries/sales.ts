@@ -24,6 +24,12 @@ interface CreateSaleData {
 
 const PROCESSORS: ReadonlySet<string> = new Set(['bancard', 'dinelco', 'upay'])
 
+// Tolerance for the no-negative-stock comparison. stock and sale_items.quantity
+// are REAL; weight products (kg/l) carry up to 3 decimals, so float noise can
+// make an exact-stock sale read as a hair over. 1e-6 is far below any real
+// quantity step (the smallest is 0.001 kg) yet swallows that noise.
+const STOCK_EPS = 1e-6
+
 function normalizeReference(value: string | null | undefined): string | null {
   if (value == null) return null
   const trimmed = value.trim()
@@ -112,6 +118,41 @@ export function createSale(data: CreateSaleData) {
     if (creditPortion(data) > 0 && !data.customerId) {
       throw new Error(
         'Una venta a fiado requiere un cliente asociado. Seleccioná un cliente antes de registrar la porción a crédito.'
+      )
+    }
+
+    // No-negative-stock policy: a sale may bring a product's stock down to
+    // exactly zero but never below. Authoritative hard block — computed before
+    // any write so a throw rolls the whole sale back (mirrors the credit-limit
+    // guard; stock untouched). Quantities are aggregated PER PRODUCT first so
+    // multiple cart lines of the same product (or a tampered payload) can't slip
+    // past a line-by-line check. The renderer mirrors this for UX but this is
+    // the source of truth. Applies to every product, payment method and role —
+    // no override.
+    const requiredByProduct = new Map<number, number>()
+    for (const it of data.items) {
+      requiredByProduct.set(it.productId, (requiredByProduct.get(it.productId) ?? 0) + it.quantity)
+    }
+    const readProductStock = db.prepare('SELECT name, stock FROM products WHERE id = ?')
+    const shortfalls: string[] = []
+    for (const [productId, required] of requiredByProduct) {
+      const row = readProductStock.get(productId) as { name: string; stock: number } | undefined
+      const available = row?.stock ?? 0
+      // EPS absorbs REAL float noise (e.g. 2.5 kg stored as 2.4999999996): a
+      // request equal to stock within EPS still counts as "fits".
+      if (required > available + STOCK_EPS) {
+        const label = row?.name ?? `#${productId}`
+        shortfalls.push(
+          `"${label}" (Disponible: ${formatQty(available)}, solicitado: ${formatQty(required)})`
+        )
+      }
+    }
+    // Report EVERY insufficient product at once (not just the first) so a stale
+    // cart — e.g. a resumed held ticket with several over-stock lines — surfaces
+    // the full list in one message instead of forcing a fix-one-retry loop.
+    if (shortfalls.length > 0) {
+      throw new Error(
+        `Stock insuficiente para ${shortfalls.join('; ')}. No se permite vender en negativo de stock.`
       )
     }
 
@@ -518,6 +559,15 @@ export function cancelSale(id: number, userId: number, options?: { refundMixedCr
 // e.g. 50000 → "Gs. 50.000".
 function formatGs(value: number): string {
   return `Gs. ${Math.round(value).toLocaleString('es-PY')}`
+}
+
+// Quantity formatter for the stock-guard message. Strips float noise (rounds to
+// 3 decimals, the finest quantity step) and renders es-PY (",": decimal). Unit-
+// less on purpose — the product name carries the context and this keeps the main
+// process free of the renderer's price-type/unit table.
+function formatQty(value: number): string {
+  const cleaned = Math.round(value * 1000) / 1000
+  return cleaned.toLocaleString('es-PY', { maximumFractionDigits: 3 })
 }
 
 export function getDaySalesTotal() {
