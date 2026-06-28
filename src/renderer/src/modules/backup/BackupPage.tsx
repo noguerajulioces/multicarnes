@@ -12,6 +12,7 @@ import {
   EmptyState,
   Input,
   PageHeader,
+  Pagination,
   TourButton
 } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
@@ -28,6 +29,8 @@ export default function BackupPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [backups, setBackups] = useState<BackupFile[]>([])
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const PER_PAGE = 8
 
   useEffect(() => {
     loadData()
@@ -57,6 +60,7 @@ export default function BackupPage() {
     try {
       const path = await window.api.backup.create()
       toast.success(`Backup creado: ${path}`)
+      setPage(1)
       window.api.backup.list().then(setBackups)
       window.api.notify.show('Backup creado', `Se guardó en ${path}`).catch(() => {})
     } catch (err: unknown) {
@@ -97,6 +101,8 @@ export default function BackupPage() {
   const scheduleTime = settings.backup_schedule_time || '22:00'
 
   const { startTour } = usePageTour({ key: 'backup', steps: backupTourSteps })
+
+  const pageBackups = backups.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -290,7 +296,7 @@ export default function BackupPage() {
                 />
               ) : (
                 <ul className="space-y-2">
-                  {backups.map((b) => (
+                  {pageBackups.map((b) => (
                     <li
                       key={b.name}
                       className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-border hover:bg-surface-muted/40 transition-colors"
@@ -310,6 +316,14 @@ export default function BackupPage() {
                 </ul>
               )}
             </CardBody>
+            {backups.length > PER_PAGE && (
+              <Pagination
+                page={page}
+                perPage={PER_PAGE}
+                total={backups.length}
+                onPageChange={setPage}
+              />
+            )}
           </Card>
         </div>
       </div>
