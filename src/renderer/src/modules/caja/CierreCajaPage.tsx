@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, Coins, TrendingUp, TrendingDown } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Coins,
+  FileText,
+  TrendingUp,
+  TrendingDown
+} from 'lucide-react'
 import { useCashStore } from '../../store/cash.store'
 import { useAuthStore } from '../../store/auth.store'
 import { daysOpen, formatDate, formatGs, isRegisterStale } from '../../lib/utils'
@@ -10,6 +17,9 @@ import { usePageTour } from '../../lib/use-page-tour'
 import { cajaCierreTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
 import { PROCESSOR_LABEL } from '../../lib/processors'
+import { downloadCierreReport, type CierreReportInput } from '../../lib/cierre-report'
+import CierreSuccessSplash from './CierreSuccessSplash'
+import type { Sale } from '@shared/types'
 
 interface OtherMethodRow {
   method: string
@@ -39,10 +49,16 @@ export default function CierreCajaPage() {
   const [loading, setLoading] = useState(false)
   const [otherMethods, setOtherMethods] = useState<OtherMethodRow[]>([])
   const [cardByProcessor, setCardByProcessor] = useState<CardProcessorRow[]>([])
+  // Post-close state: holds everything the cierre PDF needs. While set, the page
+  // shows the "caja cerrada" view (with the download button) instead of redirecting.
+  const [closed, setClosed] = useState<CierreReportInput | null>(null)
+  // Splash de éxito tras confirmar el cierre (se autodescarta y revela la vista
+  // "caja cerrada" con el botón de descarga).
+  const [splash, setSplash] = useState(false)
 
   useEffect(() => {
     if (!register) {
-      navigate('/caja/apertura')
+      if (!closed) navigate('/caja/apertura')
       return
     }
     window.api.cash.getSummary(register.id).then((s: unknown) => {
@@ -57,7 +73,7 @@ export default function CierreCajaPage() {
       setOtherMethods(sum.otherMethodsTotals ?? [])
       setCardByProcessor(sum.cardByProcessor ?? [])
     })
-  }, [register])
+  }, [register, closed, navigate])
 
   const difference = counted - expected
   const positiveDiff = difference >= 0
@@ -73,8 +89,29 @@ export default function CierreCajaPage() {
     }
     setLoading(true)
     try {
-      await window.api.cash.close(register.id, counted, notes || undefined, user?.id)
+      const closedReg = await window.api.cash.close(
+        register.id,
+        counted,
+        notes || undefined,
+        user?.id
+      )
+      // Gather the register-scoped data for the cierre PDF before clearing the
+      // store. getSummary/getByRegister/getMovements still work on a closed
+      // register (they query by register_id), and the closing/expected/difference
+      // are already persisted on the returned register.
+      const [summaryRaw, salesRaw, movementsRaw] = await Promise.all([
+        window.api.cash.getSummary(register.id),
+        window.api.sales.getByRegister(register.id),
+        window.api.cash.getMovements(register.id)
+      ])
+      setClosed({
+        register: closedReg as unknown as CierreReportInput['register'],
+        summary: summaryRaw as CierreReportInput['summary'],
+        sales: salesRaw as Sale[],
+        movements: movementsRaw as unknown as CierreReportInput['movements']
+      })
       setRegister(null)
+      setSplash(true)
       toast.success('Caja cerrada')
 
       try {
@@ -104,8 +141,7 @@ export default function CierreCajaPage() {
       } catch {
         /* no-op */
       }
-
-      navigate('/dashboard')
+      // No navegamos: mostramos la vista "caja cerrada" con el botón de descarga.
     } catch (err: unknown) {
       handleApiError(err)
     }
@@ -113,6 +149,49 @@ export default function CierreCajaPage() {
   }
 
   const { startTour } = usePageTour({ key: 'caja-cierre', steps: cajaCierreTourSteps })
+
+  // Vista post-cierre: la caja ya cerró; ofrecemos descargar el comprobante.
+  if (closed) {
+    const diff = closed.register.difference ?? 0
+    const cuadra = diff === 0
+    return (
+      <div className="max-w-3xl mx-auto">
+        {splash && <CierreSuccessSplash difference={diff} onDone={() => setSplash(false)} />}
+        <div
+          className="bg-surface rounded-2xl border border-border p-6 text-center"
+          style={{ boxShadow: 'var(--shadow-card-soft)' }}
+        >
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-white mx-auto mb-3"
+            style={{ background: 'var(--gradient-kpi-teal)' }}
+          >
+            <CheckCircle2 size={28} />
+          </div>
+          <h1 className="text-xl font-bold text-text-main">Caja cerrada</h1>
+          <p className="text-sm text-text-muted mt-1">
+            {cuadra ? (
+              'La caja cuadró.'
+            ) : (
+              <>
+                {diff > 0 ? 'Sobrante de ' : 'Faltante de '}
+                <span className="font-semibold">{formatGs(Math.abs(diff))}</span>.
+              </>
+            )}{' '}
+            Descargá el comprobante del cierre para archivarlo.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-5">
+            <Button onClick={() => downloadCierreReport(closed)}>
+              <FileText size={16} />
+              Descargar PDF del cierre
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/dashboard')}>
+              Ir al inicio
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-3xl mx-auto">

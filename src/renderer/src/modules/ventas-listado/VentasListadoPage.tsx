@@ -63,6 +63,12 @@ function portionOf(s: Sale, method: PaymentMethod): number {
   return 0
 }
 
+// "2026-06-01" (valor del input date) → "01-06-2026" para el título del reporte.
+const toDMY = (iso: string): string => {
+  const [y, m, d] = iso.split('-')
+  return d && m && y ? `${d}-${m}-${y}` : iso
+}
+
 const exportColumns = [
   { header: 'Fecha', key: '_fecha', width: 12 },
   { header: 'Hora', key: '_hora', width: 8 },
@@ -78,6 +84,23 @@ const exportColumns = [
   { header: 'Cierre', key: '_cierre', align: 'right' as const, width: 14, numeric: true },
   { header: 'Ingresos', key: '_ingresos', align: 'right' as const, width: 13, numeric: true },
   { header: 'Egresos', key: '_egresos', align: 'right' as const, width: 13, numeric: true }
+]
+
+// PDF: mismo contenido que el Excel pero sin N° ni Cajero. Los width son
+// proporciones (la tabla ocupa todo el ancho de la hoja).
+const pdfColumns = [
+  { header: 'Fecha', key: '_fecha', width: 19 },
+  { header: 'Hora', key: '_hora', width: 12 },
+  { header: 'Tipo', key: '_tipo', width: 16 },
+  { header: 'Cliente', key: 'customer_name', width: 24 },
+  { header: 'Concepto', key: '_concepto', width: 36 },
+  { header: 'Total', key: '_total', align: 'right' as const, width: 18, numeric: true },
+  { header: 'Fiado', key: '_fiado', align: 'right' as const, width: 15, numeric: true },
+  { header: 'Método', key: '_method', width: 22 },
+  { header: 'Apertura', key: '_apertura', align: 'right' as const, width: 16, numeric: true },
+  { header: 'Cierre', key: '_cierre', align: 'right' as const, width: 16, numeric: true },
+  { header: 'Ingresos', key: '_ingresos', align: 'right' as const, width: 15, numeric: true },
+  { header: 'Egresos', key: '_egresos', align: 'right' as const, width: 15, numeric: true }
 ]
 
 const tableHeadCls = 'bg-surface-muted/60 text-left text-text-muted'
@@ -220,24 +243,6 @@ export default function VentasListadoPage() {
     return events.map((e) => e.row)
   }
 
-  // Payment-method breakdown for the PDF's "Resumen del período" block.
-  // Reuses portionOf so mixed sales are split into their real buckets and
-  // cancelled sales contribute nothing — reconciling with the on-screen footer
-  // total and the credit shown per sale.
-  const buildPdfSummary = (sales: Sale[]): { label: string; value: string }[] => {
-    const active = sales.filter((s) => s.status !== 'cancelled')
-    const total = active.reduce((a, s) => a + s.total, 0)
-    const sum = (m: PaymentMethod): number => sales.reduce((a, s) => a + portionOf(s, m), 0)
-    return [
-      { label: `Total (${active.length} ventas)`, value: formatGs(total) },
-      { label: 'Efectivo', value: formatGs(sum('cash')) },
-      // Transferencia/QR y Tarjeta van en una sola línea: para el cliente es lo
-      // mismo (pago electrónico, no efectivo).
-      { label: 'Transferencia / QR / Tarjeta', value: formatGs(sum('transfer') + sum('card')) },
-      { label: 'Fiado', value: formatGs(sum('credit')) }
-    ]
-  }
-
   // Export fetches the full period (no pagination) so the file always
   // reflects the whole date range the user is looking at, not just the
   // current page.
@@ -254,6 +259,24 @@ export default function VentasListadoPage() {
     } catch {
       return []
     }
+  }
+
+  // Tablita de totales para la esquina superior del PDF: total vendido, lo que
+  // entró en caja (efectivo) y lo que no (transf./QR/tarjeta y fiado por separado).
+  // Reusa portionOf, así las mixtas se reparten a su método real.
+  const buildVentasSummary = (sales: Sale[]): { label: string; value: string }[] => {
+    const active = sales.filter((s) => s.status !== 'cancelled')
+    const total = active.reduce((a, s) => a + s.total, 0)
+    const sum = (m: PaymentMethod): number => sales.reduce((a, s) => a + portionOf(s, m), 0)
+    return [
+      { label: 'Total de ventas', value: formatGs(total) },
+      { label: 'En caja (efectivo)', value: formatGs(sum('cash')) },
+      {
+        label: 'Otros medios (transf./QR/tarjeta)',
+        value: formatGs(sum('transfer') + sum('card'))
+      },
+      { label: 'Fiado', value: formatGs(sum('credit')) }
+    ]
   }
 
   // The XLSX/jsPDF generation is synchronous and blocks the renderer thread.
@@ -275,17 +298,22 @@ export default function VentasListadoPage() {
 
   const handleExportExcel = (): Promise<void> =>
     runExport((rows) =>
-      exportToExcel(rows, exportColumns, `ventas_${from}_${to}`, `Ventas (${from} a ${to})`)
+      exportToExcel(
+        rows,
+        exportColumns,
+        `ventas_${from}_${to}`,
+        `Ventas (${toDMY(from)} a ${toDMY(to)})`
+      )
     )
 
   const handleExportPDF = (): Promise<void> =>
     runExport((rows, sales) =>
       exportToPDF(
         rows,
-        exportColumns,
+        pdfColumns,
         `ventas_${from}_${to}`,
-        `Ventas (${from} a ${to})`,
-        buildPdfSummary(sales)
+        `Ventas (${toDMY(from)} a ${toDMY(to)})`,
+        buildVentasSummary(sales)
       )
     )
 
