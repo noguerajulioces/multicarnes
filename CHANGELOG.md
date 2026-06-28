@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.10.0](https://github.com/noguerajulioces/multicarnes/compare/v1.9.0...v1.10.0) (2026-06-28)
+
+### Features
+
+* implement daily cash-close report generation and download functionality ([4681a4e](https://github.com/noguerajulioces/multicarnes/commit/4681a4eb9242bf641b92ab4c86c2d5ce02ad8b21))
+* implement no-negative-stock policy in sales processing ([fc1b7a9](https://github.com/noguerajulioces/multicarnes/commit/fc1b7a91f3e3adb8cf493a9ee3d76af189355db7))
+
 ## [1.9.0](https://github.com/noguerajulioces/multicarnes/compare/v1.8.4...v1.9.0) (2026-06-19)
 
 ### Features
