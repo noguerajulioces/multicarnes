@@ -23,6 +23,11 @@ import { clientesTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
 import { useDebouncedValue } from '../../lib/use-debounced-value'
 
+// Todo cliente nace con un límite de fiado por defecto; el usuario puede
+// desmarcarlo o cambiar el monto al crear/editar. Los clientes antiguos se
+// alinean a este mismo default vía la migración v17.
+const DEFAULT_CREDIT_LIMIT_AMOUNT = 400_000
+
 const emptyForm: {
   name: string
   phone: string
@@ -39,8 +44,8 @@ const emptyForm: {
   document: '',
   document_type: 'CI',
   is_employee: false,
-  credit_limit_enabled: false,
-  credit_limit_amount: 0
+  credit_limit_enabled: true,
+  credit_limit_amount: DEFAULT_CREDIT_LIMIT_AMOUNT
 }
 
 const PER_PAGE = 50
