@@ -476,6 +476,19 @@ const MIGRATIONS: Migration[] = [
           ON cash_movements(created_at);
       `)
     }
+  },
+  {
+    version: 17,
+    name: 'default_credit_limit_all_customers',
+    up: (db) => {
+      // Regla de negocio: por defecto todo cliente tiene un límite de fiado de
+      // 400.000 Gs, activado. Sobrescritura total (decisión "pisar a todos") —
+      // clobbea cualquier límite propio fijado antes de este release (la función
+      // de límite llegó en v13, así que en la práctica hay pocos/ninguno).
+      // Corre una sola vez (registrado en schema_migrations). Los clientes NUEVOS
+      // reciben este default desde el formulario, no desde aquí.
+      db.exec('UPDATE customers SET credit_limit_enabled = 1, credit_limit_amount = 400000')
+    }
   }
 ]
 

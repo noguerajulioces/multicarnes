@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.10.1](https://github.com/noguerajulioces/multicarnes/compare/v1.10.0...v1.10.1) (2026-07-06)
+
+### Features
+
+* default customer fiado limit of 400.000 Gs, applied to new and existing customers ([f824057](https://github.com/noguerajulioces/multicarnes/commit/f82405736347f38beb4d305cef3063969aa2e03c))
+
 ## [1.10.0](https://github.com/noguerajulioces/multicarnes/compare/v1.9.0...v1.10.0) (2026-06-28)
 
 ### Features
