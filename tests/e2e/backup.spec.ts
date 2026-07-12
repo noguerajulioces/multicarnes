@@ -3,6 +3,8 @@ import { launchApp, ipc } from './helpers/electron'
 import { loginAsSeedAdmin, createUserViaIpc } from './helpers/seed'
 import { LoginPage } from './pom/LoginPage'
 import { SidebarNav } from './pom/SidebarNav'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 interface BackupFile {
   name: string
@@ -32,12 +34,23 @@ test.describe('Backup', () => {
   })
 
   // -----------------
-  // backup-13-2 (P2) — restore confirmation FIXME (native file dialog)
+  // backup-13-2 (P2) — restore confirmation gates the native file dialog
   // -----------------
-  test.fixme('backup-13-2 — restore confirmation gates the destructive action', async () => {
-    // Restore goes through Electron's file picker dialog. Native dialogs
-    // are not drivable by Playwright; this stays as manual QA until a
-    // test-mode IPC that accepts a pre-chosen path is added.
+  test('backup-13-2 — restore confirmation gates the destructive action', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      await loginAsSeedAdmin(window)
+      await new SidebarNav(window).goToBackup()
+
+      await window.getByRole('button', { name: 'Restaurar Backup' }).click()
+      await expect(window.getByRole('heading', { name: 'Restaurar backup' })).toBeVisible()
+      await window.getByRole('button', { name: 'Cancelar' }).click()
+
+      await expect(window.getByRole('heading', { name: 'Restaurar backup' })).toBeHidden()
+      await expect(window.getByRole('button', { name: 'Restaurar Backup' })).toBeEnabled()
+    } finally {
+      await cleanup()
+    }
   })
 
   // -----------------
@@ -65,6 +78,35 @@ test.describe('Backup', () => {
         }
       })
       expect(result.ok, 'cashier must NOT be able to create backups').toBe(false)
+    } finally {
+      await cleanup()
+    }
+  })
+
+  test('backup-13-4 — invalid restore file is rejected and the live database stays usable', async () => {
+    const { window, userDataDir, cleanup } = await launchApp()
+    try {
+      await loginAsSeedAdmin(window)
+      const invalidPath = join(userDataDir, 'invalid.db')
+      await writeFile(invalidPath, 'not a sqlite database')
+
+      const result = await ipc(
+        window,
+        async (path) => {
+          try {
+            await window.api.backup.restore(path)
+            return { ok: true, message: '' }
+          } catch (err) {
+            return { ok: false, message: err instanceof Error ? err.message : String(err) }
+          }
+        },
+        invalidPath
+      )
+
+      expect(result.ok).toBe(false)
+      expect(result.message).toMatch(/SQLite válida|backup está dañado/i)
+      const users = await ipc(window, () => window.api.users.getAll())
+      expect(Array.isArray(users)).toBe(true)
     } finally {
       await cleanup()
     }

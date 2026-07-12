@@ -1,9 +1,10 @@
 import Database from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
-import { copyFileSync, existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync } from 'fs'
 import { createTables } from './schema'
 import { seedDatabase } from './seed'
+import { cleanupRestoreStaging, createDatabaseSnapshot } from './backup-service'
 
 let db: Database.Database
 
@@ -492,6 +493,8 @@ const MIGRATIONS: Migration[] = [
   }
 ]
 
+export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
+
 // Recurring maintenance that runs every boot (not a one-shot migration).
 // Currently: 90-day retention on auth_audit (FR-019).
 //
@@ -508,15 +511,18 @@ function runMaintenance(db: Database.Database): void {
   }
 }
 
-function preMigrateBackup(dbPath: string, version: number): void {
+async function preMigrateBackup(database: Database.Database, version: number): Promise<void> {
   // Skip the safeguard on a fresh DB: if no real data exists yet there is
   // nothing to lose to a bad migration. Detected by checking the few user-data
   // tables we expect to be populated on a real install.
   try {
-    const usersCount = (db.prepare('SELECT COUNT(*) AS c FROM users').get() as { c: number }).c
-    const salesCount = (db.prepare('SELECT COUNT(*) AS c FROM sales').get() as { c: number }).c
-    const productsCount = (db.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number })
+    const usersCount = (database.prepare('SELECT COUNT(*) AS c FROM users').get() as { c: number })
       .c
+    const salesCount = (database.prepare('SELECT COUNT(*) AS c FROM sales').get() as { c: number })
+      .c
+    const productsCount = (
+      database.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number }
+    ).c
     if (usersCount === 0 && salesCount === 0 && productsCount === 0) return
   } catch {
     // If any of those tables doesn't exist yet (very old install), there's
@@ -529,7 +535,7 @@ function preMigrateBackup(dbPath: string, version: number): void {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   const dest = join(backupDir, `pre-migrate-v${version}-${stamp}.db`)
   try {
-    copyFileSync(dbPath, dest)
+    await createDatabaseSnapshot(database, dest)
   } catch (err) {
     // A backup failure is loud but not fatal — the migration still runs.
     // Surfaces in the main-process console; merchant data is at risk only if
@@ -569,7 +575,7 @@ function backfillLegacyLedger(db: Database.Database): void {
   })
 }
 
-function runMigrations(db: Database.Database, dbPath: string): void {
+async function runMigrations(db: Database.Database): Promise<void> {
   backfillLegacyLedger(db)
 
   const appliedRows = db.prepare('SELECT version FROM schema_migrations').all() as {
@@ -583,7 +589,7 @@ function runMigrations(db: Database.Database, dbPath: string): void {
   // also runs in its own transaction so an individual failure rolls back
   // cleanly; the file-level backup is the recovery handle when a developer
   // needs to revert a deployed install.
-  preMigrateBackup(dbPath, pending[0].version)
+  await preMigrateBackup(db, pending[0].version)
 
   const recordApplied = db.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)')
   for (const migration of pending) {
@@ -614,8 +620,10 @@ function runMigrations(db: Database.Database, dbPath: string): void {
   }
 }
 
-export function initDatabase(): Database.Database {
-  const dbPath = join(app.getPath('userData'), 'pos.db')
+export async function initDatabase(): Promise<Database.Database> {
+  const userDataDir = app.getPath('userData')
+  await cleanupRestoreStaging(userDataDir)
+  const dbPath = join(userDataDir, 'pos.db')
   db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
@@ -628,10 +636,16 @@ export function initDatabase(): Database.Database {
   db.pragma('synchronous = NORMAL')
   db.pragma('cache_size = -32000')
   createTables(db)
-  runMigrations(db, dbPath)
+  await runMigrations(db)
   runMaintenance(db)
   seedDatabase(db)
   return db
+}
+
+export function closeDatabase(): void {
+  if (!db?.open) return
+  db.pragma('wal_checkpoint(TRUNCATE)')
+  db.close()
 }
 
 export function getDb(): Database.Database {
