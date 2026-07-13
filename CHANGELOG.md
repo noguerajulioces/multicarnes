@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.10.2](https://github.com/noguerajulioces/multicarnes/compare/v1.10.1...v1.10.2) (2026-07-13)
+
+### Bug Fixes
+
+* make database backup and restore WAL-safe ([#33](https://github.com/noguerajulioces/multicarnes/issues/33)) ([f9ac464](https://github.com/noguerajulioces/multicarnes/commit/f9ac46486771785afc68a666b44de6af20fc82b3))
+
 ## [1.10.1](https://github.com/noguerajulioces/multicarnes/compare/v1.10.0...v1.10.1) (2026-07-06)
 
 ### Features
