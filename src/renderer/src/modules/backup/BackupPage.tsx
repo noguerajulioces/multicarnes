@@ -28,23 +28,30 @@ function formatSize(bytes: number): string {
 export default function BackupPage() {
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [backups, setBackups] = useState<BackupFile[]>([])
-  const [loading, setLoading] = useState(false)
+  const [operation, setOperation] = useState<'backup' | 'restore' | null>(null)
   const [page, setPage] = useState(1)
   const PER_PAGE = 8
+  const loading = operation !== null
 
   useEffect(() => {
-    loadData()
-  }, [])
+    let cancelled = false
 
-  const loadData = async (): Promise<void> => {
-    const all = await window.api.settings.getAll()
-    const map: Record<string, string> = {}
-    all.forEach((s: AppSetting) => {
-      map[s.key] = s.value
-    })
-    setSettings(map)
-    window.api.backup.list().then(setBackups)
-  }
+    Promise.all([window.api.settings.getAll(), window.api.backup.list()])
+      .then(([all, availableBackups]) => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        all.forEach((setting: AppSetting) => {
+          map[setting.key] = setting.value
+        })
+        setSettings(map)
+        setBackups(availableBackups)
+      })
+      .catch(handleApiError)
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const saveSetting = async (key: string, value: string): Promise<void> => {
     setSettings((prev) => ({ ...prev, [key]: value }))
@@ -56,7 +63,7 @@ export default function BackupPage() {
   }
 
   const handleBackup = async (): Promise<void> => {
-    setLoading(true)
+    setOperation('backup')
     try {
       const path = await window.api.backup.create()
       toast.success(`Backup creado: ${path}`)
@@ -65,8 +72,9 @@ export default function BackupPage() {
       window.api.notify.show('Backup creado', `Se guardó en ${path}`).catch(() => {})
     } catch (err: unknown) {
       handleApiError(err)
+    } finally {
+      setOperation(null)
     }
-    setLoading(false)
   }
 
   const handleRestore = async (): Promise<void> => {
@@ -78,13 +86,18 @@ export default function BackupPage() {
       danger: true
     })
     if (!ok) return
+    setOperation('restore')
+    let restored = false
     try {
       const path = await window.api.backup.restore()
       if (path) {
-        toast.success('Backup restaurado. La aplicación se reiniciará.')
+        restored = true
+        toast.success('Backup restaurado. Reiniciando...')
       }
     } catch (err: unknown) {
       handleApiError(err)
+    } finally {
+      if (!restored) setOperation(null)
     }
   }
 
@@ -114,9 +127,7 @@ export default function BackupPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
         <div className="space-y-5">
-          <Card
-            data-tour="backup-actions"
-          >
+          <Card data-tour="backup-actions">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div
@@ -135,24 +146,23 @@ export default function BackupPage() {
               <div className="flex gap-3 flex-wrap">
                 <Button onClick={handleBackup} disabled={loading} size="lg" className="rounded-xl">
                   <Database size={16} />
-                  {loading ? 'Creando...' : 'Hacer Backup Ahora'}
+                  {operation === 'backup' ? 'Creando...' : 'Hacer Backup Ahora'}
                 </Button>
                 <Button
                   variant="secondary"
                   size="lg"
                   className="rounded-xl border-warning-500 text-warning-700 hover:bg-warning-50"
                   onClick={handleRestore}
+                  disabled={loading}
                 >
                   <RotateCcw size={16} />
-                  Restaurar Backup
+                  {operation === 'restore' ? 'Restaurando...' : 'Restaurar Backup'}
                 </Button>
               </div>
             </CardBody>
           </Card>
 
-          <Card
-            data-tour="backup-folder"
-          >
+          <Card data-tour="backup-folder">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div
@@ -175,7 +185,7 @@ export default function BackupPage() {
                   className="flex-1 bg-surface-muted"
                   placeholder="Carpeta por defecto (userData/backups)"
                 />
-                <Button variant="secondary" onClick={handleSelectFolder}>
+                <Button variant="secondary" onClick={handleSelectFolder} disabled={loading}>
                   <FolderOpen size={14} />
                   Cambiar
                 </Button>
@@ -185,9 +195,7 @@ export default function BackupPage() {
         </div>
 
         <div className="space-y-5">
-          <Card
-            data-tour="backup-schedule"
-          >
+          <Card data-tour="backup-schedule">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div
@@ -209,6 +217,7 @@ export default function BackupPage() {
                 <input
                   type="checkbox"
                   checked={settings.auto_backup === '1'}
+                  disabled={loading}
                   onChange={(e) => saveSetting('auto_backup', e.target.checked ? '1' : '0')}
                   className="w-4 h-4 mt-0.5 rounded accent-brand shrink-0"
                 />
@@ -227,6 +236,7 @@ export default function BackupPage() {
                   <input
                     type="checkbox"
                     checked={scheduleEnabled}
+                    disabled={loading}
                     onChange={(e) =>
                       saveSetting('backup_schedule_enabled', e.target.checked ? '1' : '0')
                     }
@@ -251,6 +261,7 @@ export default function BackupPage() {
                   <Input
                     type="time"
                     value={scheduleTime}
+                    disabled={loading}
                     onChange={(e) => saveSetting('backup_schedule_time', e.target.value)}
                     className="w-32 tabular-nums"
                   />
@@ -266,9 +277,7 @@ export default function BackupPage() {
             </CardBody>
           </Card>
 
-          <Card
-            data-tour="backup-history"
-          >
+          <Card data-tour="backup-history">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <div

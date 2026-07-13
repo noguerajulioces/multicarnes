@@ -1,8 +1,15 @@
 import { dialog, app, Notification } from 'electron'
 import iconPng from '../../../resources/icon.png?asset'
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, statSync } from 'fs'
+import { rm } from 'node:fs/promises'
 import { basename, join } from 'path'
-import { getDb } from '../db'
+import { closeDatabase, CURRENT_SCHEMA_VERSION, getDb, initDatabase } from '../db'
+import {
+  BackupValidationError,
+  createDatabaseSnapshot,
+  replaceDatabaseFile,
+  stageRestoreCandidate
+} from '../db/backup-service'
 import { registerAuthorized, listRegisteredChannels } from '../auth/guard'
 import { getRule } from '../auth/matrix'
 
@@ -32,17 +39,16 @@ function getBackupDir(): string {
   return backupPath
 }
 
-export function createBackup(): string {
-  const dbPath = join(app.getPath('userData'), 'pos.db')
+export async function createBackup(): Promise<string> {
   const backupDir = getBackupDir()
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const backupFile = join(backupDir, `backup_${timestamp}.db`)
-  copyFileSync(dbPath, backupFile)
-  return backupFile
+  return createDatabaseSnapshot(getDb(), backupFile)
 }
 
 let schedulerInterval: ReturnType<typeof setInterval> | null = null
 let lastBackupDate: string | null = null
+let restoreInProgress = false
 
 function getSetting(key: string): string | null {
   const row = getDb().prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as
@@ -55,7 +61,8 @@ function startBackupScheduler(): void {
   if (schedulerInterval) clearInterval(schedulerInterval)
 
   // Check every 60 seconds if it's time to backup
-  schedulerInterval = setInterval(() => {
+  schedulerInterval = setInterval(async () => {
+    if (restoreInProgress) return
     const enabled = getSetting('backup_schedule_enabled')
     if (enabled !== '1') return
 
@@ -69,7 +76,7 @@ function startBackupScheduler(): void {
     if (currentTime === scheduleTime && lastBackupDate !== today) {
       lastBackupDate = today
       try {
-        const file = createBackup()
+        const file = await createBackup()
         console.log(`[Backup] Backup programado ejecutado a las ${currentTime}`)
         if (Notification.isSupported()) {
           new Notification({
@@ -100,7 +107,12 @@ export function registerBackupIpc(): string[] {
 
   const before = listRegisteredChannels().length
 
-  registerAuthorized('backup:create', getRule('backup:create'), () => createBackup())
+  registerAuthorized('backup:create', getRule('backup:create'), () => {
+    if (restoreInProgress) {
+      throw new Error('Hay una restauración en curso. Esperá a que la aplicación se reinicie.')
+    }
+    return createBackup()
+  })
 
   registerAuthorized('backup:list', getRule('backup:list'), () => {
     const dir = getBackupDir()
@@ -119,6 +131,10 @@ export function registerBackupIpc(): string[] {
     'backup:restore',
     getRule('backup:restore'),
     async (_event, _ctx, filePath?: string) => {
+      if (restoreInProgress) {
+        throw new Error('Ya hay una restauración en curso.')
+      }
+
       let restorePath = filePath
       if (!restorePath) {
         const result = await dialog.showOpenDialog({
@@ -128,10 +144,64 @@ export function registerBackupIpc(): string[] {
         if (result.canceled || !result.filePaths[0]) return null
         restorePath = result.filePaths[0]
       }
-      const dbPath = join(app.getPath('userData'), 'pos.db')
-      createBackup()
-      copyFileSync(restorePath, dbPath)
-      return restorePath
+
+      restoreInProgress = true
+      const userDataDir = app.getPath('userData')
+      const dbPath = join(userDataDir, 'pos.db')
+      let stagingPath: string | null = null
+      let databaseClosed = false
+      let databaseReplaced = false
+
+      try {
+        stagingPath = await stageRestoreCandidate(restorePath, userDataDir, CURRENT_SCHEMA_VERSION)
+
+        // Do not touch the live database unless its recovery snapshot completed.
+        await createBackup()
+
+        closeDatabase()
+        databaseClosed = true
+
+        try {
+          await replaceDatabaseFile(stagingPath, dbPath)
+          stagingPath = null
+          databaseReplaced = true
+        } catch (error) {
+          await initDatabase()
+          databaseClosed = false
+          throw error
+        }
+
+        // Let the IPC response reach the renderer so it can show the final
+        // status before the process exits. The new process opens only the
+        // restored database and runs any pending migrations normally.
+        setTimeout(() => {
+          app.relaunch()
+          app.exit(0)
+        }, 750)
+
+        return restorePath
+      } catch (error) {
+        if (databaseClosed && !databaseReplaced) {
+          await initDatabase().catch((reopenError) => {
+            console.error('[Backup] No se pudo reabrir la base original:', reopenError)
+          })
+        }
+
+        if (error instanceof BackupValidationError) throw error
+        const code = (error as NodeJS.ErrnoException).code
+        if (code === 'EACCES' || code === 'EPERM') {
+          throw new Error(
+            'Windows no permitió acceder al archivo o a la carpeta seleccionada. La base actual no fue modificada.'
+          )
+        }
+        const detail = error instanceof Error ? ` ${error.message}` : ''
+        throw new Error(
+          `No se pudo restaurar el backup. La base actual no fue modificada.${detail}`
+        )
+      } finally {
+        if (stagingPath) await rm(stagingPath, { force: true }).catch(() => {})
+        if (!databaseReplaced) restoreInProgress = false
+      }
     }
   )
 

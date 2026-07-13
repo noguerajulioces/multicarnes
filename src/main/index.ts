@@ -188,7 +188,13 @@ if (!gotTheLock) {
     }
   })
 
-  app.whenReady().then(onAppReady)
+  app
+    .whenReady()
+    .then(onAppReady)
+    .catch((err) => {
+      console.error('[boot] application initialization failed:', err)
+      app.exit(1)
+    })
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
@@ -197,7 +203,7 @@ if (!gotTheLock) {
   })
 }
 
-function onAppReady(): void {
+async function onAppReady(): Promise<void> {
   electronApp.setAppUserModelId('com.multicarnes.pos')
 
   // macOS dev: the Dock takes the icon from the Electron binary's bundle, not
@@ -221,7 +227,7 @@ function onAppReady(): void {
   })
 
   // Initialize database
-  initDatabase()
+  await initDatabase()
 
   // Refresh recovery-mode flag based on the current user table; allow the
   // matrix's recoveryOnly modifier (users:create) to flip public when the
