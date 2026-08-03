@@ -9,6 +9,7 @@ import {
   Palette,
   KeyRound,
   Printer,
+  Receipt,
   HelpCircle,
   RotateCcw,
   RefreshCw
@@ -28,6 +29,7 @@ import { toast } from '../../lib/toast'
 import { usePageTour } from '../../lib/use-page-tour'
 import { configTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
+import { DEFAULT_THANKS_MESSAGE } from '../../lib/ticket'
 
 // Sample ticket used by the "Imprimir prueba" button. Lines are padded to the
 // selected column width so the divider spans the full paper and the amount
@@ -180,7 +182,27 @@ export default function ConfiguracionPage() {
               <Input
                 value={settings.business_address || ''}
                 onChange={(e) => saveSetting('business_address', e.target.value)}
-                placeholder="Calle, número, ciudad"
+                placeholder="Calle y número"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Ciudad</label>
+              <Input
+                value={settings.business_city || ''}
+                onChange={(e) => saveSetting('business_city', e.target.value)}
+                placeholder="Ej: Encarnación"
+              />
+              <p className="text-xs text-text-muted mt-1">
+                Se imprime en su propia línea. Si la ciudad ya está dentro de Dirección, sacala de
+                ahí para que no salga repetida.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">RUC</label>
+              <Input
+                value={settings.business_ruc || ''}
+                onChange={(e) => saveSetting('business_ruc', e.target.value)}
+                placeholder="Ej: 80012345-6"
               />
             </div>
             <div>
@@ -190,6 +212,47 @@ export default function ConfiguracionPage() {
                 onChange={(e) => saveSetting('business_phone', e.target.value)}
                 placeholder="Opcional"
               />
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card data-tour="config-receipt">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0"
+                style={{ background: 'var(--gradient-kpi-teal)' }}
+              >
+                <Receipt size={18} />
+              </div>
+              <div>
+                <h2 className="font-semibold text-text-main">Comprobante</h2>
+                <p className="text-xs text-text-muted">Mensajes al pie del ticket</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardBody className="space-y-4">
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Mensaje adicional</label>
+              <Input
+                value={settings.receipt_extra_message || ''}
+                onChange={(e) => saveSetting('receipt_extra_message', e.target.value)}
+                placeholder="Ej: Cambios dentro de las 24hs con este ticket"
+              />
+              <p className="text-xs text-text-muted mt-1">
+                Se imprime arriba del saludo. Dejalo vacío para no mostrarlo.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Saludo final</label>
+              <Input
+                value={settings.receipt_thanks_message ?? DEFAULT_THANKS_MESSAGE}
+                onChange={(e) => saveSetting('receipt_thanks_message', e.target.value)}
+                placeholder={DEFAULT_THANKS_MESSAGE}
+              />
+              <p className="text-xs text-text-muted mt-1">
+                Última línea del ticket. Vaciálo para imprimir el comprobante sin saludo.
+              </p>
             </div>
           </CardBody>
         </Card>

@@ -19,7 +19,47 @@ const PAYMENT_LABEL: Record<string, string> = {
 export interface TicketBusiness {
   name: string
   address: string
+  city: string
+  ruc: string
   phone: string
+}
+
+// Free-text lines the shop owner controls from Configuración → Comprobante.
+// Both are printed centred at the foot of the ticket, `extra` above `thanks`.
+export interface TicketMessages {
+  extra: string
+  thanks: string
+}
+
+// Printed when a sale has no customer attached. Walk-in sales are the norm at
+// the counter, and a receipt with no customer line at all reads like the field
+// was lost rather than deliberately blank.
+export const GENERIC_CUSTOMER = 'Consumidor Final'
+
+export const DEFAULT_THANKS_MESSAGE = '¡Gracias por su compra!'
+
+// Maps raw app_settings rows onto the receipt's typed inputs.
+//
+// Extracted from the component on purpose: `??` (not `||`) is what decides
+// whether an install that predates these keys keeps its greeting after an
+// upgrade, while still letting an owner clear the greeting on purpose. That
+// contract is the whole reason the feature is safe to ship without a backfill,
+// so it belongs somewhere a test can reach it.
+export function ticketBusinessFromSettings(settings: Map<string, string>): TicketBusiness {
+  return {
+    name: settings.get('business_name') ?? 'Multicarnes',
+    address: settings.get('business_address') ?? '',
+    city: settings.get('business_city') ?? '',
+    ruc: settings.get('business_ruc') ?? '',
+    phone: settings.get('business_phone') ?? ''
+  }
+}
+
+export function ticketMessagesFromSettings(settings: Map<string, string>): TicketMessages {
+  return {
+    extra: settings.get('receipt_extra_message') ?? '',
+    thanks: settings.get('receipt_thanks_message') ?? DEFAULT_THANKS_MESSAGE
+  }
 }
 
 export interface RenderTicketOpts {
@@ -28,6 +68,7 @@ export interface RenderTicketOpts {
   width: TicketWidth
   cashReceived?: number
   change?: number
+  messages?: Partial<TicketMessages>
 }
 
 interface TicketLine {
@@ -91,24 +132,43 @@ function row(left: string, right: string, cols: number): string {
   return left + ' '.repeat(space) + right
 }
 
+function chunkWord(word: string, cols: number): string[] {
+  const chunks: string[] = []
+  for (let i = 0; i < word.length; i += cols) chunks.push(word.slice(i, i + cols))
+  return chunks
+}
+
 function wrapWords(text: string, cols: number): string[] {
   if (text.length <= cols) return [text]
-  const words = text.split(/\s+/)
   const lines: string[] = []
   let current = ''
-  for (const w of words) {
-    if (!current) {
-      current = w.length > cols ? w.slice(0, cols) : w
+  const flush = (): void => {
+    if (current) lines.push(current)
+    current = ''
+  }
+
+  for (const word of text.split(/\s+/)) {
+    if (!word) continue
+    // A single token wider than the paper — a URL, a long product code, an
+    // owner-typed website. This used to slice() the head and silently drop the
+    // tail; break it across lines instead so nothing is lost. Matters most for
+    // the free-text footer messages, which have no length limit in the UI.
+    if (word.length > cols) {
+      flush()
+      const chunks = chunkWord(word, cols)
+      lines.push(...chunks.slice(0, -1))
+      current = chunks[chunks.length - 1]
       continue
     }
-    if (current.length + 1 + w.length <= cols) {
-      current += ' ' + w
-    } else {
-      lines.push(current)
-      current = w.length > cols ? w.slice(0, cols) : w
+    if (!current) current = word
+    else if (current.length + 1 + word.length <= cols) current += ' ' + word
+    else {
+      flush()
+      current = word
     }
   }
-  if (current) lines.push(current)
+
+  flush()
   return lines
 }
 
@@ -117,23 +177,28 @@ export function renderTicket({
   business,
   width,
   cashReceived,
-  change
+  change,
+  messages
 }: RenderTicketOpts): RenderedTicket {
   const cols = WIDTH_CHARS[width]
   const lines: TicketLine[] = []
 
   // ---------- Header (business) ----------
+  // Every field is optional and simply omitted when blank, so a shop that has
+  // not filled in its RUC gets a tight header rather than a stray label.
   if (business.name) {
     lines.push({ text: business.name.toUpperCase(), align: 'center', bold: true })
   }
   if (business.address) lines.push({ text: business.address, align: 'center' })
+  if (business.city) lines.push({ text: business.city, align: 'center' })
+  if (business.ruc) lines.push({ text: `RUC: ${business.ruc}`, align: 'center' })
   if (business.phone) lines.push({ text: `Tel: ${business.phone}`, align: 'center' })
   lines.push({ text: divider(cols) })
 
   // ---------- Sale meta ----------
   lines.push({ text: row(`TICKET #${sale.id}`, fmtDateTime(sale.created_at), cols) })
   if (sale.user_name) lines.push({ text: `Cajero: ${sale.user_name}` })
-  if (sale.customer_name) lines.push({ text: `Cliente: ${sale.customer_name}` })
+  lines.push({ text: `Cliente: ${sale.customer_name || GENERIC_CUSTOMER}` })
   lines.push({ text: divider(cols) })
 
   // ---------- Items ----------
@@ -218,8 +283,28 @@ export function renderTicket({
   }
 
   // ---------- Footer ----------
+  // `??`, not `||`: an absent key falls back to the default greeting, but a key
+  // the owner deliberately cleared stays empty and drops the line entirely.
+  // That distinction is what lets existing installs keep the greeting on
+  // upgrade without a settings backfill.
+  // Trimmed before the emptiness check: the settings inputs do not trim, so a
+  // stray space left behind while "clearing" the field would otherwise count as
+  // present and print a blank-looking line — contradicting what the UI promises.
+  const extra = (messages?.extra ?? '').trim()
+  const thanks = (messages?.thanks ?? DEFAULT_THANKS_MESSAGE).trim()
+
   lines.push({ text: '' })
-  lines.push({ text: '¡Gracias por su compra!', align: 'center' })
+  if (extra) {
+    for (const wrapped of wrapWords(extra, cols)) {
+      lines.push({ text: wrapped, align: 'center' })
+    }
+    if (thanks) lines.push({ text: '' })
+  }
+  if (thanks) {
+    for (const wrapped of wrapWords(thanks, cols)) {
+      lines.push({ text: wrapped, align: 'center' })
+    }
+  }
   lines.push({ text: '' })
 
   // Apply alignment to text now (so consumers can render trivially)

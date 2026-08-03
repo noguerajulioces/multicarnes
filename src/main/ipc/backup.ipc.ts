@@ -19,7 +19,11 @@ import { getRule } from '../auth/matrix'
 const PUBLIC_SETTING_KEYS = new Set([
   'business_name',
   'business_address',
+  'business_city',
+  'business_ruc',
   'business_phone',
+  'receipt_extra_message',
+  'receipt_thanks_message',
   'thermal_printer_name',
   'thermal_printer_width',
   'thermal_printer_mode',
