@@ -21,7 +21,14 @@ export function seedDatabase(db: Database.Database): void {
   const defaults: [string, string][] = [
     ['business_name', 'Multicarnes S.R.L.'],
     ['business_address', 'Encarnación, Paraguay'],
+    ['business_city', ''],
+    ['business_ruc', ''],
     ['business_phone', ''],
+    // Seeded only on a brand-new database (this function early-returns when
+    // users already exist). Upgrades leave these keys absent, which is why the
+    // renderer falls back with `??` rather than relying on a backfill.
+    ['receipt_extra_message', ''],
+    ['receipt_thanks_message', '¡Gracias por su compra!'],
     ['thermal_printer_name', ''],
     ['thermal_printer_width', '80'],
     ['thermal_printer_mode', 'escpos'],

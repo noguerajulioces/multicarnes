@@ -3,7 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { Check, Download, ImageDown, MessageCircle, Printer, Settings } from 'lucide-react'
 import type { Sale, AppSetting } from '@shared/types'
 import { Button, Modal } from '../../components/ui'
-import { renderTicket, type RenderedTicket, type TicketWidth } from '../../lib/ticket'
+import {
+  DEFAULT_THANKS_MESSAGE,
+  renderTicket,
+  ticketBusinessFromSettings,
+  ticketMessagesFromSettings,
+  type RenderedTicket,
+  type TicketBusiness,
+  type TicketMessages,
+  type TicketWidth
+} from '../../lib/ticket'
 import { downloadTicketPdf } from '../../lib/ticket-pdf'
 import { downloadTicketImage } from '../../lib/ticket-image'
 import { shareOnWhatsApp } from '../../lib/whatsapp-share'
@@ -46,7 +55,17 @@ export default function TicketPreviewModal({
   hideClose = false
 }: Props) {
   const navigate = useNavigate()
-  const [business, setBusiness] = useState({ name: '', address: '', phone: '' })
+  const [business, setBusiness] = useState<TicketBusiness>({
+    name: '',
+    address: '',
+    city: '',
+    ruc: '',
+    phone: ''
+  })
+  const [messages, setMessages] = useState<TicketMessages>({
+    extra: '',
+    thanks: DEFAULT_THANKS_MESSAGE
+  })
   const [width, setWidth] = useState<TicketWidth>(80)
   const [printing, setPrinting] = useState(false)
   const [printerReady, setPrinterReady] = useState<boolean | null>(null)
@@ -55,11 +74,8 @@ export default function TicketPreviewModal({
   useEffect(() => {
     window.api.settings.getAll().then((rows: AppSetting[]) => {
       const map = new Map(rows.map((r) => [r.key, r.value]))
-      setBusiness({
-        name: map.get('business_name') ?? 'Multicarnes',
-        address: map.get('business_address') ?? '',
-        phone: map.get('business_phone') ?? ''
-      })
+      setBusiness(ticketBusinessFromSettings(map))
+      setMessages(ticketMessagesFromSettings(map))
       const w = map.get('thermal_printer_width')
       setWidth(w === '58' ? 58 : 80)
     })
@@ -74,10 +90,10 @@ export default function TicketPreviewModal({
   const ticket = useMemo(
     () =>
       withVoidMarker(
-        renderTicket({ sale, business, width, cashReceived, change }),
+        renderTicket({ sale, business, width, cashReceived, change, messages }),
         sale.status === 'cancelled'
       ),
-    [sale, business, width, cashReceived, change]
+    [sale, business, width, cashReceived, change, messages]
   )
 
   const handlePrint = async (): Promise<void> => {
