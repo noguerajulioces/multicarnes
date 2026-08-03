@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.11.0](https://github.com/noguerajulioces/multicarnes/compare/v1.10.2...v1.11.0) (2026-08-03)
+
+### Features
+
+* **receipt:** city, RUC, generic customer and editable footer messages ([#35](https://github.com/noguerajulioces/multicarnes/issues/35)) ([1ad6adc](https://github.com/noguerajulioces/multicarnes/commit/1ad6adcedf0614f49c03d1127d0800cad7ac6ae6))
+
+### Bug Fixes
+
+* **print:** drive the thermal head with ESC/POS instead of rasterized HTML ([#34](https://github.com/noguerajulioces/multicarnes/issues/34)) ([b2e19b9](https://github.com/noguerajulioces/multicarnes/commit/b2e19b94a5e5a4763a1bb5b66900409f108dc3c3)), closes [#26](https://github.com/noguerajulioces/multicarnes/issues/26)
+
 ## [1.10.2](https://github.com/noguerajulioces/multicarnes/compare/v1.10.1...v1.10.2) (2026-07-13)
 
 ### Bug Fixes
