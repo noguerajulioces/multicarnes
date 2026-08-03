@@ -87,7 +87,12 @@ export default function TicketPreviewModal({
         lines: ticket.lines.map((l) => ({
           text: l.text,
           bold: l.bold,
-          emphasized: l.emphasized
+          emphasized: l.emphasized,
+          // `parts` is what lets the printer re-lay an emphasized line out at
+          // double size: l.text is already space-padded for the base size, so
+          // it cannot simply be scaled up. Dropping it here is why the printed
+          // TOTAL used to come out the same size as everything else.
+          parts: l.parts
         })),
         cut: true
       })

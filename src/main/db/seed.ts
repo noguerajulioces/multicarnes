@@ -24,6 +24,7 @@ export function seedDatabase(db: Database.Database): void {
     ['business_phone', ''],
     ['thermal_printer_name', ''],
     ['thermal_printer_width', '80'],
+    ['thermal_printer_mode', 'escpos'],
     ['backup_path', ''],
     ['auto_backup', '1'],
     ['backup_schedule_enabled', '0'],

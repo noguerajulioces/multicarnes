@@ -22,6 +22,7 @@ const PUBLIC_SETTING_KEYS = new Set([
   'business_phone',
   'thermal_printer_name',
   'thermal_printer_width',
+  'thermal_printer_mode',
   'login_keypad_enabled',
   'backup_path',
   'auto_backup',

@@ -151,9 +151,7 @@ export default function ConfiguracionPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        <Card
-          data-tour="config-business"
-        >
+        <Card data-tour="config-business">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div
@@ -196,9 +194,7 @@ export default function ConfiguracionPage() {
           </CardBody>
         </Card>
 
-        <Card
-          data-tour="config-theme"
-        >
+        <Card data-tour="config-theme">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div
@@ -233,9 +229,7 @@ export default function ConfiguracionPage() {
           </CardBody>
         </Card>
 
-        <Card
-          data-tour="config-login"
-        >
+        <Card data-tour="config-login">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div
@@ -270,9 +264,7 @@ export default function ConfiguracionPage() {
           </CardBody>
         </Card>
 
-        <Card
-          data-tour="config-printer"
-        >
+        <Card data-tour="config-printer">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div
@@ -335,6 +327,21 @@ export default function ConfiguracionPage() {
                 <option value="80">80 mm</option>
               </Select>
             </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">Modo de impresión</label>
+              <Select
+                value={settings.thermal_printer_mode === 'raster' ? 'raster' : 'escpos'}
+                onChange={(e) => saveSetting('thermal_printer_mode', e.target.value)}
+                className="max-w-[260px]"
+              >
+                <option value="escpos">ESC/POS (recomendado)</option>
+                <option value="raster">Gráfico (compatibilidad)</option>
+              </Select>
+              <p className="text-xs text-text-muted mt-1">
+                ESC/POS le habla directo al cabezal: texto más nítido y corte automático. Usá
+                Gráfico sólo si tu impresora no acepta este modo.
+              </p>
+            </div>
             <div className="pt-1">
               <Button
                 variant="secondary"
@@ -354,9 +361,7 @@ export default function ConfiguracionPage() {
           </CardBody>
         </Card>
 
-        <Card
-          data-tour="config-tutorials"
-        >
+        <Card data-tour="config-tutorials">
           <CardHeader>
             <div className="flex items-center gap-3">
               <div
