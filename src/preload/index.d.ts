@@ -5,6 +5,7 @@ import type {
   Customer,
   Supplier,
   CashRegister,
+  LastClosedRegister,
   CashMovement,
   Sale,
   PurchaseOrder,
@@ -133,7 +134,14 @@ interface ApiCash {
   open(userId: number, openingAmount: number): Promise<CashRegister>
   getCurrent(): Promise<CashRegister | null>
   getMyOpenRegister(): Promise<CashRegister | null>
-  close(id: number, closingAmount: number, notes?: string, userId?: number): Promise<CashRegister>
+  close(
+    id: number,
+    closingAmount: number,
+    notes?: string,
+    userId?: number,
+    keptAmount?: number | null
+  ): Promise<CashRegister>
+  getLastClosed(): Promise<LastClosedRegister | null>
   addMovement(
     registerId: number,
     userId: number,

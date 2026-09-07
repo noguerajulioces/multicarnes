@@ -99,7 +99,20 @@ export interface CashRegister {
   expected_amount: number | null
   difference: number | null
   notes: string | null
+  // 010-cash-float-close: cash left in the drawer at close (float for the next
+  // shift). NULL on registers closed before the feature. The withdrawal is
+  // derived (closing_amount − kept_amount), never stored.
+  kept_amount: number | null
   status: 'open' | 'closed'
+}
+
+// 010-cash-float-close: amounts of the most recent closed register, used by the
+// apertura screen to propose the float that stayed in the drawer.
+export interface LastClosedRegister {
+  id: number
+  closed_at: string
+  closing_amount: number | null
+  kept_amount: number | null
 }
 
 export interface CashMovement {

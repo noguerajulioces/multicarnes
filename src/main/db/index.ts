@@ -490,6 +490,21 @@ const MIGRATIONS: Migration[] = [
       // reciben este default desde el formulario, no desde aquí.
       db.exec('UPDATE customers SET credit_limit_enabled = 1, credit_limit_amount = 400000')
     }
+  },
+  {
+    version: 18,
+    name: 'add_cash_registers_kept_amount',
+    up: (db) => {
+      // 010-cash-float-close: persist the cash left in the drawer at close (the
+      // float for the next shift). NULL means "not recorded": every register
+      // closed before this release stays NULL and the read side renders it as
+      // "—" instead of inventing a withdrawal. Fresh installs get the column
+      // from schema.ts; idempotent under PRAGMA table_info.
+      const cols = db.prepare('PRAGMA table_info(cash_registers)').all() as { name: string }[]
+      if (!cols.some((c) => c.name === 'kept_amount')) {
+        db.exec('ALTER TABLE cash_registers ADD COLUMN kept_amount INTEGER')
+      }
+    }
   }
 ]
 

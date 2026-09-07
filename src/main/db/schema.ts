@@ -70,6 +70,7 @@ export function createTables(db: Database.Database): void {
       expected_amount INTEGER,
       difference     INTEGER,
       notes          TEXT,
+      kept_amount    INTEGER,
       status         TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed'))
     );
 

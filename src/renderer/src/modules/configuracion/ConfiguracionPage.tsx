@@ -10,6 +10,7 @@ import {
   KeyRound,
   Printer,
   Receipt,
+  Coins,
   HelpCircle,
   RotateCcw,
   RefreshCw
@@ -21,6 +22,7 @@ import {
   CardBody,
   CardHeader,
   Input,
+  MoneyInput,
   PageHeader,
   Select,
   TourButton
@@ -252,6 +254,42 @@ export default function ConfiguracionPage() {
               />
               <p className="text-xs text-text-muted mt-1">
                 Última línea del ticket. Vaciálo para imprimir el comprobante sin saludo.
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card data-tour="config-cash">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0"
+                style={{ background: 'var(--gradient-kpi-green)' }}
+              >
+                <Coins size={18} />
+              </div>
+              <div>
+                <h2 className="font-semibold text-text-main">Caja</h2>
+                <p className="text-xs text-text-muted">Fondo que queda en el cajón entre turnos</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardBody className="space-y-4">
+            <div>
+              <label className="block text-sm text-text-muted mb-1.5">
+                Fondo de caja por defecto (Gs.)
+              </label>
+              <MoneyInput
+                value={parseInt(settings.cash_float_default || '0', 10) || 0}
+                onValueChange={(v) => saveSetting('cash_float_default', String(v))}
+                placeholder="Ej: 600.000"
+                className="text-right tabular-nums"
+              />
+              <p className="text-xs text-text-muted mt-1">
+                Efectivo que suele quedar en el cajón para el próximo turno. Al cerrar la caja se
+                precarga en &quot;Queda en caja&quot; (se puede corregir en cada cierre) y la
+                apertura lo propone cuando el último cierre no registró fondo. Dejalo en 0 para no
+                usarlo.
               </p>
             </div>
           </CardBody>

@@ -31,7 +31,10 @@ const PUBLIC_SETTING_KEYS = new Set([
   'backup_path',
   'auto_backup',
   'backup_schedule_enabled',
-  'backup_schedule_time'
+  'backup_schedule_time',
+  // 010-cash-float-close: default float proposed at close/open. Read by every
+  // role that operates the register; written only by admin (settings:set).
+  'cash_float_default'
 ])
 
 function getBackupDir(): string {

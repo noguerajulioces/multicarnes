@@ -26,6 +26,10 @@ export interface CierreReportInput {
     difference: number | null
     opened_at: string
     closed_at: string | null
+    // 010-cash-float-close: fondo que quedó en caja (NULL en cierres previos a
+    // la feature) y observaciones del cierre, ambos impresos en el comprobante.
+    kept_amount?: number | null
+    notes?: string | null
   }
   // From cash.getSummary(registerId): exploded, register-scoped totals.
   summary: {
@@ -103,6 +107,18 @@ export function downloadCierreReport(input: CierreReportInput): void {
     rows.push({ label: 'Resultado', value: `SOBRÓ ${formatGs(diff)}`, tone: 'good', bold: true })
   else rows.push({ label: 'Resultado', value: `FALTÓ ${formatGs(-diff)}`, tone: 'bad', bold: true })
 
+  // 010-cash-float-close: rendición. Fondo que queda para el próximo turno y el
+  // retiro derivado (contado − fondo). Sólo cuando el cierre lo registró; no
+  // altera el arqueo de arriba.
+  if (register.kept_amount != null) {
+    rows.push({ label: 'Queda en caja (fondo)', value: formatGs(register.kept_amount) })
+    rows.push({
+      label: 'Retiro / entrega',
+      value: formatGs(counted - register.kept_amount),
+      bold: true
+    })
+  }
+
   // "Ventas del día": total + desglose por método (exploded).
   rows.push({ group: 'Ventas del día' })
   rows.push({ label: `Total vendido (${ventasCount})`, value: formatGs(totalVentas), bold: true })
@@ -117,6 +133,10 @@ export function downloadCierreReport(input: CierreReportInput): void {
   rows.push({
     note: 'Solo el efectivo entra en caja. Tarjeta, Transferencia/QR y Fiado no son plata física.'
   })
+  // 010-cash-float-close: las observaciones del cierre salen impresas, completas
+  // y textuales, sólo cuando existen.
+  const observaciones = register.notes?.trim()
+  if (observaciones) rows.push({ note: `Observaciones del cierre: ${observaciones}` })
 
   // Entradas/salidas manuales (excluye anulados y los anulados originales).
   const voidedIds = new Set<number>(

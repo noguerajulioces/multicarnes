@@ -31,20 +31,38 @@ export function registerCashIpc(): string[] {
   registerAuthorized(
     'cash:close',
     getRule('cash:close'),
-    (_event, ctx, id: number, closingAmount: number, notes?: string, userId?: number) => {
+    (
+      _event,
+      ctx,
+      id: number,
+      closingAmount: number,
+      notes?: string,
+      userId?: number,
+      keptAmount?: number | null
+    ) => {
       if (ctx.role !== 'admin' && ctx.role !== 'supervisor') {
         const register = cashQuery.getCashRegisterById(id) as { user_id: number } | undefined
         if (!register || register.user_id !== ctx.userId) {
           throw new Error('Solo podés cerrar la caja que abriste vos.')
         }
       }
+      // 010-cash-float-close: optional 5th arg — the cash left in the drawer as
+      // the float for the next shift. Validated in the query layer.
       return cashQuery.closeCashRegister(
         id,
         closingAmount,
         notes,
-        userId ?? ctx.userId ?? undefined
+        userId ?? ctx.userId ?? undefined,
+        keptAmount
       )
     }
+  )
+
+  // 010-cash-float-close: amounts of the most recent close, so the apertura
+  // screen can propose the float that stayed in the drawer. Exposes no operator
+  // data, hence open to every role that can open a register.
+  registerAuthorized('cash:getLastClosed', getRule('cash:getLastClosed'), () =>
+    cashQuery.getLastClosedCashRegister()
   )
 
   // Cashier-self exception (mirrors cash:close at lines 21-38).

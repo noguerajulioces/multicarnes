@@ -229,6 +229,125 @@ test.describe('Cash register', () => {
   })
 
   // -----------------
+  // cash-7-7 (010-cash-float-close) — the float left in the drawer travels
+  // through the IPC layer: validated server-side, persisted, fed back to the
+  // opening screen via cash:getLastClosed. The arqueo stays untouched.
+  // -----------------
+  test('cash-7-7 — close persists kept_amount via IPC, rejects kept > counted, feeds getLastClosed', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      const admin = await loginAsSeedAdmin(window)
+      await ipc(window, () => window.api.settings.set('cash_float_default', '600000'))
+      const register = await openCashRegisterViaIpc(window, admin.id, 600_000)
+      await ipc(
+        window,
+        ([registerId, userId]) =>
+          window.api.cash.addMovement(registerId, userId, 'income', 590_000, 'Cobros del día'),
+        [register.id, admin.id] as const
+      )
+
+      // kept > counted is refused by the server, not only by the UI.
+      const rejected = await ipc(
+        window,
+        async ([id, userId]) => {
+          try {
+            await window.api.cash.close(id, 400_000, '', userId, 600_000)
+            return { ok: true, message: '' }
+          } catch (err) {
+            return { ok: false, message: err instanceof Error ? err.message : String(err) }
+          }
+        },
+        [register.id, admin.id] as const
+      )
+      expect(rejected.ok).toBe(false)
+      expect(rejected.message).toMatch(/no puede superar el monto contado/)
+
+      // Valid split: counted 1.190.000, kept 600.000 → withdrawal 590.000 (derived).
+      const closed = (await ipc(
+        window,
+        ([id, userId]) => window.api.cash.close(id, 1_190_000, 'Quedó 600.000', userId, 600_000),
+        [register.id, admin.id] as const
+      )) as {
+        status: string
+        closing_amount: number
+        expected_amount: number
+        difference: number
+        kept_amount: number | null
+        notes: string | null
+      }
+      expect(closed.status).toBe('closed')
+      expect(closed.kept_amount).toBe(600_000)
+      expect(closed.closing_amount).toBe(1_190_000)
+      expect(closed.expected_amount).toBe(1_190_000) // 600k apertura + 590k income
+      expect(closed.difference).toBe(0) // the float never enters the arqueo
+      expect(closed.notes).toBe('Quedó 600.000')
+
+      const last = (await ipc(window, () => window.api.cash.getLastClosed())) as {
+        id: number
+        closing_amount: number | null
+        kept_amount: number | null
+      }
+      expect(last.id).toBe(register.id)
+      expect(last.kept_amount).toBe(600_000)
+      expect(last.closing_amount).toBe(1_190_000)
+    } finally {
+      await cleanup()
+    }
+  })
+
+  // -----------------
+  // cash-7-8 (010-cash-float-close) — the cierre screen prefills the float,
+  // shows the live withdrawal, blocks kept > counted, and the post-close view
+  // shows both amounts.
+  // -----------------
+  test('cash-7-8 — cierre screen prefills the float and shows the live withdrawal', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      const admin = await loginAsSeedAdmin(window)
+      await ipc(window, () => window.api.settings.set('cash_float_default', '600000'))
+      const register = await openCashRegisterViaIpc(window, admin.id, 600_000)
+      await ipc(
+        window,
+        async ([registerId, userId]) => {
+          await window.api.cash.addMovement(registerId, userId, 'income', 590_000, 'Cobros del día')
+          const current = await window.api.cash.getCurrent()
+          localStorage.setItem('cash.register', JSON.stringify(current))
+          // The guided tour would cover the form on first visit; mark it as seen.
+          localStorage.setItem('tour:seen:caja-cierre', '1')
+        },
+        [register.id, admin.id] as const
+      )
+
+      await window.reload()
+      await window.evaluate(() => {
+        window.location.hash = '/caja/cierre'
+      })
+
+      const counted = window.locator('[data-tour="caja-cierre-counted"] input')
+      const kept = window.locator('[data-tour="caja-cierre-kept"] input')
+      await expect(kept).toHaveValue('600.000')
+
+      await counted.fill('1190000')
+      await expect(window.getByText('A retirar / entregar')).toBeVisible()
+      await expect(window.getByText('Gs. 590.000', { exact: true })).toBeVisible()
+
+      // A float larger than the counted cash blocks the confirm button.
+      await counted.fill('400000')
+      await expect(window.getByText(/No puede quedar en caja más de lo contado/)).toBeVisible()
+      await expect(window.getByRole('button', { name: 'Confirmar Cierre' })).toBeDisabled()
+
+      // Valid split again → confirm → post-close tiles show fondo and retiro.
+      await counted.fill('1190000')
+      await window.getByRole('button', { name: 'Confirmar Cierre' }).click()
+      await expect(window.getByRole('heading', { name: 'Caja cerrada' })).toBeVisible()
+      await expect(window.getByText('Queda en caja (fondo)')).toBeVisible()
+      await expect(window.getByText('Retiro / entrega')).toBeVisible()
+    } finally {
+      await cleanup()
+    }
+  })
+
+  // -----------------
   // cash-7-5 (P3) — stale close requires a note (FIXME — needs time travel)
   // -----------------
   test.fixme('cash-7-5 — stale-close (>24h) requires a note', async () => {

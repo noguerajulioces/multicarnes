@@ -193,7 +193,10 @@ const reportConfigs: Partial<Record<Tab, ReportConfig>> = {
       { header: 'Cajero', key: 'user_name', width: 18 },
       { header: 'Esperado', key: '_expected', align: 'right', width: 15 },
       { header: 'Contado', key: '_closing', align: 'right', width: 15 },
-      { header: 'Diferencia', key: '_diff', align: 'right', width: 15 }
+      { header: 'Diferencia', key: '_diff', align: 'right', width: 15 },
+      { header: 'Quedó', key: '_kept', align: 'right', width: 15 },
+      { header: 'Retiro', key: '_withdrawn', align: 'right', width: 15 },
+      { header: 'Notas', key: '_notes', width: 32 }
     ]
   },
   tarjetas: {
@@ -280,6 +283,8 @@ function prepareExportData(tab: Tab, data: unknown[]): Record<string, unknown>[]
           expected_amount: number
           closing_amount: number
           difference: number
+          kept_amount: number | null
+          notes: string | null
         }[]
       ).map((r) => ({
         ...r,
@@ -287,7 +292,12 @@ function prepareExportData(tab: Tab, data: unknown[]): Record<string, unknown>[]
         _closed: formatDateTime(r.closed_at),
         _expected: formatGs(r.expected_amount),
         _closing: formatGs(r.closing_amount),
-        _diff: `${r.difference >= 0 ? '+' : ''}${formatGs(r.difference)}`
+        _diff: `${r.difference >= 0 ? '+' : ''}${formatGs(r.difference)}`,
+        // 010-cash-float-close: fondo que quedó y retiro derivado; "—" en
+        // cierres anteriores a la feature (kept_amount NULL).
+        _kept: r.kept_amount != null ? formatGs(r.kept_amount) : '—',
+        _withdrawn: r.kept_amount != null ? formatGs(r.closing_amount - r.kept_amount) : '—',
+        _notes: r.notes ?? ''
       }))
     case 'tarjetas':
       return (data as CardSalesRow[]).map((r) => ({
@@ -1167,6 +1177,9 @@ export default function ReportesPage() {
                   <th className={`${thCls} text-right`}>Esperado</th>
                   <th className={`${thCls} text-right`}>Contado</th>
                   <th className={`${thCls} text-right`}>Diferencia</th>
+                  <th className={`${thCls} text-right`}>Quedó</th>
+                  <th className={`${thCls} text-right`}>Retiro</th>
+                  <th className={thCls}>Notas</th>
                 </tr>
               </thead>
               <tbody>
@@ -1179,6 +1192,8 @@ export default function ReportesPage() {
                     expected_amount: number
                     closing_amount: number
                     difference: number
+                    kept_amount: number | null
+                    notes: string | null
                   }[]
                 )
                   .slice((page - 1) * REPORT_PER_PAGE, page * REPORT_PER_PAGE)
@@ -1218,6 +1233,19 @@ export default function ReportesPage() {
                         >
                           {r.difference >= 0 ? '+' : ''}
                           {formatGs(r.difference)}
+                        </td>
+                        <td className={`${tdCls} text-right tabular-nums`}>
+                          {r.kept_amount != null ? formatGs(r.kept_amount) : '—'}
+                        </td>
+                        <td className={`${tdCls} text-right tabular-nums font-medium`}>
+                          {r.kept_amount != null ? formatGs(r.closing_amount - r.kept_amount) : '—'}
+                        </td>
+                        <td className={`${tdCls} max-w-[18rem] text-xs`}>
+                          {r.notes ? (
+                            <span className="block whitespace-pre-wrap break-words">{r.notes}</span>
+                          ) : (
+                            <span className="text-text-disabled">—</span>
+                          )}
                         </td>
                       </tr>
                     )

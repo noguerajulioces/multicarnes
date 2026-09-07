@@ -201,6 +201,9 @@ Más simple, enfocada en la operación diaria:
 #### Paso a paso
 
 1. Ingresá el **monto inicial** (efectivo con que arranca el cajón).
+   - Viene **propuesto** con el efectivo que quedó en caja en el último cierre
+     (o con el fondo por defecto de Configuración → Caja). Si el cajón tiene
+     otra cosa, corregilo: manda lo que hay realmente.
    - Podés dejarlo en **0** — se te pedirá una confirmación explícita.
 2. Hacé clic en **Abrir caja** (o presioná Enter).
 
@@ -245,8 +248,15 @@ Mientras la caja está abierta, la pantalla muestra en vivo:
 4. La pantalla calcula automáticamente:
    - **Esperado** (lo que debería haber).
    - **Diferencia** (contado − esperado). Negativo = falta plata. Positivo = sobra.
-5. Si la diferencia no es 0, agregá una **nota explicativa**.
-6. Hacé clic en **Confirmar cierre**.
+5. Ingresá el **efectivo que queda en caja** (el fondo para el próximo turno).
+   Viene propuesto con el fondo por defecto; corregilo si ese día dejás otro
+   monto (por ejemplo 590.000 o 620.000). No puede ser mayor que el contado.
+6. La pantalla muestra **A retirar / entregar** = contado − lo que queda. Es la
+   plata que se saca del cajón; **no cambia el arqueo** (esperado y diferencia).
+7. Si la diferencia no es 0, agregá una **nota explicativa**. Las notas se
+   imprimen al pie del comprobante PDF del cierre, junto con "Queda en caja" y
+   "Retiro / entrega".
+8. Hacé clic en **Confirmar cierre**.
 
 [Screenshot: modal de cierre de caja con campos esperado/contado/diferencia]
 
@@ -942,6 +952,14 @@ Estos datos aparecen en el **encabezado del ticket**.
 - La preferencia se guarda en esta computadora.
 
 ---
+
+### 14.7 Caja: fondo por defecto
+
+- **Fondo de caja por defecto (Gs.)** — efectivo que suele quedar en el cajón
+  para el próximo turno (por ejemplo 600.000).
+- Se precarga en **Queda en caja** al cerrar (se puede corregir en cada cierre)
+  y se propone como monto de apertura cuando el último cierre no registró fondo.
+- Dejalo en **0** para no usarlo. Solo el Admin puede cambiarlo.
 
 ## 15. Backup y restauración
 

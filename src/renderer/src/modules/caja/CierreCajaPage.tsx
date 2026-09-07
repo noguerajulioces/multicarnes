@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
+  Banknote,
   CheckCircle2,
   Coins,
   FileText,
@@ -45,6 +46,12 @@ export default function CierreCajaPage() {
   const [counted, setCounted] = useState(0)
   const [touched, setTouched] = useState(false)
   const [notes, setNotes] = useState('')
+  // 010-cash-float-close: efectivo que queda en el cajón como fondo para el
+  // próximo turno. Se precarga con el fondo por defecto (Configuración › Caja)
+  // y se corrige en cada cierre. El retiro (contado − fondo) se deriva; no
+  // toca el arqueo.
+  const [kept, setKept] = useState(0)
+  const [defaultFloat, setDefaultFloat] = useState<number | null>(null)
   const [expected, setExpected] = useState(0)
   const [loading, setLoading] = useState(false)
   const [otherMethods, setOtherMethods] = useState<OtherMethodRow[]>([])
@@ -75,8 +82,33 @@ export default function CierreCajaPage() {
     })
   }, [register, closed, navigate])
 
+  // Precarga del fondo por defecto. Igual que en la apertura, lo tipeado por
+  // la operadora manda: si ya tocó "Queda en caja" antes de que responda la
+  // configuración, la respuesta tardía no pisa su valor.
+  const keptEditedRef = useRef(false)
+  useEffect(() => {
+    window.api.settings
+      .getAll()
+      .then((all) => {
+        const raw = all.find((s) => s.key === 'cash_float_default')?.value
+        const parsed = raw ? parseInt(raw, 10) : 0
+        if (Number.isFinite(parsed) && parsed > 0) {
+          setDefaultFloat(parsed)
+          if (!keptEditedRef.current) setKept(parsed)
+        }
+      })
+      .catch(() => {
+        /* sin fondo por defecto configurado: "Queda en caja" arranca en 0 */
+      })
+  }, [])
+
   const difference = counted - expected
   const positiveDiff = difference >= 0
+  // 010: rendición — lo que se retira/entrega es el contado menos el fondo.
+  const withdraw = counted - kept
+  // Sólo se señala una vez ingresado el contado: con el contado vacío y el
+  // fondo precargado, marcarlo en rojo de entrada sería ruido.
+  const keptExceeds = touched && kept > counted
 
   const stale = isRegisterStale(register)
   const lateDays = daysOpen(register)
@@ -87,13 +119,18 @@ export default function CierreCajaPage() {
       toast.error('Las notas son obligatorias en un cierre con retraso')
       return
     }
+    if (keptExceeds) {
+      toast.error('No puede quedar en caja más de lo contado.')
+      return
+    }
     setLoading(true)
     try {
       const closedReg = await window.api.cash.close(
         register.id,
         counted,
         notes || undefined,
-        user?.id
+        user?.id,
+        kept
       )
       // Gather the register-scoped data for the cierre PDF before clearing the
       // store. getSummary/getByRegister/getMovements still work on a closed
@@ -179,6 +216,22 @@ export default function CierreCajaPage() {
             )}{' '}
             Descargá el comprobante del cierre para archivarlo.
           </p>
+          {closed.register.kept_amount != null && (
+            <div className="grid grid-cols-2 gap-3 mt-4 max-w-md mx-auto text-left">
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-xs text-text-muted">Queda en caja (fondo)</p>
+                <p className="text-lg font-bold tabular-nums text-text-main">
+                  {formatGs(closed.register.kept_amount)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border p-3 bg-surface-muted/60">
+                <p className="text-xs text-text-muted">Retiro / entrega</p>
+                <p className="text-lg font-bold tabular-nums text-brand">
+                  {formatGs((closed.register.closing_amount ?? 0) - closed.register.kept_amount)}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-5">
             <Button onClick={() => downloadCierreReport(closed)}>
               <FileText size={16} />
@@ -289,6 +342,47 @@ export default function CierreCajaPage() {
                 </p>
               </div>
             )}
+
+            <div data-tour="caja-cierre-kept">
+              <label className="block text-sm text-text-muted mb-1.5">
+                Efectivo que queda en caja (fondo para el próximo turno)
+              </label>
+              <MoneyInput
+                value={kept}
+                onValueChange={(v) => {
+                  keptEditedRef.current = true
+                  setKept(v)
+                }}
+                invalid={keptExceeds}
+                className="h-12 text-right text-lg tabular-nums"
+                placeholder="0"
+              />
+              {keptExceeds ? (
+                <p className="text-xs text-danger-700 mt-1">
+                  No puede quedar en caja más de lo contado ({formatGs(counted)}).
+                </p>
+              ) : defaultFloat != null && kept !== defaultFloat ? (
+                <p className="text-xs text-text-muted mt-1">
+                  Difiere del fondo por defecto ({formatGs(defaultFloat)}). Está bien: dejá el monto
+                  real que queda en el cajón.
+                </p>
+              ) : null}
+            </div>
+
+            {touched && !keptExceeds && (
+              <div className="rounded-xl p-3 border border-border bg-surface-muted/40">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <Banknote size={14} className="text-brand" />
+                  <p className="text-xs text-text-muted">A retirar / entregar</p>
+                </div>
+                <p className="text-lg font-bold tabular-nums text-text-main">
+                  {formatGs(withdraw)}
+                </p>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  Contado − queda en caja. No modifica el arqueo.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col">
@@ -302,7 +396,7 @@ export default function CierreCajaPage() {
               placeholder={
                 stale
                   ? 'Explicá por qué se cerró con retraso (cajero ausente, olvido, etc.)'
-                  : 'Observaciones del cierre...'
+                  : 'Observaciones del cierre (se imprimen al pie del comprobante)'
               }
             />
 
@@ -315,7 +409,9 @@ export default function CierreCajaPage() {
               <Button
                 className="flex-1"
                 onClick={handleClose}
-                disabled={loading || !touched || (stale && notes.trim().length === 0)}
+                disabled={
+                  loading || !touched || keptExceeds || (stale && notes.trim().length === 0)
+                }
               >
                 {loading ? 'Cerrando...' : 'Confirmar Cierre'}
               </Button>

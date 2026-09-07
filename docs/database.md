@@ -109,6 +109,7 @@ erDiagram
         INTEGER expected_amount
         INTEGER difference
         TEXT notes
+        INTEGER kept_amount
         TEXT status "open|closed"
     }
 
@@ -256,6 +257,8 @@ Suppliers linked to `purchase_orders`.
 Each cash-register opening creates a row with `status='open'`. Closing flips it to `closed`, fills `closing_amount`, `expected_amount` (computed from movements + cash sales), and `difference`.
 
 Only **one open register per user** at a time (enforced at the application level).
+
+`kept_amount` (migration v18, feature 010) stores the cash left in the drawer at close — the float for the next shift. It is `NULL` for every register closed before that release, and the read side renders it as "—" rather than guessing. The amount handed over is derived as `closing_amount − kept_amount` and never stored; it also does **not** create a `cash_movements` row — the synthetic `closing` movement keeps carrying the full counted cash, so the arqueo (`expected_amount` / `difference`) is untouched by the float.
 
 ### `cash_movements`
 

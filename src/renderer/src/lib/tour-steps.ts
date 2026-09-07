@@ -262,6 +262,11 @@ export const configTourSteps: StepType[] = [
     content: 'Nombre, dirección y teléfono que aparecen en los tickets impresos y reportes.'
   },
   {
+    selector: '[data-tour="config-cash"]',
+    content:
+      'Fondo de caja por defecto: el efectivo que suele quedar en el cajón para el próximo turno. Se precarga al cerrar la caja y se propone al abrirla.'
+  },
+  {
     selector: '[data-tour="config-theme"]',
     content: 'Tema claro u oscuro según el ambiente del local.'
   },
@@ -319,7 +324,7 @@ export const cajaAperturaTourSteps: StepType[] = [
   {
     selector: '[data-tour="caja-apertura-amount"]',
     content:
-      'Monto de efectivo con el que iniciás el turno. Si no tenés cambio en el cajón, podés abrir en ₲ 0.'
+      'Monto de efectivo con el que iniciás el turno. Se propone lo que quedó en caja en el último cierre (o el fondo por defecto); corregilo si el cajón tiene otra cosa. Si no tenés cambio, podés abrir en ₲ 0.'
   },
   {
     selector: '[data-tour="caja-apertura-submit"]',
@@ -337,6 +342,11 @@ export const cajaCierreTourSteps: StepType[] = [
     selector: '[data-tour="caja-cierre-counted"]',
     content:
       'Ingresá el efectivo contado físicamente. La diferencia se muestra en vivo: verde si sobra, rojo si falta.'
+  },
+  {
+    selector: '[data-tour="caja-cierre-kept"]',
+    content:
+      'Indicá cuánto efectivo queda en el cajón como fondo para el próximo turno. El sistema calcula "A retirar / entregar" = contado − fondo. No cambia el arqueo.'
   },
   {
     selector: '[data-tour="caja-cierre-confirm"]',
