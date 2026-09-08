@@ -2,8 +2,9 @@
 Active feature: **010-cash-float-close** — fondo de caja y retiro al cierre.
 El negocio deja un fondo fijo de efectivo en el cajón (~600.000 Gs) y al cerrar
 debía restarlo a mano del contado para saber cuánto retira. Ahora el cierre pide
-"Efectivo que queda en caja" (precargado con el ajuste `cash_float_default`,
-editable, validado `kept ≤ contado` en `closeCashRegister`) y muestra en vivo
+"Efectivo que queda en caja" (precargado con el ajuste `cash_float_default`, sembrado en
+600.000 por seed + migración v19, editable, validado `kept ≤ contado` en
+`closeCashRegister`) y muestra en vivo
 "A retirar / entregar" = contado − fondo. **El arqueo no cambia**: esperado y
 diferencia se calculan igual; el retiro se deriva y no genera `cash_movements`.
 Migración aditiva v18: `cash_registers.kept_amount INTEGER NULL` (NULL en

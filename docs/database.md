@@ -311,17 +311,18 @@ Free-form log for sensitive actions (logins, backup restores, etc.). `details` m
 
 Key/value configuration. Currently used keys:
 
-| Key                       | Default                 | Description                                            |
-| ------------------------- | ----------------------- | ------------------------------------------------------ |
-| `business_name`           | `Multicarnes S.R.L.`    | Business name (printed on receipts)                    |
-| `business_address`        | `Encarnación, Paraguay` | Address                                                |
-| `business_phone`          | ``                      | Phone                                                  |
-| `thermal_printer_name`    | ``                      | Thermal printer name                                   |
-| `thermal_printer_width`   | `80`                    | `58` or `80` mm                                        |
-| `backup_path`             | ``                      | Backup destination folder (empty = `userData/backups`) |
-| `auto_backup`             | `1`                     | If `1`, creates an automatic backup on cash close      |
-| `backup_schedule_enabled` | `0`                     | If `1`, enables the scheduled daily backup             |
-| `backup_schedule_time`    | `22:00`                 | Scheduled backup time (24h format)                     |
+| Key                       | Default                 | Description                                              |
+| ------------------------- | ----------------------- | -------------------------------------------------------- |
+| `business_name`           | `Multicarnes S.R.L.`    | Business name (printed on receipts)                      |
+| `business_address`        | `Encarnación, Paraguay` | Address                                                  |
+| `business_phone`          | ``                      | Phone                                                    |
+| `thermal_printer_name`    | ``                      | Thermal printer name                                     |
+| `thermal_printer_width`   | `80`                    | `58` or `80` mm                                          |
+| `backup_path`             | ``                      | Backup destination folder (empty = `userData/backups`)   |
+| `auto_backup`             | `1`                     | If `1`, creates an automatic backup on cash close        |
+| `backup_schedule_enabled` | `0`                     | If `1`, enables the scheduled daily backup               |
+| `backup_schedule_time`    | `22:00`                 | Scheduled backup time (24h format)                       |
+| `cash_float_default`      | `600000`                | Cash float proposed at close/open (010); `0` disables it |
 
 ## Typical transactional flow (sale)
 

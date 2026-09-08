@@ -114,8 +114,9 @@ sin nota y verificar que no aparece ningún pie de observaciones vacío.
 El Admin entra a Configuración y define **"Fondo de caja por defecto"** (por
 ejemplo 600.000). Desde entonces, cada cierre precarga ese valor en "Queda en
 caja" y cada apertura sin un cierre previo con fondo lo propone como monto
-inicial. Si no está configurado, el cierre precarga 0. Cambiarlo afecta sólo
-los cierres futuros.
+inicial. Viene sembrado en 600.000 desde la instalación (decisión del
+2026-09-07); si el Admin lo deja en 0, el cierre precarga 0. Cambiarlo afecta
+sólo los cierres futuros.
 
 **Why this priority**: evita tipear 600.000 en cada cierre y deja asentada la
 regla del negocio en un solo lugar. Sin esto la feature sigue funcionando
@@ -129,9 +130,9 @@ el ajuste pero sí reciben la precarga al cerrar.
 
 **Acceptance Scenarios**:
 
-1. **Given** el fondo por defecto no configurado, **When** se abre la pantalla
-   de cierre, **Then** "Queda en caja" precarga 0 y "A retirar / entregar" es
-   igual al contado.
+1. **Given** el fondo por defecto en 0 (desactivado por el Admin), **When** se
+   abre la pantalla de cierre, **Then** "Queda en caja" precarga 0 y "A retirar
+   / entregar" es igual al contado.
 2. **Given** que el Admin configura 600.000, **When** cualquier usuario
    autorizado a cerrar abre la pantalla de cierre, **Then** "Queda en caja"
    precarga 600.000.
@@ -253,8 +254,8 @@ Retiro y Observaciones.
   queda en caja (fondo para el próximo turno)", en guaraníes enteros, no
   negativo, además del contado y las notas actuales.
 - **FR-002**: El campo "Queda en caja" MUST precargarse con el fondo por defecto
-  del negocio cuando esté configurado y con 0 en caso contrario, y MUST poder
-  editarse en cada cierre.
+  del negocio cuando sea mayor que 0 (viene sembrado en 600.000) y con 0 en
+  caso contrario, y MUST poder editarse en cada cierre.
 - **FR-003**: La pantalla de cierre MUST mostrar en vivo la línea "A retirar /
   entregar" igual a contado − "Queda en caja", actualizada ante cualquier cambio
   de cualquiera de los dos valores y visible antes de confirmar.
@@ -278,7 +279,9 @@ Retiro y Observaciones.
 - **FR-010**: El sistema MUST ofrecer en Configuración un ajuste "Fondo de caja
   por defecto" en guaraníes, editable sólo por Admin, cuyo valor MUST ser
   legible por cualquier usuario autorizado a abrir o cerrar la caja; vacío o 0
-  significa "no configurado".
+  significa "no configurado". El ajuste MUST venir sembrado en 600.000 tanto en
+  instalaciones nuevas como al actualizar, sin pisar un valor ya cambiado por
+  el Admin.
 - **FR-011**: Cambiar el fondo por defecto MUST afectar sólo las precargas
   futuras; los cierres ya registrados MUST conservar el fondo que se guardó en
   su momento.
@@ -348,6 +351,10 @@ Retiro y Observaciones.
 
 ## Assumptions
 
+- **Decisiones confirmadas el 2026-09-07 con el dueño del proyecto**: el
+  comprobante del cierre se imprime en papel y también se mira en pantalla
+  (ambos caminos quedan cubiertos); el fondo es casi siempre 600.000, por lo
+  que el ajuste se siembra en ese valor y el Admin sólo lo toca si cambia.
 - **Idioma del documento**: este spec se escribe en español por preferencia del
   autor para los artefactos de Spec Kit, aun cuando la regla del repo pide
   documentación en inglés. Se deja constancia una vez para esta feature.

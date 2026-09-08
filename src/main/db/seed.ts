@@ -35,7 +35,11 @@ export function seedDatabase(db: Database.Database): void {
     ['backup_path', ''],
     ['auto_backup', '1'],
     ['backup_schedule_enabled', '0'],
-    ['backup_schedule_time', '22:00']
+    ['backup_schedule_time', '22:00'],
+    // 010-cash-float-close: the float the business keeps in the drawer between
+    // shifts (decision 2026-09-07: 600.000 Gs). Upgrades get it from migration
+    // v19; Admin can change it or set 0 to disable the prefill.
+    ['cash_float_default', '600000']
   ]
   const insertSetting = db.prepare('INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)')
   for (const [key, value] of defaults) {

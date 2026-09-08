@@ -213,3 +213,57 @@ describe('migration v18 — kept_amount on an upgraded database (010)', () => {
     expect(() => db.transaction(() => v18.up(db))()).not.toThrow()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Default float of 600.000 Gs seeded for upgraded installs (migration v19) and
+// fresh installs (seed.ts). Never overrides a value the admin already set.
+// ---------------------------------------------------------------------------
+describe('migration v19 — cash_float_default seeded to 600.000 (010)', () => {
+  test('the ledger seeds cash_float_default = 600000', () => {
+    const db = createTestDb()
+    const row = db
+      .prepare("SELECT value FROM app_settings WHERE key = 'cash_float_default'")
+      .get() as { value: string } | undefined
+    expect(row?.value).toBe('600000')
+  })
+
+  test('re-running v19 keeps a value the admin already changed', async () => {
+    const { TEST_MIGRATIONS } = await import('../../src/main/db')
+    const db = createTestDb()
+    db.prepare("UPDATE app_settings SET value = '500000' WHERE key = 'cash_float_default'").run()
+    db.prepare('DELETE FROM schema_migrations WHERE version = 19').run()
+
+    const v19 = TEST_MIGRATIONS.find((m) => m.version === 19)
+    if (!v19) throw new Error('expected v19 migration in ledger')
+    db.transaction(() => v19.up(db))()
+
+    const row = db
+      .prepare("SELECT value FROM app_settings WHERE key = 'cash_float_default'")
+      .get() as { value: string }
+    expect(row.value).toBe('500000')
+  })
+
+  test('seedDatabase (fresh install) writes the same default', async () => {
+    const { seedDatabase } = await import('../../src/main/db/seed')
+    const db = createTestDb()
+    db.prepare("DELETE FROM app_settings WHERE key = 'cash_float_default'").run()
+    seedDatabase(db) // no users yet → seeds the defaults
+    const row = db
+      .prepare("SELECT value FROM app_settings WHERE key = 'cash_float_default'")
+      .get() as { value: string }
+    expect(row.value).toBe('600000')
+  })
+})
+
+describe('getCashFloatDefault (renderer helper, 010)', () => {
+  test('parses the setting and treats empty, zero and garbage as "not configured"', async () => {
+    const { getCashFloatDefault } = await import('../../src/renderer/src/lib/cash-float')
+    const s = (value: string) => [{ key: 'cash_float_default', value }]
+    expect(getCashFloatDefault(s('600000'))).toBe(600_000)
+    expect(getCashFloatDefault(s('0'))).toBeNull()
+    expect(getCashFloatDefault(s(''))).toBeNull()
+    expect(getCashFloatDefault(s('abc'))).toBeNull()
+    expect(getCashFloatDefault(s('-5'))).toBeNull()
+    expect(getCashFloatDefault([])).toBeNull()
+  })
+})

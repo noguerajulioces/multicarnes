@@ -48,9 +48,9 @@
 - Trazabilidad FR → historia: FR-001..007 y FR-016/017 → US1; FR-008/009 →
   US2; FR-010/011 → US3; FR-012 → US4; FR-013..015 → US5; FR-018 (MAY) es
   informativo y no bloquea ninguna historia.
-- Preguntas abiertas con la clienta que **no** bloquean el spec (ambos caminos
-  quedan cubiertos): si hoy imprimen el PDF del cierre o sólo miran la pantalla
-  (US1 cubre pantalla, US2 cubre papel); y si el fondo de 600.000 es fijo o
-  varía (US3 lo configura, US1 lo edita por cierre).
+- Preguntas abiertas con la clienta, **resueltas el 2026-09-07**: imprimen el
+  PDF del cierre y también miran la pantalla (US1 cubre pantalla, US2 cubre
+  papel); el fondo es casi siempre 600.000, así que el ajuste se siembra en ese
+  valor (US3) y se corrige por cierre cuando varía (US1).
 - Items marked incomplete require spec updates before `/speckit-clarify` or
   `/speckit-plan`. Ninguno pendiente.

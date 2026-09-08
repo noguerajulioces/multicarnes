@@ -505,6 +505,22 @@ const MIGRATIONS: Migration[] = [
         db.exec('ALTER TABLE cash_registers ADD COLUMN kept_amount INTEGER')
       }
     }
+  },
+  {
+    version: 19,
+    name: 'seed_cash_float_default',
+    up: (db) => {
+      // 010-cash-float-close: the business keeps ~600.000 Gs in the drawer
+      // between shifts, so the close/open screens should propose that amount
+      // out of the box (decision 2026-09-07). INSERT OR IGNORE never overrides
+      // a value an admin already set; fresh installs get the same row from
+      // seed.ts. Admin can change it in Configuración › Caja or set 0 to
+      // disable the prefill.
+      db.prepare('INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)').run(
+        'cash_float_default',
+        '600000'
+      )
+    }
   }
 ]
 
