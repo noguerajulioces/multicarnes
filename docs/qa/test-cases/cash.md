@@ -15,11 +15,11 @@ Prefix: `CSH`
 | CSH-008 | Close session with surplus                     | P1       |
 | CSH-009 | Cannot make a sale on a closed session         | P1       |
 | CSH-010 | Closed session is visible in cash history      | P2       |
-| CSH-011 | Close with the float left in the drawer         | P1       |
-| CSH-012 | Float larger than the counted cash is rejected  | P1       |
-| CSH-013 | Close PDF prints float, withdrawal and notes    | P1       |
-| CSH-014 | Next opening proposes the float left            | P2       |
-| CSH-015 | History shows Quedó / Retiro / Notas            | P2       |
+| CSH-011 | Close with the float left in the drawer        | P1       |
+| CSH-012 | Float larger than the counted cash is rejected | P1       |
+| CSH-013 | Close PDF prints float, withdrawal and notes   | P1       |
+| CSH-014 | Next opening proposes the float left           | P2       |
+| CSH-015 | History shows Quedó / Retiro / Notas           | P2       |
 
 ---
 
