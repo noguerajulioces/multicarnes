@@ -17,6 +17,7 @@ import { Button, MoneyInput, TourButton } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaCierreTourSteps } from '../../lib/tour-steps'
 import { handleApiError } from '../../lib/api-error'
+import { getCashFloatDefault } from '../../lib/cash-float'
 import { PROCESSOR_LABEL } from '../../lib/processors'
 import { downloadCierreReport, type CierreReportInput } from '../../lib/cierre-report'
 import CierreSuccessSplash from './CierreSuccessSplash'
@@ -90,11 +91,10 @@ export default function CierreCajaPage() {
     window.api.settings
       .getAll()
       .then((all) => {
-        const raw = all.find((s) => s.key === 'cash_float_default')?.value
-        const parsed = raw ? parseInt(raw, 10) : 0
-        if (Number.isFinite(parsed) && parsed > 0) {
-          setDefaultFloat(parsed)
-          if (!keptEditedRef.current) setKept(parsed)
+        const def = getCashFloatDefault(all)
+        if (def != null) {
+          setDefaultFloat(def)
+          if (!keptEditedRef.current) setKept(def)
         }
       })
       .catch(() => {

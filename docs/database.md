@@ -258,7 +258,11 @@ Each cash-register opening creates a row with `status='open'`. Closing flips it 
 
 Only **one open register per user** at a time (enforced at the application level).
 
-`kept_amount` (migration v18, feature 010) stores the cash left in the drawer at close — the float for the next shift. It is `NULL` for every register closed before that release, and the read side renders it as "—" rather than guessing. The amount handed over is derived as `closing_amount − kept_amount` and never stored; it also does **not** create a `cash_movements` row — the synthetic `closing` movement keeps carrying the full counted cash, so the arqueo (`expected_amount` / `difference`) is untouched by the float.
+`kept_amount` (migration v18, feature 010) is the cash left in the drawer at close — the float for the next shift.
+
+- `NULL` for every register closed before that release; the read side renders it as "—" rather than guessing.
+- The amount handed over is derived as `closing_amount − kept_amount` and never stored.
+- It does **not** create a `cash_movements` row: the synthetic `closing` movement still carries the full counted cash, so the arqueo (`expected_amount` / `difference`) is untouched by the float.
 
 ### `cash_movements`
 

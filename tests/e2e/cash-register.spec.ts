@@ -348,6 +348,47 @@ test.describe('Cash register', () => {
   })
 
   // -----------------
+  // cash-7-9 (010-cash-float-close) — the apertura screen proposes the float:
+  // the default float while nothing was closed yet, then whatever the last
+  // close left in the drawer. Always editable (the field is a plain input).
+  // -----------------
+  test('cash-7-9 — apertura prefills the default float, then the float left by the last close', async () => {
+    const { window, cleanup } = await launchApp()
+    try {
+      const admin = await loginAsSeedAdmin(window)
+      await ipc(window, () => {
+        localStorage.setItem('tour:seen:caja-apertura', '1')
+        return window.api.settings.set('cash_float_default', '600000')
+      })
+      // Leave and re-enter so the screen mounts after the setting exists.
+      const reopenApertura = async (): Promise<void> => {
+        await window.evaluate(() => {
+          window.location.hash = '/configuracion'
+        })
+        await window.evaluate(() => {
+          window.location.hash = '/caja/apertura'
+        })
+      }
+      await reopenApertura()
+      const amount = window.locator('[data-tour="caja-apertura-amount"] input')
+      await expect(amount).toHaveValue('600.000')
+      await expect(window.getByText(/Fondo de caja por defecto: Gs\. 600\.000/)).toBeVisible()
+
+      // A close that leaves 620.000 in the drawer wins over the default.
+      const register = await openCashRegisterViaIpc(window, admin.id, 600_000)
+      await ipc(window, ([id, userId]) => window.api.cash.close(id, 700_000, '', userId, 620_000), [
+        register.id,
+        admin.id
+      ] as const)
+      await reopenApertura()
+      await expect(amount).toHaveValue('620.000')
+      await expect(window.getByText(/Quedó del cierre anterior/)).toBeVisible()
+    } finally {
+      await cleanup()
+    }
+  })
+
+  // -----------------
   // cash-7-5 (P3) — stale close requires a note (FIXME — needs time travel)
   // -----------------
   test.fixme('cash-7-5 — stale-close (>24h) requires a note', async () => {

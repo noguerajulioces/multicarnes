@@ -7,6 +7,7 @@ import { formatDateTime, formatGs } from '../../lib/utils'
 import type { AppSetting } from '@shared/types'
 import { confirm } from '../../lib/confirm'
 import { handleApiError } from '../../lib/api-error'
+import { getCashFloatDefault } from '../../lib/cash-float'
 import { Button, MoneyInput, TourButton } from '../../components/ui'
 import { usePageTour } from '../../lib/use-page-tour'
 import { cajaAperturaTourSteps } from '../../lib/tour-steps'
@@ -36,12 +37,11 @@ export default function AperturaCajaPage() {
       window.api.settings.getAll().catch((): AppSetting[] => [])
     ]).then(([last, all]) => {
       if (cancelled) return
-      const raw = all.find((s) => s.key === 'cash_float_default')?.value
-      const def = raw ? parseInt(raw, 10) : 0
+      const def = getCashFloatDefault(all)
       let next: typeof prefill = null
       if (last && last.kept_amount != null) {
         next = { source: 'last', closedAt: last.closed_at, amount: last.kept_amount }
-      } else if (Number.isFinite(def) && def > 0) {
+      } else if (def != null) {
         next = { source: 'default', amount: def }
       }
       setPrefill(next)

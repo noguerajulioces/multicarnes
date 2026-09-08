@@ -172,3 +172,44 @@ describe('getLastClosedCashRegister (010)', () => {
     expect(last!.kept_amount).toBeNull()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Migration v18 on an UPGRADED database. createTestDb() runs createTables()
+// first (schema.ts already has kept_amount), so the ledger path never executes
+// the real ALTER TABLE. Strip the column and the ledger row to exercise the
+// branch every existing merchant DB will actually run on update.
+// ---------------------------------------------------------------------------
+describe('migration v18 — kept_amount on an upgraded database (010)', () => {
+  test('adds the column, keeps pre-existing closes as NULL, and is idempotent', async () => {
+    const Database = (await import('better-sqlite3')).default
+    const { TEST_MIGRATIONS, runMigrationsForTesting } = await import('../../src/main/db')
+    const db = new Database(':memory:')
+    runMigrationsForTesting(db)
+
+    db.exec(`
+      ALTER TABLE cash_registers DROP COLUMN kept_amount;
+      DELETE FROM schema_migrations WHERE version = 18;
+    `)
+    const uInfo = db
+      .prepare("INSERT INTO users (name, role, pin_hash) VALUES ('u', 'cajero', 'x')")
+      .run()
+    db.prepare(
+      `INSERT INTO cash_registers (user_id, opening_amount, closing_amount, status, closed_at)
+       VALUES (?, 600000, 900000, 'closed', datetime('now','localtime'))`
+    ).run(uInfo.lastInsertRowid as number)
+
+    const v18 = TEST_MIGRATIONS.find((m) => m.version === 18)
+    if (!v18) throw new Error('expected v18 migration in ledger')
+    db.transaction(() => v18.up(db))()
+
+    const cols = db.prepare('PRAGMA table_info(cash_registers)').all() as { name: string }[]
+    expect(cols.find((c) => c.name === 'kept_amount')).toBeDefined()
+    const legacy = db.prepare('SELECT kept_amount FROM cash_registers').get() as {
+      kept_amount: number | null
+    }
+    expect(legacy.kept_amount).toBeNull()
+
+    // Second run must be a no-op (PRAGMA guard), never a duplicate-column error.
+    expect(() => db.transaction(() => v18.up(db))()).not.toThrow()
+  })
+})

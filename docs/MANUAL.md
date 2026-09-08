@@ -951,8 +951,6 @@ Estos datos aparecen en el **encabezado del ticket**.
 - Se cambia desde el ícono de **sol/luna** en la barra superior.
 - La preferencia se guarda en esta computadora.
 
----
-
 ### 14.7 Caja: fondo por defecto
 
 - **Fondo de caja por defecto (Gs.)** — efectivo que suele quedar en el cajón
@@ -960,6 +958,8 @@ Estos datos aparecen en el **encabezado del ticket**.
 - Se precarga en **Queda en caja** al cerrar (se puede corregir en cada cierre)
   y se propone como monto de apertura cuando el último cierre no registró fondo.
 - Dejalo en **0** para no usarlo. Solo el Admin puede cambiarlo.
+
+---
 
 ## 15. Backup y restauración
 

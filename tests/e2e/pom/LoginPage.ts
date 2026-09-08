@@ -109,8 +109,29 @@ export class LoginPage {
    * then for the user-selection header — both with the same 20 s ceiling
    * the playwright.config.ts comment warns about.
    */
+  /** Closes an auto-opened @reactour/tour, if any, so its mask stops
+   *  intercepting clicks. No-op when no tour is showing. */
+  private async dismissTour(): Promise<void> {
+    const mask = this.page.locator('.reactour__mask')
+    if ((await mask.count()) === 0) return
+    const close = this.page.locator('.reactour__close-button')
+    if ((await close.count()) > 0) await close.first().click()
+    else await this.page.keyboard.press('Escape')
+    await mask.waitFor({ state: 'detached', timeout: 5_000 }).catch(() => {})
+  }
+
   async logout(): Promise<void> {
-    await this.page.getByRole('button', { name: /Cerrar sesión/i }).click()
+    const button = this.page.getByRole('button', { name: /Cerrar sesión/i })
+    await this.dismissTour()
+    try {
+      await button.click({ timeout: 5_000 })
+    } catch {
+      // A page tour auto-opens ~600 ms after the screen mounts and its mask
+      // swallows pointer events. On a loaded machine the tour can win the race
+      // against this click; dismiss it and try once more.
+      await this.dismissTour()
+      await button.click()
+    }
     await this.page.waitForURL(/#\/login$/, { timeout: 20_000 })
     await expect(this.page.getByText(/Seleccione su usuario/i)).toBeVisible({
       timeout: 20_000
