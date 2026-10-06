@@ -19,3 +19,5 @@ pos.db
 pos.db-journal
 pos.db-wal
 pos.db-shm
+.mcp.json
+.agentsroom/
