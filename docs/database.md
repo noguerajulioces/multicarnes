@@ -109,6 +109,7 @@ erDiagram
         INTEGER expected_amount
         INTEGER difference
         TEXT notes
+        INTEGER kept_amount
         TEXT status "open|closed"
     }
 
@@ -257,6 +258,12 @@ Each cash-register opening creates a row with `status='open'`. Closing flips it 
 
 Only **one open register per user** at a time (enforced at the application level).
 
+`kept_amount` (migration v18, feature 010) is the cash left in the drawer at close — the float for the next shift.
+
+- `NULL` for every register closed before that release; the read side renders it as "—" rather than guessing.
+- The amount handed over is derived as `closing_amount − kept_amount` and never stored.
+- It does **not** create a `cash_movements` row: the synthetic `closing` movement still carries the full counted cash, so the arqueo (`expected_amount` / `difference`) is untouched by the float.
+
 ### `cash_movements`
 
 Manual cash income and expense entries during a shift (not sales or purchases). Type `income` or `expense`.
@@ -304,17 +311,18 @@ Free-form log for sensitive actions (logins, backup restores, etc.). `details` m
 
 Key/value configuration. Currently used keys:
 
-| Key                       | Default                 | Description                                            |
-| ------------------------- | ----------------------- | ------------------------------------------------------ |
-| `business_name`           | `Multicarnes S.R.L.`    | Business name (printed on receipts)                    |
-| `business_address`        | `Encarnación, Paraguay` | Address                                                |
-| `business_phone`          | ``                      | Phone                                                  |
-| `thermal_printer_name`    | ``                      | Thermal printer name                                   |
-| `thermal_printer_width`   | `80`                    | `58` or `80` mm                                        |
-| `backup_path`             | ``                      | Backup destination folder (empty = `userData/backups`) |
-| `auto_backup`             | `1`                     | If `1`, creates an automatic backup on cash close      |
-| `backup_schedule_enabled` | `0`                     | If `1`, enables the scheduled daily backup             |
-| `backup_schedule_time`    | `22:00`                 | Scheduled backup time (24h format)                     |
+| Key                       | Default                 | Description                                              |
+| ------------------------- | ----------------------- | -------------------------------------------------------- |
+| `business_name`           | `Multicarnes S.R.L.`    | Business name (printed on receipts)                      |
+| `business_address`        | `Encarnación, Paraguay` | Address                                                  |
+| `business_phone`          | ``                      | Phone                                                    |
+| `thermal_printer_name`    | ``                      | Thermal printer name                                     |
+| `thermal_printer_width`   | `80`                    | `58` or `80` mm                                          |
+| `backup_path`             | ``                      | Backup destination folder (empty = `userData/backups`)   |
+| `auto_backup`             | `1`                     | If `1`, creates an automatic backup on cash close        |
+| `backup_schedule_enabled` | `0`                     | If `1`, enables the scheduled daily backup               |
+| `backup_schedule_time`    | `22:00`                 | Scheduled backup time (24h format)                       |
+| `cash_float_default`      | `600000`                | Cash float proposed at close/open (010); `0` disables it |
 
 ## Typical transactional flow (sale)
 

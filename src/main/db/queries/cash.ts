@@ -71,11 +71,33 @@ export function getOpenCashRegisterByUserId(userId: number) {
   )
 }
 
+// 010-cash-float-close: the most recent close, used by the apertura screen to
+// propose "what stayed in the drawer" as the next opening amount. Returns only
+// the amounts (no operator data) so it is safe to expose to every role that can
+// open a register — cashiers cannot read the full history (cash:getAll).
+export function getLastClosedCashRegister() {
+  const row = getDb()
+    .prepare(
+      `
+    SELECT id, closed_at, closing_amount, kept_amount
+    FROM cash_registers
+    WHERE status = 'closed'
+    ORDER BY closed_at DESC, id DESC
+    LIMIT 1
+  `
+    )
+    .get() as
+    | { id: number; closed_at: string; closing_amount: number | null; kept_amount: number | null }
+    | undefined
+  return row ?? null
+}
+
 export function closeCashRegister(
   id: number,
   closingAmount: number,
   notes?: string,
-  userId?: number
+  userId?: number,
+  keptAmount?: number | null
 ) {
   const db = getDb()
   const register = getCashRegisterById(id) as
@@ -92,6 +114,21 @@ export function closeCashRegister(
   // overwrite the stored closing/expected/difference and emit a duplicate
   // synthetic 'closing' movement.
   if (register.status !== 'open') throw new Error('La caja ya está cerrada.')
+
+  // 010-cash-float-close: the float left in the drawer is optional (older
+  // clients / historical semantics → NULL) but, when present, it must be a
+  // non-negative integer that never exceeds the counted cash — the derived
+  // withdrawal (closing − kept) can't be negative. It does NOT enter the
+  // arqueo below: expected and difference are computed exactly as before.
+  const kept = keptAmount == null ? null : keptAmount
+  if (kept !== null) {
+    if (!Number.isInteger(kept) || kept < 0) {
+      throw new Error('El fondo que queda en caja debe ser un monto entero no negativo.')
+    }
+    if (kept > closingAmount) {
+      throw new Error('El fondo que queda en caja no puede superar el monto contado.')
+    }
+  }
 
   const cashSales = db
     .prepare(
@@ -155,10 +192,10 @@ export function closeCashRegister(
       `
       UPDATE cash_registers
       SET closed_at = datetime('now','localtime'), closing_amount = ?, expected_amount = ?,
-          difference = ?, notes = ?, status = 'closed'
+          difference = ?, notes = ?, kept_amount = ?, status = 'closed'
       WHERE id = ?
     `
-    ).run(closingAmount, expectedAmount, difference, notes || null, id)
+    ).run(closingAmount, expectedAmount, difference, notes || null, kept, id)
 
     // Emit the synthetic 'closing' row. Description mirrors the migration
     // backfill so the read-side label is consistent across legacy + new rows.

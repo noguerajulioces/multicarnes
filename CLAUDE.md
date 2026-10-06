@@ -1,5 +1,23 @@
 <!-- SPECKIT START -->
-Active feature: **009-mixed-payment-breakdown** — hacer visible el desglose de
+Active feature: **010-cash-float-close** — fondo de caja y retiro al cierre.
+El negocio deja un fondo fijo de efectivo en el cajón (~600.000 Gs) y al cerrar
+debía restarlo a mano del contado para saber cuánto retira. Ahora el cierre pide
+"Efectivo que queda en caja" (precargado con el ajuste `cash_float_default`, sembrado en
+600.000 por seed + migración v19, editable, validado `kept ≤ contado` en
+`closeCashRegister`) y muestra en vivo
+"A retirar / entregar" = contado − fondo. **El arqueo no cambia**: esperado y
+diferencia se calculan igual; el retiro se deriva y no genera `cash_movements`.
+Migración aditiva v18: `cash_registers.kept_amount INTEGER NULL` (NULL en
+cierres históricos → "—"). El PDF del cierre imprime fondo, retiro y las notas
+(antes se guardaban y no salían). La apertura precarga lo que quedó del último
+cierre vía la única IPC nueva, `cash:getLastClosed` (sólo montos, abierta a los
+tres roles), o el fondo por defecto. Reportes › Cierres Caja gana Quedó / Retiro
+/ Notas (+ export). Sin dependencias nuevas. Implementado sin plan/tasks; el
+spec queda como lista de aceptación.
+
+Spec: [specs/010-cash-float-close/spec.md](specs/010-cash-float-close/spec.md).
+
+Prior feature: **009-mixed-payment-breakdown** — hacer visible el desglose de
 las ventas mixtas para verificar deuda y conciliar por método. Hoy una mixta se
 guarda como `sales.payment_method='mixed'` (etiqueta monolítica) con su desglose
 real en `sale_payments`, pero los reportes agregan por la etiqueta sin

@@ -50,6 +50,10 @@ export const AUTH_MATRIX: Record<string, AuthRule> = {
   // 004-logout-cash-close: returns the caller's own open register (if any).
   // Scoped to ctx.userId in the handler — clients cannot probe other users.
   'cash:getMyOpenRegister': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
+  // 010-cash-float-close: amounts of the most recent close (no operator data)
+  // so the apertura can propose the float left in the drawer. Every role that
+  // can open a register may read it; the full history stays admin/supervisor.
+  'cash:getLastClosed': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },
   // cash:close lets all 3 roles through the guard; the handler tightens to
   // "admin/supervisor OR cashier-who-opened-this-register" (T028).
   'cash:close': { kind: 'privileged', roles: ['admin', 'supervisor', 'cajero'] },

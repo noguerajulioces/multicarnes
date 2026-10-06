@@ -51,6 +51,7 @@ The existing `PerfilPage` flow continues to work via `users:update` with `self-o
 | `cash:getMovements` | `privileged: ['admin','supervisor','cajero']` | Read own session. |
 | `cash:getSummary` | `privileged: ['admin','supervisor','cajero']` | |
 | `cash:getAll` | `privileged: ['admin','supervisor']` | Historical sessions. |
+| `cash:getLastClosed` | `privileged: ['admin','supervisor','cajero']` | 010-cash-float-close: amounts of the most recent close only (`id`, `closed_at`, `closing_amount`, `kept_amount`; no operator data) so the apertura can propose the float left in the drawer. |
 
 ## Sales
 

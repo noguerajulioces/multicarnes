@@ -367,16 +367,38 @@ export function exportToPDF(
 
     // Footnotes full-width below both columns.
     let fy = endY + 4
+    doc.setFont('helvetica', 'italic')
+    doc.setFontSize(8)
+    doc.setTextColor(120, 120, 120)
+    // 010-cash-float-close: footnotes can be multi-line now (the cierre prints
+    // the operator's observations verbatim), so advance by the wrapped height
+    // instead of one fixed line — otherwise consecutive notes overlap.
+    const noteLineH = 4
+    const pageCapacity = Math.max(1, Math.floor((maxY - 24) / noteLineH))
     for (const note of footnotes) {
-      if (fy + lineH > maxY) {
+      let lines = doc.splitTextToSize(note, usableWidth) as string[]
+      if (lines.length === 0) lines = ['']
+      let room = Math.floor((maxY - (fy + 4)) / noteLineH)
+      // A note that fits on a fresh page moves there whole; only a note taller
+      // than a page gets split across pages (the cierre's observations are
+      // unbounded — never truncate them).
+      if (room < 1 || (lines.length > room && lines.length <= pageCapacity)) {
         doc.addPage()
         fy = 20
+        room = pageCapacity
       }
-      doc.setFont('helvetica', 'italic')
-      doc.setFontSize(8)
-      doc.setTextColor(120, 120, 120)
-      doc.text(note, margin, fy + 4, { maxWidth: usableWidth })
-      fy += lineH
+      while (lines.length > 0) {
+        const chunk = lines.slice(0, Math.max(1, Math.min(lines.length, room)))
+        doc.text(chunk, margin, fy + 4)
+        fy += chunk.length * noteLineH
+        lines = lines.slice(chunk.length)
+        if (lines.length > 0) {
+          doc.addPage()
+          fy = 20
+          room = pageCapacity
+        }
+      }
+      fy += 3
     }
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(26, 26, 26)
