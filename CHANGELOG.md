@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Conventional Commits](https://www.conventionalcommits.org/) and [Semantic Versioning](https://semver.org/).
 
+## [1.12.0](https://github.com/noguerajulioces/multicarnes/compare/v1.11.0...v1.12.0) (2026-10-06)
+
+### Features
+
+* **cash:** fondo de caja y retiro al cierre (010) ([#36](https://github.com/noguerajulioces/multicarnes/issues/36)) ([b055ccb](https://github.com/noguerajulioces/multicarnes/commit/b055ccbfeae7d790cdebb14d8102946c7e5feefe))
+
 ## [1.11.0](https://github.com/noguerajulioces/multicarnes/compare/v1.10.2...v1.11.0) (2026-08-03)
 
 ### Features
